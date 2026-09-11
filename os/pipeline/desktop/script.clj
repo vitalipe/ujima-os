@@ -14,6 +14,7 @@
             [clojure.java.io :as io]
             [build.apps :as apps]
             [pipeline.desktop.i18n :as i18n]
+            [pipeline.desktop.files-app :as files-app]
             [build.files :as files]))
 
 
@@ -26,6 +27,9 @@
           ($! rm -rf "/ujima/desktop")
           ($! cp -a [src] "/ujima/desktop"))
         (println "desktop: no desktop/ yet — scaffold no-op")))
+
+    ;; the Files app's C++ host: compiled from the mirrored tree, image builds only
+    (files-app/build! project)
 
     ;; desktop background: rasterize the vector wall.svg -> a ≥1080p PNG for feh (the X root can't
     ;; take an SVG). Uses the librsvg gdk-pixbuf loader via python3-gi — both installed by
