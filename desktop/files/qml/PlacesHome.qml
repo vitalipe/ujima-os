@@ -7,6 +7,8 @@ Flickable {
     signal enter(int row)
     contentHeight: body.implicitHeight + 64
     clip: true
+    boundsBehavior: Flickable.StopAtBounds
+    ScrollLane { flick: home; parent: home; anchors { right: parent.right; rightMargin: 9; top: parent.top; bottom: parent.bottom; topMargin: 34; bottomMargin: 30 } }
 
     Column {
         id: body

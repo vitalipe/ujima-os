@@ -92,6 +92,7 @@ Item {
                 id: grid
                 anchors { fill: parent; leftMargin: 26; rightMargin: 26; topMargin: 24; bottomMargin: 30 }
                 clip: true
+                boundsBehavior: Flickable.StopAtBounds
                 readonly property int gap: 14
                 readonly property int cols: Math.max(1, Math.floor((width + gap) / (178 + gap)))
                 cellWidth: width / cols
@@ -112,6 +113,7 @@ Item {
                     }
                 }
             }
+            ScrollLane { flick: grid; anchors { right: parent.right; rightMargin: 9; top: grid.top; bottom: grid.bottom } }
         }
     }
 }
