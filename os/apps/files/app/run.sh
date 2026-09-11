@@ -1,9 +1,10 @@
 #!/bin/sh
-# The side pane hides via splitter_pos=0 (collapsed to zero width — there is no real
-# "no pane" mode; an invalid side_pane_mode just falls back to a visible default), and
-# pcmanfm rewrites its conf on every exit — so re-pin before each launch. NOTE pcmanfm is
-# single-instance: this only takes effect on a fresh start, not while a window is open.
-sed -i -e "s/^side_pane_mode=.*/side_pane_mode=places/" \
-       -e "s/^splitter_pos=.*/splitter_pos=0/" \
-       /home/ujima/.config/pcmanfm/default/pcmanfm.conf 2>/dev/null
-exec pcmanfm /ujima/storage/files
+# UjimaOS Files — the Qt Quick app; its tree ships with the desktop layer (/ujima/desktop/files).
+set -eu
+ROOT=/ujima/desktop/files
+BIN="$ROOT/bin/ujima-files"
+[ -x "$BIN" ] || { echo "files: no binary at $BIN (build it: cmake -S $ROOT -B /ujima/build/files && cmake --build /ujima/build/files)" >&2; exit 1; }
+# the session's QT_QPA_PLATFORMTHEME=gtk3 is for Marble/Stellarium; this app paints itself
+unset QT_QPA_PLATFORMTHEME
+# UJIMA_FILES_ARGS: dev knobs, e.g. "--text-size Large --single-click"
+exec "$BIN" --qml "$ROOT/qml" ${UJIMA_FILES_ARGS:-}
