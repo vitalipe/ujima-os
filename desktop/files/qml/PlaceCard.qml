@@ -53,7 +53,7 @@ Rectangle {
                 Row {
                     width: parent.width
                     spacing: 10
-                    Text { text: m.name; color: Theme.text; font.pixelSize: prefs.card; font.weight: Font.Bold; font.letterSpacing: -.3; font.family: Theme.font }
+                    Text { text: m.name + (place.suffix > 1 ? " " + place.suffix : ""); color: Theme.text; font.pixelSize: prefs.card; font.weight: Font.Bold; font.letterSpacing: -.3; font.family: Theme.font }
                     Rectangle {
                         height: badge.implicitHeight + 8; width: badge.implicitWidth + 20; radius: 999
                         color: Theme.tint(m.rgb, .14); border.width: 1; border.color: Theme.tint(m.rgb, .28)
@@ -62,6 +62,21 @@ Rectangle {
                     }
                 }
                 Text { width: parent.width; text: m.desc; color: Theme.dim; font.pixelSize: prefs.sub; wrapMode: Text.WordWrap; lineHeight: 1.35; font.family: Theme.font }
+                // chips: the stick's label (never for this computer / temporary) + the token types it carries
+                Item { width: 1; height: chips.visible ? 7 : 0 }
+                Flow {
+                    id: chips
+                    width: parent.width
+                    spacing: 7
+                    readonly property bool labelled: !!place.label && place.kind !== "local" && place.kind !== "session"
+                    readonly property var tokenList: (place.tokens || []).map(Theme.tokenMeta).filter(function(t) { return t })
+                    visible: labelled || tokenList.length > 0
+                    Chip { visible: chips.labelled; text: place.label || ""; glyph: "tag"; tone: "dim" }
+                    Repeater {
+                        model: chips.tokenList
+                        delegate: Chip { required property var modelData; text: modelData.text; glyph: modelData.glyph; tone: "frost" }
+                    }
+                }
             }
             Glyph { name: "chevron"; color: m.color; size: 22; stroke: 2; anchors.verticalCenter: parent.verticalCenter }
         }

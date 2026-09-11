@@ -41,8 +41,7 @@ QtObject {
             notice: "", emptyHint: "Nothing shared here yet." }
         if (kind === "usb") return {
             name: "USB Stick", glyph: "usb", color: "#7e9ed6", rgb: [126, 158, 214],
-            desc: label ? "“" + label + "” — plugged into this computer. Take it with you."
-                        : "Plugged into this computer. Take it with you.",
+            desc: "Plugged into this computer. Take it with you.",   // the label rides as a chip
             badge: "Removable", dashed: false,
             notice: "This is a USB stick. Come back to the Places screen before you unplug it.",
             emptyHint: "Use “New folder” to start organising files." }
@@ -50,6 +49,13 @@ QtObject {
             name: "This Computer", glyph: "local", color: "#8ab07c", rgb: [138, 176, 124],
             desc: "Shared by everyone who uses this computer.", badge: "Stays here", dashed: false,
             notice: "", emptyHint: "Use “New folder” to start organising files." }
+    }
+
+    // token chips name the TYPE only — values never reach the wire
+    function tokenMeta(type) {
+        if (type === "circle/secret") return { text: "Admin key", glyph: "key" }
+        if (type === "ujima/pack")    return { text: "App pack",  glyph: "pack" }
+        return null
     }
 
     function fmtBytes(b) {

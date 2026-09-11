@@ -9,6 +9,8 @@
 // Files area first, then sticks. Space figures come from statvfs on each browse root.
 struct Place {
     QString id, kind, state, label, fstype, root;
+    QStringList tokens;        // token TYPES the stick carries ("circle/secret", "ujima/pack") — never values
+    int suffix = 0;            // 2, 3… for the second, third unlabeled stick ("USB Stick 2"); 0 = none
     qint64 used = 0, total = 0;
 };
 
@@ -18,7 +20,7 @@ class PlacesModel : public QAbstractListModel {
     Q_PROPERTY(int count READ count NOTIFY countChanged)
 public:
     enum Roles { IdRole = Qt::UserRole + 1, KindRole, StateRole, LabelRole, FstypeRole, RootRole,
-                 UsedRole, TotalRole, FreeRole, PctRole };
+                 UsedRole, TotalRole, FreeRole, PctRole, TokensRole, SuffixRole };
     explicit PlacesModel(const QUrl& streamUrl, QObject* parent = nullptr);
 
     int rowCount(const QModelIndex& = {}) const override { return m_places.size(); }
