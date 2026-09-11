@@ -5,7 +5,10 @@
            :tmp     "/ujima/run/session"}
 
  :storage {:mounts-dir "/ujima/run/storage"
-           :machine    [{:label "UJSTORE" :fstype "ext4" :mount "/ujima/storage"}]}
+           :places     [{:kind :local   :name "storage" :mount "/ujima/storage"
+                         :provides {:storage "files/"} :label "UJSTORE" :fstype "ext4"}
+                        {:kind :session :name "files"   :mount "/home/ujima/files"
+                         :provides {:storage "/"}}]}
 
  :events  {:audio-poll-ms 1000
            :clock-save-ms 600000}

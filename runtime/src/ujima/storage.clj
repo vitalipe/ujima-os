@@ -24,7 +24,7 @@
 
 
 (defonce ^:private partitions* (atom {}))   ; uuid -> {:facts f :task t}
-(defonce ^:private machine*    (atom []))   ; checked at init — fstab mounts these until the plane owns the mount
+(defonce ^:private builtin-places* (atom []))  ; declared in config, resolved at init — always ahead of removable partitions
 (defonce ^:private prev*       (atom nil))  ; last projection, the prev of (next prev)
 (defonce ^:private cfg*        (atom {}))   ; :mounts-dir by init!, :targets by on-converge!
 (defonce ^:private lock        (Object.))   ; every write path holds this
@@ -109,7 +109,7 @@
 
 
 (defn- projection []
-  (into (vec @machine*) (map (comp ->entry val)) (sort-by key @partitions*)))
+  (into (vec @builtin-places*) (map (comp ->entry val)) (sort-by key @partitions*)))
 
 
 ;; --- the write path (serialized) --------------------------------------------
@@ -212,22 +212,27 @@
       (doseq [m mounts] (release-mount! (str m))))))
 
 
-(defn- machine-entry
-  "The machine partition is declared, never label-routed — its layout is internal."
-  [{:keys [mount] :as facts}]
-  (let [base (assoc facts :kind :local :name "storage")]
-    (if (mount/mount-point? mount)
-      (assoc base :state :mounted :tokens {}
-                  :storage (provision-root mount "files/"))
-      (-> (dissoc base :mount)
-          (assoc :state :invalid :reason (str "not mounted: " mount))))))
+(defn- builtin-entry
+  "A config-declared place, resolved by kind. :local is checked, never created — a
+   dir over an unmounted mount is the RAM black hole. :session is created, never
+   checked — its contract is ephemeral, so a RAM-backed empty dir is honest."
+  [{:keys [kind mount provides] :as facts}]
+  (let [base (-> (dissoc facts :provides)
+                 (assoc :storage (provision-root mount (:storage provides))))]
+    (case kind
+      :local   (if (mount/mount-point? mount)
+                 (assoc base :state :mounted :tokens {})
+                 (-> (dissoc base :mount :storage)
+                     (assoc :state :invalid :reason (str "not mounted: " mount))))
+      :session (do (fs/create-dirs (:storage base))
+                   (assoc base :state :mounted :tokens {})))))
 
 
-(defn init! [{:keys [mounts-dir machine]}]
+(defn init! [{:keys [mounts-dir places]}]
   (let [mounts-dir (or mounts-dir default-mounts-dir)]
     (reset! partitions* {})
     (reset! prev*       nil)
-    (reset! machine*    (mapv machine-entry machine))
+    (reset! builtin-places* (mapv builtin-entry places))
     (reset! cfg*        {:mounts-dir mounts-dir :targets []})
     (release-all-mounts! mounts-dir)
     (locking lock (converge!))

@@ -112,23 +112,41 @@
 
 ;; --- machine partitions -----------------------------------------------------
 
-(deftest a-mounted-machine-partition-is-adopted
+(def ^:private local-place
+  {:kind :local :name "storage" :mount "/ujima/storage"
+   :provides {:storage "files/"} :label "UJSTORE" :fstype "ext4"})
+
+(deftest a-mounted-local-place-is-adopted
   (with-redefs [mount/mount-point? (constantly true)]
-    (storage/init! {:mounts-dir (str (fs/create-temp-dir))
-                    :machine    [{:label "UJSTORE" :fstype "ext4" :mount "/ujima/storage"}]})
-    (let [entry {:label "UJSTORE" :fstype "ext4" :mount "/ujima/storage"
-                 :kind :local :name "storage" :storage "/ujima/storage/files"
-                 :state :mounted :tokens {}}]
+    (storage/init! {:mounts-dir (str (fs/create-temp-dir)) :places [local-place]})
+    (let [entry {:kind :local :name "storage" :mount "/ujima/storage"
+                 :label "UJSTORE" :fstype "ext4"
+                 :storage "/ujima/storage/files" :state :mounted :tokens {}}]
       (is (= [entry] (storage/snapshot)) "observed mounted — adopted, never managed")
       (storage/handle-event! {:partitions {}})
       (is (= [entry] (storage/snapshot)) "a udev pass must not drop it"))))
 
 
-(deftest an-unmounted-machine-partition-tells-the-truth
-  (with-redefs [mount/mount-point? (constantly false)]
-    (storage/init! {:mounts-dir (str (fs/create-temp-dir))
-                    :machine    [{:label "UJSTORE" :fstype "ext4" :mount "/ujima/storage"}]})
-    (is (= [{:label "UJSTORE" :fstype "ext4" :kind :local :name "storage"
+(deftest an-unmounted-local-place-tells-the-truth
+  (with-redefs [mount/mount-point? (constantly false)
+                fs/create-dirs     (fn [_] (throw (ex-info "must not mkdir a :local" {})))]
+    (storage/init! {:mounts-dir (str (fs/create-temp-dir)) :places [local-place]})
+    (is (= [{:kind :local :name "storage" :label "UJSTORE" :fstype "ext4"
              :state :invalid :reason "not mounted: /ujima/storage"}]
            (storage/snapshot))
-        "a nofail boot reaches the wire as :invalid, not a cheerful :ready")))
+        "invalid drops mount+storage (the reason is the whole story) — and never mkdir's the black hole")))
+
+
+(deftest a-session-place-is-created-and-always-ready
+  (let [dir  (str (fs/path (fs/create-temp-dir) "session-root"))
+        seen (atom nil)]
+    (with-redefs [mount/mount-point? (fn [_] (throw (ex-info "must not check a :session" {})))
+                  fs/create-dirs     (fn [d] (reset! seen (str d)))]
+      (storage/init! {:mounts-dir (str (fs/create-temp-dir))
+                      :places [{:kind :session :name "files" :mount dir
+                                :provides {:storage "/"}}]})
+      (is (= dir @seen) "its storage root is created — nothing else makes it")
+      (is (= [{:kind :session :name "files" :mount dir :storage dir
+               :state :mounted :tokens {}}]
+             (storage/snapshot))
+          "ephemeral by contract — no check, always ready"))))

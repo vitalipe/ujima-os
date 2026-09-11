@@ -1,7 +1,8 @@
 {:log     {:level :debug}
  :control {:storage "/tmp/ujima/settings/"
            :tmp     "/tmp/ujima/settings/session"}
- :storage {:machine []}
+ :storage {:places [{:kind :session :name "files" :mount "/tmp/ujima/files"
+                     :provides {:storage "/"}}]}
  :desktop {:launcher "desktop/bin/ujima-launcher"
            :http     {:static-root "desktop/shell"}
            :eww      {:eww-config "desktop/shell/eww"}
