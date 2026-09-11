@@ -52,14 +52,20 @@
         (i3/switch-workspace! home-ws)))))
 
 
-(defn open-url!
-  "A url -> the Web app: warm joins the running instance by messenger, cold is a scoped launch
-   with the url. Either way, switch there."
-  [{:keys [id dir] :as app} url]
+(defn open-with!
+  "ARG (a url for the Web app, a path for an editor) -> APP: warm hands it to the running
+   instance by re-running the exec with it (the apps routed here are single-instance and
+   forward a second invocation's argument), cold is a scoped launch with it. Either way,
+   switch there."
+  [{:keys [id dir env] :as app} arg]
   (if (systemd/active? id)
-    (do (apply shell/sh {:out :inherit :err :inherit :dir dir} (conj (app->runnable @bins* app) url))
+    (do (apply shell/sh (cond-> {:out :inherit :err :inherit :dir dir} env (assoc :extra-env env))
+               (conj (app->runnable @bins* app) arg))
         (i3/switch-workspace! (name id)))
-    (run! app [url])))
+    (run! app [arg])))
+
+
+(defn open-url! [app url] (open-with! app url))
 
 
 (defn close!

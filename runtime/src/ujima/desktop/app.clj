@@ -6,7 +6,10 @@
    The session is in one of three MODES — Multi (the free desktop), Solo (one app), Locked
    (the shell's lock surface on its own workspace, over a remembered app); release! returns to
    Multi from either pin."
-  (:require [ujima.linux.i3 :as i3]
+  (:require [babashka.fs :as fs]
+            [clojure.string :as str]
+            [ujima.linux.i3 :as i3]
+            [ujima.storage :as storage]
             [ujima.desktop.app.catalog    :as catalog]
             [ujima.desktop.app.act        :as act]
             [ujima.desktop.app.projection :as proj :refer [home-ws]]))
@@ -100,6 +103,7 @@
   {:app/run       (fn [ev] (act/run! (:app ev) (:extra ev [])))
    :app/switch    (fn [ev] (i3/switch-workspace! (name (:id (:app ev)))))
    :app/open-url  (fn [ev] (act/open-url! (:app ev) (:url ev)))
+   :app/open-file (fn [ev] (act/open-with! (:app ev) (:path ev)))
    :app/close     (fn [_]  (act/close! (observe!)))
    :app/home      (fn [_]  (i3/switch-workspace! home-ws))
    :app/cycle     (fn [ev] (act/cycle! (observe!) (:step ev)))
@@ -249,10 +253,47 @@
   (handle-event! {:type :app/close}))
 
 
-(defn open-url! [url]
-  (when-not (re-matches #"https?://\S+" (str url))
-    (throw (ex-info "not an http url" {:error :app/bad-url :url (str url)})))
-  (handle-event! {:type :app/open-url :app (catalog/resolve! browser-app) :url url}))
+(defn- under? [root path]
+  (let [r (str (fs/canonicalize root))
+        p (str (fs/canonicalize path))]
+    (or (= p r) (str/starts-with? p (if (str/ends-with? r "/") r (str r "/"))))))
+
+
+(defn- viewable-path?
+  "A file an app may be handed: an existing regular file inside a MOUNTED place's browse
+   root (the machine's Files area or a stick), never anything else on the filesystem."
+  [path]
+  (and path
+       (fs/regular-file? path)
+       (some (fn [{:keys [state storage]}]
+               (and (= :mounted state) storage (under? storage path)))
+             (storage/snapshot))))
+
+
+(defn- url->path [url]
+  (try (.getPath (java.net.URI. (str url))) (catch Throwable _ nil)))
+
+
+(defn open-url!
+  "http(s) as it comes; file:// only for a file the file model already exposes."
+  [url]
+  (let [url (str url)]
+    (when-not (or (re-matches #"https?://\S+" url)
+                  (and (str/starts-with? url "file://") (viewable-path? (url->path url))))
+      (throw (ex-info "not an http url or a viewable file" {:error :app/bad-url :url url})))
+    (handle-event! {:type :app/open-url :app (catalog/resolve! browser-app) :url url})))
+
+
+(defn open-file!
+  "A file -> a catalog app by id: only files the file model exposes, only :exec apps (the
+   kind whose argv can carry a path). Which app gets which type is the image's mimeapps."
+  [app-id path]
+  (let [app (catalog/resolve! app-id)]
+    (when-not (= :exec (:kind app))
+      (throw (ex-info "app cannot take a file" {:error :app/bad-app :app (str app-id)})))
+    (when-not (viewable-path? path)
+      (throw (ex-info "not a viewable file" {:error :app/bad-path :path (str path)})))
+    (handle-event! {:type :app/open-file :app app :path (str path)})))
 
 
 (defn mode-state

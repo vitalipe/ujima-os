@@ -31,6 +31,10 @@
                    :params  [:map [:url [:string {:min 1}]]]
                    :handler (fn [{:keys [url]}] (app/open-url! url))}
 
+   "app/open-file" {:doc     "Open a file in a catalog app, by id (the image's mimeapps decides which)."
+                    :params  [:map [:app [:string {:min 1}]] [:path [:string {:min 1}]]]
+                    :handler (fn [{:keys [app path]}] (app/open-file! (keyword app) path))}
+
    "app/next"     {:doc     "Focus the next open app."
                    :handler (fn [_] (app/cycle! 1))}
 
