@@ -1,0 +1,9 @@
+# managed by the ujima image build — source: os/pipeline/desktop/links/ujima-open-onlyoffice.desktop
+#
+# documents -> ONLYOFFICE, via open-file (a scoped launch with the path, or the running instance).
+[Desktop Entry]
+Type=Application
+Name=Ujima Documents
+Exec=/ujima/desktop/bin/ujima-open-file --app onlyoffice %f
+MimeType=application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/vnd.openxmlformats-officedocument.presentationml.presentation;application/vnd.oasis.opendocument.text;application/vnd.oasis.opendocument.spreadsheet;application/vnd.oasis.opendocument.presentation;application/rtf;application/msword;application/vnd.ms-excel;application/vnd.ms-powerpoint;text/csv;
+NoDisplay=true

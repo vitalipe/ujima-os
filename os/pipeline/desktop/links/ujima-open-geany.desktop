@@ -1,0 +1,9 @@
+# managed by the ujima image build — source: os/pipeline/desktop/links/ujima-open-geany.desktop
+#
+# code -> Geany, via open-file. Python is Thonny's (ujima-open-thonny.desktop).
+[Desktop Entry]
+Type=Application
+Name=Ujima Code
+Exec=/ujima/desktop/bin/ujima-open-file --app geany %f
+MimeType=text/javascript;application/javascript;text/css;application/json;application/x-shellscript;text/x-csrc;text/x-c++src;text/x-chdr;text/x-c++hdr;text/x-java;application/yaml;application/x-yaml;application/toml;application/xml;text/xml;
+NoDisplay=true

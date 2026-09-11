@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- managed by the ujima image build — source: os/pipeline/desktop/links/ujima-mime.xml
+     types the shared mime database lacks; installed to /usr/share/mime/packages + update-mime-database -->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-scratch-project">
+    <comment>Scratch project</comment>
+    <glob pattern="*.sb3"/>
+  </mime-type>
+</mime-info>

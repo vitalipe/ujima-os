@@ -1,0 +1,9 @@
+# managed by the ujima image build — source: os/pipeline/desktop/links/ujima-open-gimp.desktop
+#
+# GIMP's own .xcf -> GIMP, via open-file (the wrapper forwards the path).
+[Desktop Entry]
+Type=Application
+Name=Ujima Image Editor
+Exec=/ujima/desktop/bin/ujima-open-file --app gimp %f
+MimeType=image/x-xcf;
+NoDisplay=true

@@ -1,0 +1,9 @@
+# managed by the ujima image build — source: os/pipeline/desktop/links/ujima-open-file.desktop
+#
+# file viewer: what the Web app shows — images, video, audio, pdf, markdown, text, saved pages. xdg-open (via mimeapps.list) -> bin/ujima-open-file -> open-url file:// -> the Web app.
+[Desktop Entry]
+Type=Application
+Name=Ujima File Viewer
+Exec=/ujima/desktop/bin/ujima-open-file %f
+MimeType=image/png;image/jpeg;image/gif;image/webp;image/svg+xml;image/bmp;video/mp4;video/webm;video/ogg;video/x-matroska;audio/mpeg;audio/ogg;audio/vnd.wave;audio/x-wav;audio/wav;audio/flac;audio/mp4;application/pdf;text/markdown;text/plain;text/html;
+NoDisplay=true

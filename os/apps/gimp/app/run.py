@@ -25,4 +25,4 @@ if not os.path.exists(rc):
     except Exception as e:
         print("gimp run.py: sessionrc seed failed, launching unseeded:", e, file=sys.stderr)
 
-os.execvp("gimp", ["gimp"])
+os.execvp("gimp", ["gimp", *sys.argv[1:]])   # a file from open-file rides along

@@ -84,6 +84,15 @@
     ;; url handler registration (routing story lives in links/ujima-open-url.desktop)
     (files/install! project "desktop/links/ujima-open-url.desktop"
                     "/usr/share/applications/ujima-open-url.desktop")
+    ;; file handlers: one .desktop per target app (Web viewer, ONLYOFFICE, Geany, Thonny, GIMP,
+    ;; TurboWarp), all through bin/ujima-open-file -> the plane; mimeapps.list above picks per type.
+    (doseq [d ["ujima-open-file" "ujima-open-onlyoffice" "ujima-open-geany"
+               "ujima-open-thonny" "ujima-open-gimp" "ujima-open-turbowarp"]]
+      (files/install! project (str "desktop/links/" d ".desktop")
+                      (str "/usr/share/applications/" d ".desktop")))
+    ;; types the shared mime database lacks (.sb3), registered the freedesktop way
+    (files/install! project "desktop/links/ujima-mime.xml" "/usr/share/mime/packages/ujima.xml")
+    ($! update-mime-database "/usr/share/mime")
 
     ;; the packaged app set (os/apps/<id>): app.edn specs -> the catalog scan root, rootfs/
     ;; defaults overlaid onto / — AFTER the mirrors above so a clean-mirror can't clobber

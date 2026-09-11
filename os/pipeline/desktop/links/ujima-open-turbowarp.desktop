@@ -1,0 +1,9 @@
+# managed by the ujima image build — source: os/pipeline/desktop/links/ujima-open-turbowarp.desktop
+#
+# Scratch projects (.sb3, typed by ujima-mime.xml) -> TurboWarp, via open-file.
+[Desktop Entry]
+Type=Application
+Name=Ujima Scratch
+Exec=/ujima/desktop/bin/ujima-open-file --app turbowarp %f
+MimeType=application/x-scratch-project;
+NoDisplay=true

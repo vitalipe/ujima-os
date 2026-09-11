@@ -1,0 +1,9 @@
+# managed by the ujima image build — source: os/pipeline/desktop/links/ujima-open-thonny.desktop
+#
+# python -> Thonny, via open-file.
+[Desktop Entry]
+Type=Application
+Name=Ujima Python
+Exec=/ujima/desktop/bin/ujima-open-file --app thonny %f
+MimeType=text/x-python;text/x-python3;
+NoDisplay=true
