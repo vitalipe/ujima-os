@@ -4,9 +4,8 @@
  :control {:storage "/ujima/settings/"
            :tmp     "/ujima/run/session"}
 
- :storage {:mounts-dir "/ujima/run/storage"}
-
- :files   {:local "/ujima/storage/files"}
+ :storage {:mounts-dir "/ujima/run/storage"
+           :machine    [{:label "UJSTORE" :fstype "ext4" :mount "/ujima/storage"}]}
 
  :events  {:audio-poll-ms 1000
            :clock-save-ms 600000}

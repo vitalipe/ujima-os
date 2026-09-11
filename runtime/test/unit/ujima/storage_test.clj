@@ -6,6 +6,7 @@
             [cheshire.core :as json]
             [lib.task      :as task]
             [lib.task.flow :refer [flow]]
+            [ujima.linux.disk.mount :as mount]
             [ujima.storage :as storage]))
 
 
@@ -95,7 +96,7 @@
   (let [facts {:uuid "U" :disk "sda" :fstype "vfat"}
         t     (doto (flow :t {:mount "/ujima/run/storage/U" :tokens {:circle/secret {:key "abc"}}})
                 (task/run!!))]
-    (is (= {:uuid "U" :disk "sda" :fstype "vfat" :state :mounted
+    (is (= {:uuid "U" :disk "sda" :fstype "vfat" :kind :usb :name "U" :state :mounted
             :mount "/ujima/run/storage/U" :tokens {:circle/secret {:key "abc"}}}
            (->entry {:facts facts :task t})))))
 
@@ -109,3 +110,25 @@
         "the reason comes off the task timeline, not a hand-maintained field")))
 
 
+;; --- machine partitions -----------------------------------------------------
+
+(deftest a-mounted-machine-partition-is-adopted
+  (with-redefs [mount/mount-point? (constantly true)]
+    (storage/init! {:mounts-dir (str (fs/create-temp-dir))
+                    :machine    [{:label "UJSTORE" :fstype "ext4" :mount "/ujima/storage"}]})
+    (let [entry {:label "UJSTORE" :fstype "ext4" :mount "/ujima/storage"
+                 :kind :local :name "storage" :storage "/ujima/storage/files"
+                 :state :mounted :tokens {}}]
+      (is (= [entry] (storage/snapshot)) "observed mounted — adopted, never managed")
+      (storage/handle-event! {:partitions {}})
+      (is (= [entry] (storage/snapshot)) "a udev pass must not drop it"))))
+
+
+(deftest an-unmounted-machine-partition-tells-the-truth
+  (with-redefs [mount/mount-point? (constantly false)]
+    (storage/init! {:mounts-dir (str (fs/create-temp-dir))
+                    :machine    [{:label "UJSTORE" :fstype "ext4" :mount "/ujima/storage"}]})
+    (is (= [{:label "UJSTORE" :fstype "ext4" :kind :local :name "storage"
+             :state :invalid :reason "not mounted: /ujima/storage"}]
+           (storage/snapshot))
+        "a nofail boot reaches the wire as :invalid, not a cheerful :ready")))

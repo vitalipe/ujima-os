@@ -68,8 +68,9 @@
   ;; circle token on a stick -> console
   (storage/on-converge! token-events/on-storage!)
 
-  ;; places (the files area + removable) -> the UI stream
+  ;; places (machine + removable) -> the UI stream
   (storage/on-converge! shell-http-converge/converge-places!)
+  (shell-http-converge/converge-places! (storage/snapshot) nil)
 
   ;; plugged sinks -> [:audio :active]
   (listen! :audio-sinks

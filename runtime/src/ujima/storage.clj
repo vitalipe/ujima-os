@@ -24,6 +24,7 @@
 
 
 (defonce ^:private partitions* (atom {}))   ; uuid -> {:facts f :task t}
+(defonce ^:private machine*    (atom []))   ; checked at init — fstab mounts these until the plane owns the mount
 (defonce ^:private prev*       (atom nil))  ; last projection, the prev of (next prev)
 (defonce ^:private cfg*        (atom {}))   ; :mounts-dir by init!, :targets by on-converge!
 (defonce ^:private lock        (Object.))   ; every write path holds this
@@ -69,8 +70,8 @@
 
 (defn- sweep
   "Stat the known names under the ujima/ dir — one stat gates everything, and never
-   enumerate, so a stick with 100k files costs the same as an empty one. Values are
-   validated against their type's shape on the way in."
+   enumerate. Values are validated against their type's shape. Tokens are read only
+   here, from physically-present media: no other kind of place may provide :tokens."
   [mnt]
   (let [dir (fs/path mnt schema/dir)]
     (if (fs/directory? dir)
@@ -98,7 +99,8 @@
 
 
 (defn- ->entry [{:keys [facts task]}]
-  (let [state (task->state task)]
+  (let [facts (assoc facts :kind :usb :name (:uuid facts))
+        state (task->state task)]
     (case state
       :mounted (merge facts {:state state} (task-result task))
       :invalid (let [{:keys [error message]} (task-result task)]
@@ -106,12 +108,17 @@
       (assoc facts :state state))))
 
 
-(defn- projection [] (mapv (comp ->entry val) (sort-by key @partitions*)))
+(defn- projection []
+  (into (vec @machine*) (map (comp ->entry val)) (sort-by key @partitions*)))
 
 
 ;; --- the write path (serialized) --------------------------------------------
 
 (declare converge!)
+
+
+(defn- provision-root [backing sub]
+  (if (contains? #{nil "" "/"} sub) backing (str (fs/path backing sub))))
 
 
 ;; rw where repair exists and the semantics are ours; ro where they are not — ntfs3
@@ -131,7 +138,7 @@
    "ext4"  mount/fsck-ext4!})
 
 
-(defn- ->mount-task [fstype uuid mnt]
+(defn- ->mount-task [fstype uuid mnt conv]
   (flow :storage/mount
     
     (fs/create-dirs mnt)
@@ -145,12 +152,14 @@
 
     ;; departed while we were mounting: observe! released the point before we took it
     (if (@partitions* uuid)
-      {:mount mnt :tokens (sweep mnt)}
+      {:mount   mnt
+       :storage (provision-root mnt (:storage conv))
+       :tokens  (if (:tokens conv) (sweep mnt) {})}
       (do (release-mount! mnt) nil))))
 
 
-(defn- start-mount! [uuid {:keys [fstype]}]
-  (let [t (->mount-task fstype uuid (mount-of uuid))]
+(defn- start-mount! [uuid {:keys [fstype label]}]
+  (let [t (->mount-task fstype uuid (mount-of uuid) (schema/convention label))]
     (swap! partitions* assoc-in [uuid :task] t)
 
     (async/thread
@@ -203,12 +212,25 @@
       (doseq [m mounts] (release-mount! (str m))))))
 
 
-(defn init! [{:keys [mounts-dir]}]
+(defn- machine-entry
+  "The machine partition is declared, never label-routed — its layout is internal."
+  [{:keys [mount] :as facts}]
+  (let [base (assoc facts :kind :local :name "storage")]
+    (if (mount/mount-point? mount)
+      (assoc base :state :mounted :tokens {}
+                  :storage (provision-root mount "files/"))
+      (-> (dissoc base :mount)
+          (assoc :state :invalid :reason (str "not mounted: " mount))))))
+
+
+(defn init! [{:keys [mounts-dir machine]}]
   (let [mounts-dir (or mounts-dir default-mounts-dir)]
     (reset! partitions* {})
     (reset! prev*       nil)
+    (reset! machine*    (mapv machine-entry machine))
     (reset! cfg*        {:mounts-dir mounts-dir :targets []})
     (release-all-mounts! mounts-dir)
+    (locking lock (converge!))
     nil))
 
 

@@ -15,6 +15,7 @@
             [lib.http.signature-test]
 
             [schema.ujima.app-test]
+            [schema.ujima.storage-test]
             [ujima.control.registry-test]
             [ujima.linux.converge-test]
             [ujima.device-test]
@@ -63,6 +64,7 @@
     lib.http.signature-test
 
     schema.ujima.app-test
+    schema.ujima.storage-test
     ujima.control.registry-test
     ujima.linux.converge-test
     ujima.device-test

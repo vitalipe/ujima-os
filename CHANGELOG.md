@@ -10,6 +10,11 @@ version truth; branch names and build labels may disagree.
 
 ### Added
 
+- The machine's own storage reports itself on the places stream — including,
+  truthfully, a partition that failed to mount, instead of pretending all is well.
+- A drive labeled `UJIMAOS1` is an ujima drive: people's files live in its
+  `files/` folder with ujima's cargo beside them; any other drive browses whole,
+  and only labeled ujima drives are ever read for tokens.
 - A USB drive mounts read-write when plugged in — vfat, exFAT and ext4, checked
   and repaired first when dirty; NTFS and everything else mounts read-only.
 - The desktop serves a places stream: the machine's Files area and every mounted
