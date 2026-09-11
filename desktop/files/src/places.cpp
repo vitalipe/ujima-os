@@ -65,8 +65,10 @@ void PlacesModel::apply(const QJsonArray& places) {
         p.used   = usedOf(p.root, &p.total);
         next.push_back(p);
     }
-    std::stable_sort(next.begin(), next.end(), [](const Place& a, const Place& b) {
-        if ((a.kind == "local") != (b.kind == "local")) return a.kind == "local";
+    // the design's order: the session first, then this computer, then sticks by label
+    auto rank = [](const QString& kind) { return kind == "session" ? 0 : kind == "local" ? 1 : 2; };
+    std::stable_sort(next.begin(), next.end(), [&](const Place& a, const Place& b) {
+        if (rank(a.kind) != rank(b.kind)) return rank(a.kind) < rank(b.kind);
         return a.label.localeAwareCompare(b.label) < 0;
     });
     beginResetModel();

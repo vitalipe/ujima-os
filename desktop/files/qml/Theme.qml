@@ -30,15 +30,26 @@ QtObject {
 
     // one presentation per place kind; the stream carries kind + label + root
     function meta(kind, label) {
+        if (kind === "session") return {
+            name: "Temporary", glyph: "temp", color: "#cba878", rgb: [203, 168, 120], dashed: true,
+            desc: "A scratch space for right now.", badge: "Erased at shutdown",
+            notice: "Everything here is erased when the computer shuts down.",   // the design's copy sentence waits for copy/move
+            emptyHint: "Anything you save now will appear here — and be erased at shutdown." }
+        if (kind === "peer") return {
+            name: "Nearby Computer", glyph: "peer", color: "#b58fc9", rgb: [181, 143, 201], dashed: false,
+            desc: "A shared folder on another computer in your Ujima Circle.", badge: "Nearby",
+            notice: "", emptyHint: "Nothing shared here yet." }
         if (kind === "usb") return {
             name: "USB Stick", glyph: "usb", color: "#7e9ed6", rgb: [126, 158, 214],
             desc: label ? "“" + label + "” — plugged into this computer. Take it with you."
                         : "Plugged into this computer. Take it with you.",
-            badge: "Removable",
-            notice: "This is a USB stick. Go back to this screen before you unplug it." }
+            badge: "Removable", dashed: false,
+            notice: "This is a USB stick. Come back to the Places screen before you unplug it.",
+            emptyHint: "Use “New folder” to start organising files." }
         return {
             name: "This Computer", glyph: "local", color: "#8ab07c", rgb: [138, 176, 124],
-            desc: "Shared by everyone who uses this computer.", badge: "Stays here", notice: "" }
+            desc: "Shared by everyone who uses this computer.", badge: "Stays here", dashed: false,
+            notice: "", emptyHint: "Use “New folder” to start organising files." }
     }
 
     function fmtBytes(b) {

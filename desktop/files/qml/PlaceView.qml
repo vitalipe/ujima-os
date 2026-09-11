@@ -6,7 +6,7 @@ Item {
     id: view
     property var nav
     // PlaceView stays instantiated at home, so bindings need a meta even with no place
-    readonly property var m: nav.meta ? nav.meta : ({ name: "", glyph: "folder", color: "transparent", rgb: [0, 0, 0], notice: "" })
+    readonly property var m: nav.meta ? nav.meta : ({ name: "", glyph: "folder", color: "transparent", rgb: [0, 0, 0], notice: "", emptyHint: "" })
     readonly property bool hasSel: nav.selected !== ""
 
     Column {
@@ -85,7 +85,7 @@ Item {
                 Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Nothing here yet"; color: Theme.text; font.pixelSize: prefs.title; font.weight: Font.Bold; font.family: Theme.font }
                 Item { width: 1; height: 9 }
                 Text { anchors.horizontalCenter: parent.horizontalCenter; width: 420; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
-                       text: "Use “New folder” to start organising files."; color: Theme.dim; font.pixelSize: prefs.btn; lineHeight: 1.4; font.family: Theme.font }
+                       text: m.emptyHint; color: Theme.dim; font.pixelSize: prefs.btn; lineHeight: 1.4; font.family: Theme.font }
             }
 
             GridView {

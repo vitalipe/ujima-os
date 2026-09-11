@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Shapes
 import "."
 
 // one mount point, as the design's home card
@@ -15,9 +16,20 @@ Rectangle {
     radius: 18
     color: Qt.rgba(1, 1, 1, hovered ? .06 : .03)
     Behavior on color { ColorAnimation { duration: 160 } }
-    border.width: 1.5
+    border.width: m.dashed ? 0 : 1.5
     border.color: Theme.tint(m.rgb, .30)
     implicitHeight: col.implicitHeight + 46
+
+    // the design's dashed ring for an ephemeral place (a Rectangle border can't dash)
+    Shape {
+        visible: m.dashed
+        anchors.fill: parent
+        ShapePath {
+            strokeColor: Theme.tint(m.rgb, .42); strokeWidth: 1.5; fillColor: "transparent"
+            strokeStyle: ShapePath.DashLine; dashPattern: [4, 3]
+            PathRectangle { x: 0.75; y: 0.75; width: card.width - 1.5; height: card.height - 1.5; radius: 18 }
+        }
+    }
 
     Column {
         id: col

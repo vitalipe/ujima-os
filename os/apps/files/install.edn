@@ -1,3 +1,3 @@
 ;; runtime for the Qt Quick files app (the C++ host is built on a Pi: desktop/files/CMakeLists.txt)
 {:apt ["libqt6quick6" "libqt6qml6" "libqt6svg6" "qt6-svg-plugins"
-       "qml6-module-qtquick" "qml6-module-qtquick-window" "qml6-module-qtqml-workerscript"]}
+       "qml6-module-qtquick" "qml6-module-qtquick-window" "qml6-module-qtquick-shapes" "qml6-module-qtqml-workerscript"]}
