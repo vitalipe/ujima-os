@@ -27,6 +27,22 @@
         (recur)))))
 
 
+(defn- portal-init!
+  "The portal bridge (org.freedesktop.portal.Desktop -> the Qt picker). No :portal configured
+   means no portal — a dev host without the session bus stays quiet."
+  [bin]
+  (when bin
+    (future
+      (loop []
+        (let [{:keys [exit]} @(shell/with-spawn 
+                                (shell/inheriting shell/*spawn*)
+                                (shell/sh bin))]
+        
+          (log/warn "portal bridge exited — respawning" {:exit exit})
+          (Thread/sleep 2000)
+          (recur))))))
+
+
 (defn init!! [cfg]
 
   (log/info "opening ujima shell" cfg)
@@ -35,5 +51,6 @@
                     "http://127.0.0.1:1336/ujima-desktop/assets/launcher/")
 
 
+  (portal-init! (:portal cfg))
   (eww/init!! (:eww cfg))) 
 

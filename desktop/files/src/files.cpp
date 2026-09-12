@@ -8,7 +8,7 @@ QString Files::join(const QString& dir, const QString& name) const {
     return dir.endsWith('/') ? dir + name : dir + "/" + name;
 }
 
-bool Files::inside(const QString& root, const QString& dir) {
+bool Files::insideRoot(const QString& root, const QString& dir) {
     const QString r = QFileInfo(root).canonicalFilePath();
     const QString d = QFileInfo(dir).canonicalFilePath();
     if (r.isEmpty() || d.isEmpty()) return false;
@@ -32,7 +32,7 @@ bool Files::open(const QString& path) {
 
 QString Files::mkdir(const QString& root, const QString& dir, const QString& name) {
     if (const QString e = badName(name); !e.isEmpty()) return e;
-    if (!inside(root, dir)) return "That folder isn't in this place.";
+    if (!insideRoot(root, dir)) return "That folder isn't in this place.";
     const QDir d(dir);
     if (d.exists(name)) return "Something with that name already exists.";
     return d.mkdir(name) ? "" : "Couldn't create the folder here.";
@@ -40,7 +40,7 @@ QString Files::mkdir(const QString& root, const QString& dir, const QString& nam
 
 QString Files::rename(const QString& root, const QString& dir, const QString& name, const QString& next) {
     if (const QString e = badName(next); !e.isEmpty()) return e;
-    if (!inside(root, dir)) return "That folder isn't in this place.";
+    if (!insideRoot(root, dir)) return "That folder isn't in this place.";
     QDir d(dir);
     if (!d.exists(name)) return "That item is gone.";
     if (name == next) return "";
@@ -50,7 +50,7 @@ QString Files::rename(const QString& root, const QString& dir, const QString& na
 
 QString Files::remove(const QString& root, const QString& dir, const QString& name) {
     if (const QString e = badName(name); !e.isEmpty()) return e;
-    if (!inside(root, dir)) return "That folder isn't in this place.";
+    if (!insideRoot(root, dir)) return "That folder isn't in this place.";
     const QString target = join(dir, name);
     const QFileInfo fi(target);
     if (!fi.exists() && !fi.isSymLink()) return "That item is gone.";

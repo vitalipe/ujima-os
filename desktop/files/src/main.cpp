@@ -8,12 +8,17 @@
 #include "files.h"
 #include "glyphs.h"
 #include "places.h"
+#include "picker.h"
 #include "prefs.h"
 
 int main(int argc, char** argv) {
     // the session points Qt apps at the GTK theme (Marble, Stellarium); this one paints itself
     qunsetenv("QT_QPA_PLATFORMTHEME");
-    QGuiApplication::setApplicationName("ujima-files");   // WM_CLASS class, the projection's match
+    // --pick = a portal dialog: its own WM_CLASS, untracked by the projection, so it lands in
+    // the asking app's workspace instead of switching to the Files app's
+    bool pick = false;
+    for (int i = 1; i < argc; ++i) if (QString::fromLocal8Bit(argv[i]) == "--pick") pick = true;
+    QGuiApplication::setApplicationName(pick ? "ujima-filepicker" : "ujima-files");   // WM_CLASS class
     QGuiApplication::setOrganizationName("ujima");
     QGuiApplication app(argc, argv);
     app.setFont(QFont("Public Sans"));
@@ -24,6 +29,7 @@ int main(int argc, char** argv) {
     cli.addOption({"single-click", "Open on a single click"});
     cli.addOption({"qml",          "QML directory", "dir", QCoreApplication::applicationDirPath() + "/../qml"});
     cli.addOption({"places",       "Places stream URL", "url", "http://127.0.0.1:1336/ujima-desktop/stream/places"});
+    cli.addOption({"pick",         "Run as a portal file dialog: the request JSON file", "file"});
     cli.process(app);
 
     Prefs       prefs(cli.value("text-size"), cli.isSet("single-click"));
@@ -40,7 +46,9 @@ int main(int argc, char** argv) {
 
     const QString qmlDir = cli.value("qml");
     engine.addImportPath(qmlDir);
-    engine.load(QUrl::fromLocalFile(qmlDir + "/Main.qml"));
+    Picker* picker = pick ? new Picker(cli.value("pick"), &app) : nullptr;
+    if (picker) engine.rootContext()->setContextProperty("pick", picker);
+    engine.load(QUrl::fromLocalFile(qmlDir + (pick ? "/Picker.qml" : "/Main.qml")));
     if (engine.rootObjects().isEmpty()) return 1;
     return app.exec();
 }

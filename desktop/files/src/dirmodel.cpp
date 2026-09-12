@@ -2,6 +2,7 @@
 #include <QCollator>
 #include <QDir>
 #include <QMimeDatabase>
+#include <QRegularExpression>
 #include <algorithm>
 
 DirModel::DirModel(QObject* parent) : QAbstractListModel(parent) {
@@ -17,6 +18,13 @@ void DirModel::setPath(const QString& p) {
     m_path = p;
     if (!m_path.isEmpty()) m_watch.addPath(m_path);
     emit pathChanged();
+    refresh();
+}
+
+void DirModel::setFilter(const QStringList& globs) {
+    if (globs == m_filter) return;
+    m_filter = globs;
+    emit filterChanged();
     refresh();
 }
 
@@ -53,13 +61,22 @@ void DirModel::refresh() {
     if (!m_path.isEmpty()) {
         const QDir dir(m_path);
         const QFileInfoList entries = dir.entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot, QDir::NoSort);
+        QList<QRegularExpression> globs;
+        for (const QString& g : m_filter) globs << QRegularExpression::fromWildcard(g, Qt::CaseInsensitive);
         for (const QFileInfo& fi : entries) {
             if (m_hideToken && fi.isDir() && fi.fileName() == "ujima") continue;
+            if (!fi.isDir() && !globs.isEmpty()) {
+                bool hit = false;
+                for (const QRegularExpression& re : globs) if (re.match(fi.fileName()).hasMatch()) { hit = true; break; }
+                if (!hit) continue;
+            }
             Row r;
             r.name  = fi.fileName();
             r.isDir = fi.isDir();
             r.type  = typeOf(fi);
             r.path  = fi.filePath();
+            r.size  = fi.isDir() ? 0 : fi.size();
+            r.mtime = fi.lastModified().toMSecsSinceEpoch();
             if (r.isDir) {
                 const int n = QDir(fi.filePath()).entryList(QDir::AllEntries | QDir::NoDotAndDotDot).size();
                 r.meta = QString::number(n) + (n == 1 ? " item" : " items");
@@ -91,12 +108,15 @@ QVariant DirModel::data(const QModelIndex& idx, int role) const {
     case MetaRole:  return r.meta;
     case IsDirRole: return r.isDir;
     case PathRole:  return r.path;
+    case SizeRole:  return double(r.size);
+    case MtimeRole: return double(r.mtime);
     }
     return {};
 }
 
 QHash<int, QByteArray> DirModel::roleNames() const {
-    return {{NameRole, "name"}, {TypeRole, "type"}, {MetaRole, "meta"}, {IsDirRole, "isDir"}, {PathRole, "path"}};
+    return {{NameRole, "name"}, {TypeRole, "type"}, {MetaRole, "meta"}, {IsDirRole, "isDir"}, {PathRole, "path"},
+            {SizeRole, "size"}, {MtimeRole, "mtime"}};
 }
 
 int DirModel::indexOf(const QString& name) const {
@@ -109,5 +129,6 @@ QVariantMap DirModel::get(int row) const {
     if (row < 0 || row >= m_rows.size()) return m;
     const Row& r = m_rows[row];
     m["name"] = r.name; m["type"] = r.type; m["meta"] = r.meta; m["isDir"] = r.isDir; m["path"] = r.path;
+    m["size"] = double(r.size); m["mtime"] = double(r.mtime);
     return m;
 }

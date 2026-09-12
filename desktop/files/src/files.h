@@ -12,7 +12,8 @@ public:
     Q_INVOKABLE QString rename(const QString& root, const QString& dir, const QString& name, const QString& next);
     Q_INVOKABLE QString remove(const QString& root, const QString& dir, const QString& name);
     Q_INVOKABLE QString join  (const QString& dir, const QString& name) const;
+    Q_INVOKABLE bool    inside(const QString& root, const QString& path) const { return insideRoot(root, path); }
+    static bool insideRoot(const QString& root, const QString& dir);
 private:
-    static bool inside(const QString& root, const QString& dir);
     static QString badName(const QString& name);
 };

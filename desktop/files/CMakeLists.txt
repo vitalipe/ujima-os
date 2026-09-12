@@ -13,6 +13,7 @@ add_executable(ujima-files
   src/places.h   src/places.cpp
   src/dirmodel.h src/dirmodel.cpp
   src/files.h    src/files.cpp
+  src/picker.h   src/picker.cpp
   src/prefs.h)
 
 target_link_libraries(ujima-files PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Network Qt6::Svg)

@@ -1,0 +1,366 @@
+#!/usr/bin/env python3
+"""UjimaOS portal — owns org.freedesktop.portal.Desktop on the session bus itself,
+deliberately NOT xdg-desktop-portal: no impl backends, no document portal, no FUSE —
+the caller gets plain paths under /ujima back. Apps reach it when their toolkit sees
+a sandbox marker (/.flatpak-info): file dialogs land here (the ujima picker), theme
+reads get "dark" + the frost accent, and pipewire's Realtime probe gets a real answer
+(errors there make it retry forever — measured, see the tattletale spike).
+
+The picker itself is the Files app in --pick mode (desktop/files, WM_CLASS
+ujima-filepicker): one process per dialog, the request as a JSON file, the answer as one
+JSON line on its stdout. Untracked class, so ujimad leaves the window on the focused
+workspace where the tabbed layout covers the asking app, same doctrine as the tiled GTK
+choosers (i3 config: floated choosers overflow the bars).
+
+One dialog at a time: a second request while one is up is answered "ended" (2) — the
+portal spec's way to say try again, without stacking windows a shared machine never wants."""
+
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import threading
+
+import gi
+from gi.repository import Gio, GLib
+
+FILES_BIN = os.environ.get("UJIMA_FILES_BIN", "/ujima/desktop/files/bin/ujima-files")
+FILES_QML = os.environ.get("UJIMA_FILES_QML", "/ujima/desktop/files/qml")
+
+PORTAL_PATH = "/org/freedesktop/portal/desktop"
+
+# frost #88c0d0 — the shell accent, what "accent-color" means on this desktop
+ACCENT = (0x88 / 255.0, 0xC0 / 255.0, 0xD0 / 255.0)
+
+PORTAL_XML = """
+<node>
+  <interface name="org.freedesktop.portal.FileChooser">
+    <property name="version" type="u" access="read"/>
+    <method name="OpenFile">
+      <arg type="s" name="parent_window" direction="in"/>
+      <arg type="s" name="title" direction="in"/>
+      <arg type="a{sv}" name="options" direction="in"/>
+      <arg type="o" name="handle" direction="out"/>
+    </method>
+    <method name="SaveFile">
+      <arg type="s" name="parent_window" direction="in"/>
+      <arg type="s" name="title" direction="in"/>
+      <arg type="a{sv}" name="options" direction="in"/>
+      <arg type="o" name="handle" direction="out"/>
+    </method>
+  </interface>
+  <interface name="org.freedesktop.portal.Settings">
+    <property name="version" type="u" access="read"/>
+    <method name="Read">
+      <arg type="s" name="namespace" direction="in"/>
+      <arg type="s" name="key" direction="in"/>
+      <arg type="v" name="value" direction="out"/>
+    </method>
+    <method name="ReadAll">
+      <arg type="as" name="namespaces" direction="in"/>
+      <arg type="a{sa{sv}}" name="value" direction="out"/>
+    </method>
+    <signal name="SettingChanged">
+      <arg type="s" name="namespace"/>
+      <arg type="s" name="key"/>
+      <arg type="v" name="value"/>
+    </signal>
+  </interface>
+  <interface name="org.freedesktop.portal.ProxyResolver">
+    <property name="version" type="u" access="read"/>
+    <method name="Lookup">
+      <arg type="s" name="uri" direction="in"/>
+      <arg type="as" name="proxies" direction="out"/>
+    </method>
+  </interface>
+  <interface name="org.freedesktop.portal.NetworkMonitor">
+    <property name="version" type="u" access="read"/>
+    <method name="GetStatus">
+      <arg type="a{sv}" name="status" direction="out"/>
+    </method>
+    <method name="CanReach">
+      <arg type="s" name="hostname" direction="in"/>
+      <arg type="u" name="port" direction="in"/>
+      <arg type="b" name="reachable" direction="out"/>
+    </method>
+    <signal name="changed"/>
+  </interface>
+  <interface name="org.freedesktop.portal.Inhibit">
+    <property name="version" type="u" access="read"/>
+  </interface>
+  <interface name="org.freedesktop.portal.Screenshot">
+    <property name="version" type="u" access="read"/>
+  </interface>
+  <interface name="org.freedesktop.portal.Realtime">
+    <property name="version" type="u" access="read"/>
+    <property name="MaxRealtimePriority" type="i" access="read"/>
+    <property name="MinNiceLevel" type="i" access="read"/>
+    <property name="RTTimeUSecMax" type="x" access="read"/>
+  </interface>
+</node>
+"""
+
+REQUEST_XML = """
+<node>
+  <interface name="org.freedesktop.portal.Request">
+    <method name="Close"/>
+    <signal name="Response">
+      <arg type="u" name="response"/>
+      <arg type="a{sv}" name="results"/>
+    </signal>
+  </interface>
+</node>
+"""
+
+VERSIONS = {"org.freedesktop.portal.FileChooser":   3,
+            "org.freedesktop.portal.Settings":      2,
+            "org.freedesktop.portal.ProxyResolver": 1,
+            "org.freedesktop.portal.NetworkMonitor": 3,
+            "org.freedesktop.portal.Inhibit":       3,
+            "org.freedesktop.portal.Screenshot":    2,
+            "org.freedesktop.portal.Realtime":      1}
+
+# MaxRealtimePriority 0 = "this portal grants no RT": pipewire reads it once and falls
+# back, never calling MakeThreadRealtime* (which we don't serve)
+REALTIME = {"MaxRealtimePriority": GLib.Variant("i", 0),
+            "MinNiceLevel":        GLib.Variant("i", 0),
+            "RTTimeUSecMax":       GLib.Variant("x", 200000)}
+
+APPEARANCE = {"color-scheme": GLib.Variant("u", 1),   # 1 = prefer dark
+              "contrast":     GLib.Variant("u", 0),
+              "accent-color": GLib.Variant("(ddd)", ACCENT)}
+
+
+def log(*parts):
+    print("ujima-portal:", *parts, flush=True)
+
+
+class Dialog:
+    """One in-flight file dialog: the request object, the picker window, the
+    worker thread holding the blocking /portal/run call."""
+
+    def __init__(self, sender, path, req):
+        self.sender  = sender
+        self.path    = path
+        self.req     = req
+        self.reg_id   = None
+        self.window   = None
+        self.watch_id = None   # NameOwnerChanged subscription on the caller
+        self.closed   = False  # Request.Close arrived — spec: no Response then
+        self.settled  = False  # finish() ran — guards the window-destroy re-entry
+
+
+class Portal:
+    def __init__(self, conn):
+        self.conn         = conn
+        self.portal_info  = Gio.DBusNodeInfo.new_for_xml(PORTAL_XML)
+        self.request_info = Gio.DBusNodeInfo.new_for_xml(REQUEST_XML)
+        self.dialogs      = {}     # request path -> Dialog; many apps, many dialogs at once
+        self.server       = None
+        for iface in self.portal_info.interfaces:
+            conn.register_object(PORTAL_PATH, iface, self.on_call, self.on_get_property, None)
+
+    # ── properties (the version probes + Realtime) ──────────────────────────
+
+    def on_get_property(self, conn, sender, path, iface, prop):
+        if iface == "org.freedesktop.portal.Realtime" and prop in REALTIME:
+            return REALTIME[prop]
+        if prop == "version" and iface in VERSIONS:
+            return GLib.Variant("u", VERSIONS[iface])
+        return None
+
+    # ── method calls ────────────────────────────────────────────────────────
+
+    def on_call(self, conn, sender, path, iface, method, params, invocation):
+        try:
+            if iface == "org.freedesktop.portal.FileChooser" and method in ("OpenFile", "SaveFile"):
+                self.file_chooser(sender, method, params, invocation)
+            elif iface == "org.freedesktop.portal.Settings" and method == "Read":
+                self.settings_read(params, invocation)
+            elif iface == "org.freedesktop.portal.Settings" and method == "ReadAll":
+                self.settings_read_all(params, invocation)
+            elif iface == "org.freedesktop.portal.ProxyResolver" and method == "Lookup":
+                # ujima networks direct (LAN, no proxy). Answering this keeps our own
+                # WebKit surfaces — launcher, console, picker — loading under the marker.
+                invocation.return_value(GLib.Variant("(as)", (["direct://"],)))
+            elif iface == "org.freedesktop.portal.NetworkMonitor" and method == "GetStatus":
+                invocation.return_value(GLib.Variant("(a{sv})", ({
+                    "available":    GLib.Variant("b", True),
+                    "metered":      GLib.Variant("b", False),
+                    "connectivity": GLib.Variant("u", 4)},)))   # 4 = FULL
+            elif iface == "org.freedesktop.portal.NetworkMonitor" and method == "CanReach":
+                invocation.return_value(GLib.Variant("(b)", (True,)))
+            else:
+                invocation.return_error_literal(Gio.dbus_error_quark(),
+                                                Gio.DBusError.UNKNOWN_METHOD,
+                                                "not served: %s.%s" % (iface, method))
+        except Exception as e:
+            log("call failed:", iface, method, repr(e))
+            invocation.return_error_literal(Gio.dbus_error_quark(),
+                                            Gio.DBusError.FAILED, str(e))
+
+    # ── settings: the appearance the shell already committed to ─────────────
+
+    def settings_read(self, params, invocation):
+        namespace, key = params.unpack()
+        value = APPEARANCE.get(key) if namespace == "org.freedesktop.appearance" else None
+        if value is None:
+            invocation.return_error_literal(Gio.dbus_error_quark(),
+                                            Gio.DBusError.FAILED, "setting not found")
+            return
+        # the spec's famous double wrap: out is v, and the value rides INSIDE another v
+        invocation.return_value(GLib.Variant("(v)", (GLib.Variant("v", value),)))
+
+    def settings_read_all(self, params, invocation):
+        (namespaces,) = params.unpack()
+        want = (not namespaces) or any(ns in ("", "org.freedesktop.appearance") for ns in namespaces)
+        out  = {"org.freedesktop.appearance": APPEARANCE} if want else {}
+        invocation.return_value(GLib.Variant("(a{sa{sv}})", (out,)))
+
+    # ── the file chooser flow ───────────────────────────────────────────────
+
+    def file_chooser(self, sender, method, params, invocation):
+        parent, title, options = params.unpack()
+        token = str(options.get("handle_token", "t")) or "t"
+        token = "".join(c if (c.isalnum() or c == "_") else "_" for c in token)
+        path  = "/org/freedesktop/portal/desktop/request/%s/%s" % (
+                  sender[1:].replace(".", "_"), token)
+
+        dialog = Dialog(sender, path, self.build_request(method, title, options))
+        try:
+            dialog.reg_id = self.conn.register_object(
+                path, self.request_info.interfaces[0], self.on_request_call, None, None)
+        except Exception as e:   # a caller reusing a token — refuse just this call
+            log("request path taken:", path, repr(e))
+            invocation.return_error_literal(Gio.dbus_error_quark(),
+                                            Gio.DBusError.FAILED, "request handle in use")
+            return
+
+        invocation.return_value(GLib.Variant("(o)", (path,)))
+
+        # if the calling app vanishes (crash / kill) without a Close, cancel its dialog so
+        # the window never leaks — the bus tells us via NameOwnerChanged (arg0 = the sender)
+        dialog.watch_id = self.conn.signal_subscribe(
+            "org.freedesktop.DBus", "org.freedesktop.DBus", "NameOwnerChanged",
+            "/org/freedesktop/DBus", sender, Gio.DBusSignalFlags.NONE,
+            lambda *a: self.on_sender_gone(dialog, a[5]), None)
+
+        self.dialogs[path] = dialog
+        threading.Thread(target=self.run_dialog, args=(dialog,), daemon=True).start()
+
+    def on_sender_gone(self, dialog, params):
+        _name, _old, new_owner = params.unpack()
+        if not new_owner and not dialog.settled:   # the name lost its owner
+            log("caller gone — cancelling its dialog")
+            dialog.closed = True                    # no Response to a dead peer
+            self.picker_cancel(dialog.req["id"])
+
+    def build_request(self, method, title, options):
+        filters = []
+        for label, rules in options.get("filters", []):
+            globs = [pat for (kind, pat) in rules if kind == 0]   # 0=glob, 1=mimetype
+            if globs:
+                filters.append({"label": label, "patterns": globs})
+        current = None
+        if options.get("current_filter"):
+            label, rules = options["current_filter"]
+            globs = [pat for (kind, pat) in rules if kind == 0]
+            if globs:
+                current = {"label": label, "patterns": globs}
+
+        def text(v):   # ay fields arrive NUL-terminated
+            if v is None:
+                return None
+            if isinstance(v, (bytes, bytearray, list)):
+                v = bytes(v)
+                return v.rstrip(b"\0").decode("utf-8", "replace")
+            return str(v)
+
+        return {"id":            "%d-%s" % (id(self), GLib.get_monotonic_time()),
+                "mode":          "save" if method == "SaveFile" else "open",
+                "title":         title or "",
+                "acceptLabel":   str(options.get("accept_label") or ""),
+                "multiple":      bool(options.get("multiple", False)),
+                "directory":     bool(options.get("directory", False)),
+                "currentName":   text(options.get("current_name")) or "",
+                "currentFolder": text(options.get("current_folder")) or "",
+                "filters":       filters,
+                "currentFilter": current}
+
+    def run_dialog(self, dialog):
+        """One picker process per dialog: the request as a JSON file, the answer as one JSON
+        line on stdout. A killed or crashed picker answers nothing = cancelled."""
+        result = {"status": "error"}
+        fd, req_file = tempfile.mkstemp(prefix="ujima-pick-", suffix=".json")
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(dialog.req, f)
+            env = dict(os.environ)
+            env.pop("QT_QPA_PLATFORMTHEME", None)      # the picker paints itself (the session sets gtk3 for Qt apps)
+            proc = subprocess.Popen([FILES_BIN, "--qml", FILES_QML, "--pick", req_file],
+                                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=env)
+            dialog.proc = proc
+            out, _ = proc.communicate()
+            line = out.decode("utf-8", "replace").strip()
+            result = json.loads(line) if line else {"status": "cancelled"}
+        except Exception as e:
+            log("picker run failed:", repr(e))
+        finally:
+            try: os.unlink(req_file)
+            except OSError: pass
+        code = {"picked": 0, "cancelled": 1}.get(result.get("status"), 2)
+        uris = [GLib.filename_to_uri(p) for p in result.get("paths", [])]
+        GLib.idle_add(self.finish, dialog, code, uris)
+
+    def finish(self, dialog, code, uris):
+        if dialog.settled:            # a WM-close already routed through here
+            return False
+        dialog.settled = True
+        self.dialogs.pop(dialog.path, None)
+        if dialog.watch_id:
+            self.conn.signal_unsubscribe(dialog.watch_id)
+        if not dialog.closed:
+            results = {"uris": GLib.Variant("as", uris)} if code == 0 else {}
+            self.conn.emit_signal(dialog.sender, dialog.path,
+                                  "org.freedesktop.portal.Request", "Response",
+                                  GLib.Variant("(ua{sv})", (code, results)))
+        if dialog.reg_id:
+            self.conn.unregister_object(dialog.reg_id)
+        return False
+
+    def on_request_call(self, conn, sender, path, iface, method, params, invocation):
+        if method == "Close":
+            invocation.return_value(None)
+            dialog = self.dialogs.get(path)
+            if dialog is not None:
+                dialog.closed = True
+                self.picker_cancel(dialog.req["id"])
+        else:
+            invocation.return_error_literal(Gio.dbus_error_quark(),
+                                            Gio.DBusError.UNKNOWN_METHOD, "not served")
+
+    def picker_cancel(self, req_id):
+        """Cancel a running dialog (the caller closed it or died): end its picker process —
+        an empty answer is a cancel, and run_dialog finishes as usual."""
+        for d in list(self.dialogs.values()):
+            if d.req.get("id") == req_id and getattr(d, "proc", None) is not None:
+                try: d.proc.terminate()
+                except OSError: pass
+
+def main():
+    conn = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    Portal(conn)
+
+    def lost(*_):
+        log("bus name lost — the real xdg-desktop-portal must not be installed")
+        sys.exit(1)
+
+    Gio.bus_own_name_on_connection(conn, "org.freedesktop.portal.Desktop",
+                                   Gio.BusNameOwnerFlags.NONE,
+                                   lambda *_: log("up"), lost)
+    GLib.MainLoop().run()
+
+
+if __name__ == "__main__":
+    main()

@@ -17,7 +17,8 @@
            :auth {:window-ms 60000}}
 
  :desktop {:launcher    "/ujima/desktop/bin/ujima-launcher"
-           :places-home "/home/ujima"   ; the Places screen = home (ujima.desktop.home)
+           :portal      "/ujima/desktop/bin/ujima-portal"   ; org.freedesktop.portal.Desktop -> the Qt picker (--pick)
+           :places-home "/home/ujima"                       ; the Places screen = home (ujima.desktop.home)
 
            :http     {:host "127.0.0.1" :port 1336
                       :static-root "/ujima/desktop/shell"}
