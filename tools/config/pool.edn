@@ -13,14 +13,14 @@
 ;; Names are Swahili animals, the pool the old world TUI used.
 
 {:machines
- [{:name "Kobe"     :app :kolibri}
+ [{:name "Kobe"     :app :console}
   {:name "Ndege"    :app :turbowarp}
   {:name "Samaki"}
   {:name "Nyoka"    :app :write}
   {:name "Kanga"    :app :draw}
   {:name "Kima"}
   {:name "Fisi"     :app :geany     :muted true}
-  {:name "Mbuni"    :app :kolibri}
+  {:name "Mbuni"}
   {:name "Kiboko"}
   {:name "Sungura"  :app :tuxtype}
   {:name "Paka"     :app :excalidraw}
@@ -29,7 +29,7 @@
   {:name "Tai"      :app :marble}
   {:name "Popo"                     :off true}
   {:name "Panya"    :app :calc}
-  {:name "Kuku"     :app :wikipedia}
+  {:name "Kuku"}
   {:name "Bata"}
   {:name "Njiwa"    :app :thonny}
   {:name "Kasuku"   :app :gimp}

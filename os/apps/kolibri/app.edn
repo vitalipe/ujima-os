@@ -1,4 +1,0 @@
-;; STUB: Kolibri (Learning Equality's offline learning platform) served locally on its default
-;; :8080 — the server isn't stood up yet, so the tile opens a placeholder until it is.
-{:kind :link :label "Kolibri" :category :learn
- :url "http://localhost:8080"}

@@ -99,6 +99,8 @@ version truth; branch names and build labels may disagree.
 ### Removed
 
 - The "Home" → "Temporary" relabel of the GTK dialog sidebar — the sidebar is gone.
+- The Wikipedia and Kolibri tiles — a link to a site is a per-site thing, not
+  something the image ships for everyone.
 
 ## [0.4.0] - 2026-08-25
 
