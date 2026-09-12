@@ -69,6 +69,10 @@
     ;; the fail-open sidebar shows nothing extra — and GTK's own "add bookmark" write is refused
     (files/install! project "desktop/files/bookmarks"
                     "/home/ujima/.config/gtk-3.0/bookmarks" {:owner "ujima:ujima" :mode "0444"})
+    ;; GTK reads only the user's gtk.css on top of the theme (no /etc equivalent): the padding
+    ;; inside dialogs rides in the home seed
+    (files/install! project "desktop/files/gtk.css"
+                    "/home/ujima/.config/gtk-3.0/gtk.css" {:owner "ujima:ujima"})
     ($! chown -R "ujima:ujima" "/home/ujima/.config")
 
     ;; the Files-area tmpfiles half (kid-facing /ujima/storage/files) — the files plane is

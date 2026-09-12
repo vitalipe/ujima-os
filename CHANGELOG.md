@@ -83,6 +83,9 @@ version truth; branch names and build labels may disagree.
 - The launcher is a native window drawn the way the Files app is, not a web page in
   an embedded browser: the same home screen, at a fraction of the memory, and the
   browser engine that carried it leaves the image.
+- A dialog is a card over its app: rounded, lifted by a soft shadow, the app dimmed
+  behind it while it has the focus — in every toolkit, with room inside GTK ones.
+  Page-sized dialogs (file choosers) stay flat; menus get a lighter lift.
 
 ### Fixed
 

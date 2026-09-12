@@ -1,0 +1,9 @@
+/* managed by the ujima image build — source: os/pipeline/desktop/files/gtk.css
+ *
+ * GTK 3 reads only the user's gtk-3.0/gtk.css on top of the theme (there is no /etc
+ * equivalent), so the desktop's dialog tweaks ride in the ujima home seed.
+ *
+ * breathing room inside every dialog: the content box and the button row. A file chooser's
+ * `filechooser` child is not a box, so the band-filling page stays edge to edge. */
+dialog .dialog-vbox > box,
+messagedialog .dialog-vbox > box { padding: 8px 10px; }
