@@ -1,7 +1,5 @@
 (ns ujima.desktop.http.converge-test
   (:require [clojure.test :refer [deftest is]]
-            [clojure.string :as str]
-            [lib.edn :refer [edn->json]]
             [ujima.desktop.app :as app]
             [ujima.desktop.http.converge :as converge]))
 
@@ -104,67 +102,3 @@
         out   (converge/apps->ui {:running [] :catalog leaky :current nil})]
     (is (not (re-find #"s3cret" (pr-str out)))
         "pinned select-keys the entry — assert over the WHOLE blob, not one field")))
-
-
-;; --- places -----------------------------------------------------------------
-
-(def ^:private mounted-entry
-  {:uuid "6962-5E15" :disk "sda" :kind :usb :name "6962-5E15"
-   :label nil :fstype "vfat" :rm true
-   :state :mounted :mount "/ujima/run/storage/6962-5E15"
-   :storage "/ujima/run/storage/6962-5E15"
-   :tokens {:circle/secret {:key "abc"}}})
-
-(def ^:private ujstore-entry
-  {:label "UJSTORE" :fstype "ext4" :kind :local :name "storage"
-   :state :mounted :mount "/ujima/storage"
-   :storage "/ujima/storage/files" :tokens {}})
-
-(defn- usb-place [entry]
-  (first (:places (converge/places->ui [entry]))))
-
-
-(deftest a-machine-partition-projects-as-the-local-place
-  (is (= {:id [:local "storage"] :kind :local :state :ready
-          :label "UJSTORE" :fstype "ext4"
-          :storage "/ujima/storage/files" :tokens []}
-         (usb-place ujstore-entry))
-      "the label's convention names the place; :apps stays off this wire"))
-
-
-(deftest a-mounted-partition-is-a-ready-usb-place
-  (is (= {:id      [:usb "6962-5E15"] :kind :usb :state :ready
-          :storage "/ujima/run/storage/6962-5E15"
-          :label   nil :fstype "vfat"
-          :tokens  ["circle/secret"]}
-         (usb-place mounted-entry))
-      "plane plumbing (:rm :disk) stays behind; tokens flatten to type names —
-       full ns/name strings, since the wire encoder drops keyword namespaces"))
-
-
-(deftest token-values-never-reach-the-wire
-  (let [rendered (edn->json (converge/places->ui [mounted-entry]))]
-    (is (str/includes? rendered "circle/secret") "the type is the finding")
-    (is (not (str/includes? rendered "abc"))
-        "no value survives serialization — asserted over the WHOLE rendered output,
-         so a later entry carrying a value cannot slip through a per-field check")))
-
-
-(deftest an-unmounted-machine-partition-projects-invalid
-  (is (= {:id [:local "storage"] :kind :local :state :invalid
-          :label "UJSTORE" :fstype "ext4" :reason "not mounted: /ujima/storage"}
-         (usb-place {:label "UJSTORE" :fstype "ext4" :kind :local :name "storage"
-                     :state :invalid :reason "not mounted: /ujima/storage"}))))
-
-
-(deftest an-invalid-partition-carries-why-and-no-storage-root
-  (is (= {:id [:usb "X"] :kind :usb :state :invalid :label "KEYS" :fstype "vfat"
-          :reason "mount: fail"}
-         (usb-place {:kind :usb :name "X" :state :invalid :label "KEYS"
-                     :fstype "vfat" :reason "mount: fail"}))))
-
-
-(deftest in-flight-states-read-as-mounting
-  (is (= :mounting (:state (usb-place {:kind :usb :name "X" :state :detected})))
-      "detected is in flight by the time anyone sees it")
-  (is (= :mounting (:state (usb-place {:kind :usb :name "X" :state :mounting})))))

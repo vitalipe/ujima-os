@@ -39,6 +39,7 @@
             [lib.http-test]
             [ujima.desktop.http-test]
             [ujima.desktop.http.converge-test]
+            [ujima.desktop.places-test]
             [ujima.desktop.app.catalog-test]
             [ujima.desktop.app.catalog.loader-test]
             [ujima.desktop.app-test]
@@ -88,6 +89,7 @@
     lib.http-test
     ujima.desktop.http-test
     ujima.desktop.http.converge-test
+    ujima.desktop.places-test
     ujima.desktop.app.catalog-test
     ujima.desktop.app.catalog.loader-test
     ujima.desktop.app-test

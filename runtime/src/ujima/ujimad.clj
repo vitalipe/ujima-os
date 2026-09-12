@@ -14,6 +14,7 @@
             [ujima.desktop          :as desktop]
             [ujima.desktop.http     :as shell-http]
             [ujima.desktop.http.converge :as shell-http-converge]
+            [ujima.desktop.places   :as places]
             [ujima.desktop.app      :as app]
             [ujima.desktop.app.catalog.loader :as loader]
             [ujima.storage          :as storage]
@@ -40,6 +41,7 @@
 
     ;; the planes; events/init! connects them
     (shell-http-converge/init!)
+    (places/init! (get-in env [:desktop] {}))
     (control/init! (get-in env [:control] {}))
     (desktop/await-x!)
 

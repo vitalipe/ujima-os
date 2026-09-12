@@ -1,9 +1,10 @@
 {:log     {:level :debug}
  :control {:storage "/tmp/ujima/settings/"
            :tmp     "/tmp/ujima/settings/session"}
- :storage {:places [{:kind :session :name "files" :mount "/tmp/ujima/files"
+ :storage {:places [{:kind :session :name "files" :mount "/tmp/ujima/Temporary"
                      :provides {:storage "/"}}]}
- :desktop {:launcher "desktop/bin/ujima-launcher"
+ :desktop {:launcher    "desktop/bin/ujima-launcher"
+           :places-home "/tmp/ujima/home"   ; never the developer's real home
            :http     {:static-root "desktop/shell"}
            :eww      {:eww-config "desktop/shell/eww"}
            :app      {:catalog ["apps"]

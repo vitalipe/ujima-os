@@ -14,6 +14,7 @@
             [ujima.storage               :as storage]
             [ujima.desktop.app           :as app]
             [ujima.desktop.eww           :as eww]
+            [ujima.desktop.places        :as places]
             [ujima.desktop.http.converge :as shell-http-converge]
 
             [ujima.events.audio :as audio-events]
@@ -68,9 +69,11 @@
   ;; circle token on a stick -> console
   (storage/on-converge! token-events/on-storage!)
 
-  ;; places (machine + removable) -> the UI stream
+  ;; places (machine + removable) -> the UI stream, and -> the user's home (the Places screen)
   (storage/on-converge! shell-http-converge/converge-places!)
+  (storage/on-converge! places/converge!)
   (shell-http-converge/converge-places! (storage/snapshot) nil)
+  (places/converge! (storage/snapshot) nil)
 
   ;; plugged sinks -> [:audio :active]
   (listen! :audio-sinks

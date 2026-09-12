@@ -4,6 +4,7 @@
    targets run, so that one republishes as-is."
   (:require [lib.http.ndjson        :as ndjson]
             [ujima.control.queries  :as queries]
+            [ujima.desktop.places   :as places]
             [ujima.linux.devicetree :as devicetree]))
 
 (def pinned-app-order {:files   0   ; the one a user reaches for — it must not move
@@ -47,27 +48,9 @@
              (sort-by #(pinned-app-order (:id %) 99)))})
 
 
-;; --- places: the file model's projection ------------------------------------
-;; The :storage-provision view — one browse root per place. :apps and :tokens
-;; reach the catalog and token policy, never a picker.
-
-(defn- entry->place [{:keys [kind name state storage label fstype tokens reason]}]
-  (let [state ({:mounted :ready :detected :mounting} state state)]
-    (cond-> {:id [kind name] :kind kind :state state :label label :fstype fstype}
-      (= :ready   state) (assoc :storage storage
-                                :tokens  (->> (keys tokens) (map #(str (symbol %))) sort vec))  ; types only
-      (= :invalid state) (assoc :reason reason))))
-
-
-(defn places->ui
-  "Storage entries -> the places blob. The wire contract."
-  [entries]
-  {:places (mapv entry->place entries)})
-
-
-(defn converge-ui!     [settings _prv] (ndjson/publish! :ui/state (settings->ui settings @serial-tail)))
-(defn converge-apps!   [snapshot _prv] (ndjson/publish! :ui/apps  (apps->ui snapshot)))
-(defn converge-places! [entries  _prv] (ndjson/publish! :ui/places (places->ui entries)))
+(defn converge-ui!     [settings _prv] (ndjson/publish! :ui/state  (settings->ui settings @serial-tail)))
+(defn converge-apps!   [snapshot _prv] (ndjson/publish! :ui/apps   (apps->ui snapshot)))
+(defn converge-places! [entries  _prv] (ndjson/publish! :ui/places (places/places->ui entries)))
 
 (defn stream-ui     [req] (ndjson/subscribe! :ui/state  req))
 (defn stream-apps   [req] (ndjson/subscribe! :ui/apps   req))

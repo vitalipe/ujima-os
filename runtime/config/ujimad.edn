@@ -7,7 +7,7 @@
  :storage {:mounts-dir "/ujima/run/storage"
            :places     [{:kind :local   :name "storage" :mount "/ujima/storage"
                          :provides {:storage "files/"} :label "UJSTORE" :fstype "ext4"}
-                        {:kind :session :name "files"   :mount "/home/ujima/files"
+                        {:kind :session :name "files"   :mount "/home/ujima/Temporary"
                          :provides {:storage "/"}}]}
 
  :events  {:audio-poll-ms 1000
@@ -16,7 +16,8 @@
  :api     {:http {:host "0.0.0.0" :port 1337}
            :auth {:window-ms 60000}}
 
- :desktop {:launcher "/ujima/desktop/bin/ujima-launcher"
+ :desktop {:launcher    "/ujima/desktop/bin/ujima-launcher"
+           :places-home "/home/ujima"   ; the Places screen = home (ujima.desktop.home)
 
            :http     {:host "127.0.0.1" :port 1336
                       :static-root "/ujima/desktop/shell"}
