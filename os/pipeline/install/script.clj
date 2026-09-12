@@ -54,10 +54,14 @@
         "libfile-mimeinfo-perl" ; `mimetype` — what xdg-mime (hence xdg-open, no DE here) uses to type a file by the
                                 ; shared mime database; without it the fallback `file --mime-type` calls .py/.md plain text
                                 ; and .sb3 a zip, and the mimeapps routing lands everything in the Web viewer
-        ;; webview launcher host (desktop/bin/ujima-launcher): a chromeless WebKitGTK window
-        ;; renders the launcher home surface (served from :1336). python3-gi + the GTK3 / WebKit2-4.1
-        ;; typelibs; libgtk-3-0 above is the shared runtime lib. Compositing + JIT disabled in the host.
-        "python3-gi" "gir1.2-gtk-3.0" "gir1.2-webkit2-4.1"
+        ;; the Qt Quick runtime: the launcher home surface (desktop/launcher, a window ujimad keeps
+        ;; up) and the Files app + its --pick dialog paint with it; the SVG image format draws the
+        ;; app icons. Core, not an app recipe — the shell's home must not hang off a catalog app.
+        "libqt6quick6" "libqt6qml6" "libqt6svg6" "qt6-svg-plugins"
+        "qml6-module-qtquick" "qml6-module-qtquick-window" "qml6-module-qtqml-workerscript"
+        ;; python3-gi: the desktop stage rasterizes wall.svg through GdkPixbuf, and bin/ujima-portal
+        ;; owns the portal name over Gio (its typelib rides python3-gi) — those two, nothing wider
+        "python3-gi" "gir1.2-gdkpixbuf-2.0"
         ;; bwrap: opt-in mount isolation for shell-bearing apps (mask the /ujima + /mnt partitions,
         ;; no_new_privs kills sudo inside). Pinned ahead of the wiring — live deploy can't add packages.
         "bubblewrap")

@@ -80,6 +80,9 @@ version truth; branch names and build labels may disagree.
 - The places stream names each place; the Files app shows that name, numbering
   sticks only when more than one is plugged in.
 - The session place lives at `~/Temporary` (was `~/files`).
+- The launcher is a native window drawn the way the Files app is, not a web page in
+  an embedded browser: the same home screen, at a fraction of the memory, and the
+  browser engine that carried it leaves the image.
 
 ### Fixed
 

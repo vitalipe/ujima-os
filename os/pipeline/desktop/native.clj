@@ -1,37 +1,44 @@
 (ns pipeline.desktop.native
   "The desktop's native pieces, compiled INSIDE the image chroot (aarch64 under qemu) from the
    mirrored /ujima/desktop tree, so an image build produces them with no device in the loop:
-   the Files app's C++ host and the GTK chooser module. Only the image build compiles: a live
-   `dev script desktop` skips this (the toolchain is not image content; a live device keeps what
-   it built by hand). Every target's build-deps are installed once before the builds and purged
-   once after; the Files app's declared runtime (os/apps/files/install.edn) is pinned manual so
-   the purge keeps it."
+   the two Qt Quick hosts (the Files app, the launcher) and the GTK chooser module. Only the
+   image build compiles: a live `dev script desktop` skips this (the toolchain is not image
+   content; a live device keeps what it built by hand). Every target's build-deps are installed
+   once before the builds and purged once after; the Files app's declared runtime
+   (os/apps/files/install.edn) is pinned manual so the purge keeps it — the Qt Quick runtime
+   itself is core (the install stage), the launcher's floor."
   (:require [clojure.edn :as edn]
             [babashka.fs :as fs]
             [lib.shell :refer [sh! sh?]]))
 
 
-(def ^:private files-src   "/ujima/desktop/files")
-(def ^:private files-build "/tmp/ujima-files-build")
-(def ^:private files-bin   "/ujima/desktop/files/bin/ujima-files")
-(def ^:private lib-dir     "/ujima/desktop/lib")
+(def ^:private lib-dir "/ujima/desktop/lib")
 
 
-(defn- build-files-app! []
-  (when (fs/exists? files-build) (fs/delete-tree files-build))
-  (sh! :cmake "-S" files-src "-B" files-build "-G" "Ninja" "-DCMAKE_BUILD_TYPE=Release")
-  (sh! :cmake "--build" files-build)
-  (fs/create-dirs (fs/parent files-bin))
-  (sh! :install "-m" "0755" (str files-build "/ujima-files") files-bin)
-  (fs/delete-tree files-build))
+(defn- build-qt-app!
+  "cmake/ninja Release of the tree at SRC in a scratch build dir, the binary installed to BIN
+   (its name = the CMake target's)."
+  [src bin]
+  (let [build (str "/tmp/ujima-" (fs/file-name bin) "-build")]
+    (when (fs/exists? build) (fs/delete-tree build))
+    (sh! :cmake "-S" src "-B" build "-G" "Ninja" "-DCMAKE_BUILD_TYPE=Release")
+    (sh! :cmake "--build" build)
+    (fs/create-dirs (fs/parent bin))
+    (sh! :install "-m" "0755" (str build "/" (fs/file-name bin)) bin)
+    (fs/delete-tree build)))
 
 
 (def ^:private targets
   [{:name       "files app"
-    :src        files-src
+    :src        "/ujima/desktop/files"
     :marker     "CMakeLists.txt"
     :build-deps ["qt6-base-dev" "qt6-declarative-dev" "qt6-svg-dev" "cmake" "ninja-build" "g++"]
-    :build!     build-files-app!}
+    :build!     #(build-qt-app! "/ujima/desktop/files" "/ujima/desktop/files/bin/ujima-files")}
+   {:name       "launcher"
+    :src        "/ujima/desktop/launcher"
+    :marker     "CMakeLists.txt"
+    :build-deps ["qt6-base-dev" "qt6-declarative-dev" "cmake" "ninja-build" "g++"]
+    :build!     #(build-qt-app! "/ujima/desktop/launcher" "/ujima/desktop/launcher/bin/ujima-launcher")}
    {:name       "chooser module"
     :src        "/ujima/desktop/chooser"
     :marker     "chooser.c"

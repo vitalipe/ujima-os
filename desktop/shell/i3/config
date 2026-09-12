@@ -1,5 +1,5 @@
-# UjimaOS — minimal i3 config. No i3bar; eww is the top bar + dock, the launcher is a webview,
-# ujimad owns app/window lifecycle.
+# UjimaOS — minimal i3 config. No i3bar; eww is the top bar + dock, the launcher is a Qt Quick
+# window, ujimad owns app/window lifecycle.
 # new windows stack as tabs (cover the previous), never tile-split; font 1 + a
 # topbar-matched palette shrink the only surviving decoration — the tab bar — to
 # an invisible ~2px sliver that blends into the topbar above it
@@ -28,8 +28,8 @@ for_window [window_type="utility"] floating enable
 for_window [window_role="GtkFileChooserDialog"] floating disable
 
 # eww topbar/dock are :wm-ignore (override-redirect) in eww.yuck, so i3 doesn't manage them; the
-# launcher (a webview, WM_CLASS ujima-launcher) is a normal window ujimad tracks + places on
-# HOME like any app.
+# launcher (desktop/launcher, WM_CLASS ujima-launcher) is a normal window ujimad tracks + places
+# on HOME like any app.
 
 # the bars reserve no strut, so reserve their space here — keep in sync with eww.yuck heights
 # (topbar :height 48px, dock :height 68px) so the launcher + apps sit in the mid-section.
@@ -55,12 +55,12 @@ bindsym Mod1+Escape    exec --no-startup-id ujima-desktop POST commands/app/home
 
 # desktop background: the launcher's gradient (desktop/shell/wall.svg, rasterized to wall.png by
 # os.desktop) set on the X root. i3 draws over it, so empty workspaces show the gradient
-# instead of the black root — and the transparent launcher + top bar show it through, one continuous
-# background under everything.
+# instead of the black root — the transparent top bar shows it through, and the launcher paints the
+# same image aligned to it, one continuous background under everything.
 exec_always --no-startup-id feh --bg-fill /ujima/desktop/shell/wall.png
 
 # ujimad owns the shell now: it reconciles settings, then brings up eww (top bar + dock) and
-# the webview launcher itself once ready — so i3 only launches ujimad + the compositor below.
+# the launcher window itself once ready — so i3 only launches ujimad + the compositor below.
 exec --no-startup-id ujimad
 
 # compositor: picom (xrender — no GL on the Pi) gives real transparency, so the transparent

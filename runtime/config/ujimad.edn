@@ -16,7 +16,7 @@
  :api     {:http {:host "0.0.0.0" :port 1337}
            :auth {:window-ms 60000}}
 
- :desktop {:launcher    "/ujima/desktop/bin/ujima-launcher"
+ :desktop {:launcher    "/ujima/desktop/launcher/bin/ujima-launcher"   ; the home surface, a Qt Quick window (desktop/launcher)
            :portal      "/ujima/desktop/bin/ujima-portal"   ; org.freedesktop.portal.Desktop -> the Qt picker (--pick)
            :places-home "/home/ujima"                       ; the Places screen = home (ujima.desktop.home)
 

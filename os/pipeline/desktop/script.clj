@@ -27,7 +27,8 @@
           ($! cp -a [src] "/ujima/desktop"))
         (println "desktop: no desktop/ yet — scaffold no-op")))
 
-    ;; the Files app's C++ host: compiled from the mirrored tree, image builds only
+    ;; the native pieces (the Files and launcher hosts, the chooser module): compiled from the
+    ;; mirrored tree, image builds only
     (native/build! project)
 
     ;; desktop background: rasterize the vector wall.svg -> a ≥1080p PNG for feh (the X root can't

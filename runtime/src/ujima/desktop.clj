@@ -17,12 +17,14 @@
 
 
 (defn- launcher-init!
-  [bin url]
+  "The home surface (desktop/launcher, a Qt Quick window): kept up for the whole session. It
+   finds this daemon's desktop tier on its own — nothing to pass."
+  [bin]
   (future
     (loop []
       (let [{:keys [exit]} @(shell/with-spawn (shell/inheriting shell/*spawn*)
-                              (shell/sh {:extra-env {"UJIMA_SHELL_URL" url}} bin))]
-        (log/warn "webview launcher exited — respawning" {:exit exit})
+                              (shell/sh bin))]
+        (log/warn "launcher exited — respawning" {:exit exit})
         (Thread/sleep 2000)
         (recur)))))
 
@@ -47,8 +49,7 @@
 
   (log/info "opening ujima shell" cfg)
 
-  (launcher-init!  (:launcher cfg)
-                    "http://127.0.0.1:1336/ujima-desktop/assets/launcher/")
+  (launcher-init! (:launcher cfg))
 
 
   (portal-init! (:portal cfg))
