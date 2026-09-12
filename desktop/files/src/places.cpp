@@ -58,6 +58,7 @@ void PlacesModel::apply(const QJsonArray& places) {
         p.kind   = o.value("kind").toString();
         p.id     = p.kind + "/" + id.at(1).toString();
         p.state  = o.value("state").toString();
+        p.name   = o.value("name").toString();
         p.label  = o.value("label").toString();
         p.fstype = o.value("fstype").toString();
         p.root   = o.value("storage").toString();
@@ -66,15 +67,12 @@ void PlacesModel::apply(const QJsonArray& places) {
         p.used   = usedOf(p.root, &p.total);
         next.push_back(p);
     }
-    // the design's order: the session first, then this computer, then sticks by label
+    // the design's order: the session first, then this computer, then sticks by name
     auto rank = [](const QString& kind) { return kind == "session" ? 0 : kind == "local" ? 1 : 2; };
     std::stable_sort(next.begin(), next.end(), [&](const Place& a, const Place& b) {
         if (rank(a.kind) != rank(b.kind)) return rank(a.kind) < rank(b.kind);
-        return a.label.localeAwareCompare(b.label) < 0;
+        return a.name.localeAwareCompare(b.name) < 0;
     });
-    int unlabeled = 0;                       // "USB Stick", "USB Stick 2", … for sticks with no label
-    for (Place& p : next)
-        if (p.kind == "usb" && p.label.isEmpty()) p.suffix = (++unlabeled > 1) ? unlabeled : 0;
     beginResetModel();
     m_places = next;
     endResetModel();
@@ -95,6 +93,7 @@ QVariant PlacesModel::data(const QModelIndex& idx, int role) const {
     case IdRole:     return p.id;
     case KindRole:   return p.kind;
     case StateRole:  return p.state;
+    case NameRole:   return p.name;
     case LabelRole:  return p.label;
     case FstypeRole: return p.fstype;
     case RootRole:   return p.root;
@@ -103,15 +102,14 @@ QVariant PlacesModel::data(const QModelIndex& idx, int role) const {
     case FreeRole:   return double(std::max<qint64>(0, p.total - p.used));
     case PctRole:    return p.total > 0 ? int(std::min<qint64>(100, (p.used * 100) / p.total)) : 0;
     case TokensRole: return p.tokens;
-    case SuffixRole: return p.suffix;
     }
     return {};
 }
 
 QHash<int, QByteArray> PlacesModel::roleNames() const {
-    return {{IdRole, "id"}, {KindRole, "kind"}, {StateRole, "state"}, {LabelRole, "label"},
-            {FstypeRole, "fstype"}, {RootRole, "root"}, {UsedRole, "used"}, {TotalRole, "total"},
-            {FreeRole, "free"}, {PctRole, "pct"}, {TokensRole, "tokens"}, {SuffixRole, "suffix"}};
+    return {{IdRole, "id"}, {KindRole, "kind"}, {StateRole, "state"}, {NameRole, "name"},
+            {LabelRole, "label"}, {FstypeRole, "fstype"}, {RootRole, "root"}, {UsedRole, "used"},
+            {TotalRole, "total"}, {FreeRole, "free"}, {PctRole, "pct"}, {TokensRole, "tokens"}};
 }
 
 QVariantMap PlacesModel::get(int row) const {

@@ -53,7 +53,7 @@ Rectangle {
                 Row {
                     width: parent.width
                     spacing: 10
-                    Text { text: m.name + (place.suffix > 1 ? " " + place.suffix : ""); color: Theme.text; font.pixelSize: prefs.card; font.weight: Font.Bold; font.letterSpacing: -.3; font.family: Theme.font }
+                    Text { text: place.name; color: Theme.text; font.pixelSize: prefs.card; font.weight: Font.Bold; font.letterSpacing: -.3; font.family: Theme.font }
                     Rectangle {
                         height: badge.implicitHeight + 8; width: badge.implicitWidth + 20; radius: 999
                         color: Theme.tint(m.rgb, .14); border.width: 1; border.color: Theme.tint(m.rgb, .28)

@@ -5,12 +5,11 @@
 #include <QTimer>
 #include <QUrl>
 
-// The places stream (ujimad, NDJSON) as a list model: one row per READY place, the machine's
-// Files area first, then sticks. Space figures come from statvfs on each browse root.
+// The places stream (ujimad, NDJSON) as a list model: one row per READY place, Temporary first,
+// then the machine, then sticks. Names come from the wire — the same ones every dialog shows. Space figures come from statvfs on each browse root.
 struct Place {
-    QString id, kind, state, label, fstype, root;
+    QString id, kind, state, name, label, fstype, root;   // name = the display name, from the wire
     QStringList tokens;        // token TYPES the stick carries ("circle/secret", "ujima/pack") — never values
-    int suffix = 0;            // 2, 3… for the second, third unlabeled stick ("USB Stick 2"); 0 = none
     qint64 used = 0, total = 0;
 };
 
@@ -20,7 +19,7 @@ class PlacesModel : public QAbstractListModel {
     Q_PROPERTY(int count READ count NOTIFY countChanged)
 public:
     enum Roles { IdRole = Qt::UserRole + 1, KindRole, StateRole, LabelRole, FstypeRole, RootRole,
-                 UsedRole, TotalRole, FreeRole, PctRole, TokensRole, SuffixRole };
+                 NameRole, UsedRole, TotalRole, FreeRole, PctRole, TokensRole };
     explicit PlacesModel(const QUrl& streamUrl, QObject* parent = nullptr);
 
     int rowCount(const QModelIndex& = {}) const override { return m_places.size(); }

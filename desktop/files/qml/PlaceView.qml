@@ -6,7 +6,7 @@ Item {
     id: view
     property var nav
     // PlaceView stays instantiated at home, so bindings need a meta even with no place
-    readonly property var m: nav.meta ? nav.meta : ({ name: "", glyph: "folder", color: "transparent", rgb: [0, 0, 0], notice: "", emptyHint: "" })
+    readonly property var m: nav.meta ? nav.meta : ({ glyph: "folder", color: "transparent", rgb: [0, 0, 0], notice: "", emptyHint: "" })
     readonly property bool hasSel: nav.selected !== ""
 
     Column {
@@ -29,7 +29,7 @@ Item {
                         Row {
                             id: chip; anchors.centerIn: parent; spacing: 9
                             Rectangle { width: 9; height: 9; radius: 3; color: m.color; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: m.name; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font }
+                            Text { text: nav.place ? nav.place.name : ""; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font }
                         }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                         TapHandler { onTapped: nav.goRoot() }

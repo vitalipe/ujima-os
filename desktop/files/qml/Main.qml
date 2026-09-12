@@ -9,7 +9,7 @@ Window {
     visible: true
     width: 1280; height: 720
     color: Theme.bg
-    title: "Files — " + (nav.place ? (nav.folderName ? nav.meta.name + " / " + nav.folderName : nav.meta.name) : "Places")
+    title: "Files — " + (nav.place ? (nav.folderName ? nav.place.name + " / " + nav.folderName : nav.place.name) : "Places")
 
     QtObject {
         id: nav
