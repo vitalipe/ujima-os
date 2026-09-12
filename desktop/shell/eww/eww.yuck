@@ -1,19 +1,13 @@
-;; UjimaOS desktop shell — wired to ujimad's desktop tier, mounted at ujima-desktop
-;; on 127.0.0.1:1336 (the signed /api tier on :1337 is for other machines; the
-;; desktop never speaks it): widget state arrives on pushed streams (deflisten —
-;; snapshot on connect, then a line per real change; settings on stream/state,
-;; running apps on stream/apps), the launcher tiles render the app catalog
-;; (app/catalog — immutable per session, hence a poll), and clicks are plain
-;; fire-and-forget POSTs through bin/ujima-desktop, which owns the mount.
+;; UjimaOS desktop shell — the top bar, the dock and the lock surface (the launcher between
+;; the bars is desktop/launcher, its own window). Wired to ujimad's desktop tier, mounted at
+;; ujima-desktop on 127.0.0.1:1336 (the signed /api tier on :1337 is for other machines; the
+;; desktop never speaks it): widget state arrives on pushed streams (deflisten — snapshot on
+;; connect, then a line per real change; settings on stream/state, running apps on
+;; stream/apps), and clicks are plain fire-and-forget POSTs through bin/ujima-desktop, which
+;; owns the mount.
 
 (defpoll clock :interval "10s" "date +%H:%M")
 (defpoll lockdate :interval "1h" "date +'%A, %B %-d'")
-
-; a launcher click steals focus from the override-redirect bars → they go dormant; only a REAL
-; XTEST click on a bar re-wakes them (a click SENT via XSendEvent does not — HW-tested). Tap the
-; far top-right corner: the arrow glyph draws down-right from its hotspot, so parked at 1279,0
-; it clips to a ~1px sliver for the one frame it's there — effectively invisible — then hops back.
-(defvar wakebars "eval $(xdotool getmouselocation --shell); xdotool mousemove 1279 0 click 1; xdotool mousemove $X $Y")
 
 ;; the authoritative UI state (JSON); the while-loop is the reconnect story — an
 ;; ujimad restart drops the connection, 1s later the snapshot line rehydrates us
@@ -25,12 +19,6 @@
 (deflisten apps
   :initial "{\"running\":[],\"pinned\":[],\"current\":null}"
   "while true; do curl -sN http://127.0.0.1:1336/ujima-desktop/stream/apps; sleep 1; done")
-
-;; launcher tiles: fetched ONCE (the sleep holds the pipe open — eww drops a listener's
-;; line if the script exits). Runtime :hidden changes reach the dock, not this. Dynamic soon.
-(deflisten catalog
-  :initial "{\"apps\":[]}"
-  "until curl -sf http://127.0.0.1:1336/ujima-desktop/app/catalog; do sleep 1; done; echo; exec sleep infinity")
 
 
 ;; --- top pane (v0.9 spec 33a): flat, 48px, app icon · App — Title · close (✕).
@@ -53,46 +41,6 @@
         :tooltip "Close ${apps.current?.label ?: ""}"
         :onclick "ujima-desktop POST commands/app/close >/dev/null"
         (image :path "/ujima/desktop/shell/icons/close.svg" :image-width 17 :image-height 17)))))
-
-;; --- launcher (v0.9, design 25c): apps grouped into category TRAYS — a soft
-;; --- category-tinted box with a coloured label. Tiles are neutral; an OPEN app
-;; --- gets a category ring + corner dot. Names hidden (hover-reveal is deferred).
-;; --- Each tray renders every catalog app but shows only its own category's (GTK
-;; --- collapses the hidden ones, so no gaps); jq drives the open indicator.
-(defwidget traytile [entry cat]
-  (button :class "tile" :timeout "2s" :visible {entry.category == cat}
-    :onclick "ujima-desktop POST commands/app/open '{\"app\": \"${entry.id}\"}' >/dev/null; ${wakebars}"
-    (overlay
-      (box :class {"chip" + (jq(apps.running, "any(.[]; .id == \"" + entry.id + "\")") ? " on cat-" + cat : "")} :halign "center" :valign "center"
-        (image :path "${entry.icon}" :image-width 46 :image-height 46))
-      (box :class "opendot cat-${cat}" :halign "end" :valign "start"
-        :visible {jq(apps.running, "any(.[]; .id == \"" + entry.id + "\")")}))))
-
-(defwidget tray [cat name]
-  (box :class "tray cat-${cat}" :orientation "v" :space-evenly false :valign "start"
-    (box :class "trayhd" :space-evenly false :valign "center"
-      (box :class "traydot")
-      (label :class "traylabel" :halign "start" :xalign 0 :text name))
-    (box :class "traytiles" :orientation "h" :halign "center" :space-evenly false :spacing 14
-      (for entry in {catalog.apps}
-        (traytile :entry entry :cat cat)))))
-
-;; nested centerboxes reliably centre the block in BOTH axes (a lone child in a
-;; plain box parks at the start); the trays block sits in the middle-of-middle.
-(defwidget launcher []
-  (centerbox :class "launcher" :orientation "v"
-    (box)
-    (centerbox :orientation "h"
-      (box)
-      (box :class "trays" :orientation "v" :space-evenly false :spacing 20
-        (box :orientation "h" :halign "center" :space-evenly false :spacing 20 :valign "start"
-          (tray :cat "learn" :name "LEARN")
-          (tray :cat "office" :name "OFFICE"))
-        (box :orientation "h" :halign "center" :space-evenly false :spacing 20 :valign "start"
-          (tray :cat "create" :name "CREATE")
-          (tray :cat "web-files" :name "WEB & FILES")))
-      (box))
-    (box)))
 
 ;; the speaker and the number both mute — one definition so they cannot drift
 (defwidget mutebtn [cls]
@@ -219,11 +167,6 @@
   :monitor 0 :geometry (geometry :anchor "top center" :width "100%" :height "48px")
   :wm-ignore true :stacking "fg"
   (topbar))
-
-(defwindow launcher
-  :monitor 0 :geometry (geometry :anchor "center" :width "100%" :height "100%")
-  :windowtype "normal"
-  (launcher))
 
 (defwindow dock
   :monitor 0 :geometry (geometry :anchor "bottom center" :width "100%" :height "68px")
