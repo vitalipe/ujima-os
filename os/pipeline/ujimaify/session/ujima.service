@@ -20,11 +20,15 @@ Conflicts=getty@tty1.service
 [Service]
 User=ujima
 PAMName=login
-# Qt/KDE apps (Marble, Stellarium) follow the Nordic GTK theme — a session-wide env
-# inherited by startx → Xorg → i3 → ujimad → every launched app. qt6-gtk-platformtheme
-# (the install stage) is the GTK→Qt bridge; Qt selects its platform theme from the env only
-# (no /etc file like gtk-3.0).
-Environment=QT_QPA_PLATFORMTHEME=gtk3
+# Qt/KDE apps (Marble, Stellarium): file dialogs go to the portal (the ujima picker) and the
+# look follows the Nordic GTK theme. Qt selects its platform theme from the env only (no /etc
+# file like gtk-3.0): the xdgdesktopportal theme (qt{5,6}-xdgdesktopportal-platformtheme, the
+# install stage) routes QFileDialog to org.freedesktop.portal.FileChooser and wraps a base theme
+# it picks from Qt's desktop-derived list — XDG_CURRENT_DESKTOP=gtk3 puts the GTK bridge
+# (qt{5,6}-gtk-platformtheme) there; nothing else reads that value on this desktop (no DE).
+# Session-wide: inherited by startx → Xorg → i3 → ujimad → every launched app.
+Environment=QT_QPA_PLATFORMTHEME=xdgdesktopportal
+Environment=XDG_CURRENT_DESKTOP=gtk3
 # /ujima/desktop/bin -> bare ujima-* calls (i3, yuck); /usr/games -> tuxtype
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/ujima/desktop/bin
 # links an app opens go through ujimad -> the Web app (with mimeapps.list, desktop's links concern)

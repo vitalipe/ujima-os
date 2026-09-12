@@ -43,7 +43,8 @@
         "xserver-xorg-legacy"
         "libgtk-3-0"
         "libdbusmenu-gtk3-4"  ; eww's systray/dbusmenu runtime lib (pulls libdbusmenu-glib4) — libgtk-3-0 does NOT pull it, so it must be pinned; its absence crash-loops eww on a clean image
-        "qt6-gtk-platformtheme" "qt5-gtk-platformtheme"  ; Qt/KDE apps (Marble, Stellarium) follow the GTK Nordic theme — QT_QPA_PLATFORMTHEME=gtk3 on ujima.service (the ujimaify stage)
+        "qt6-gtk-platformtheme" "qt5-gtk-platformtheme"  ; Qt/KDE apps (Marble, Stellarium) follow the GTK Nordic theme — the base under the portal theme (ujima.service, the ujimaify stage)
+        "qt6-xdgdesktopportal-platformtheme" "qt5-xdgdesktopportal-platformtheme"  ; QFileDialog -> org.freedesktop.portal.FileChooser = the ujima picker
         "mesa-vulkan-drivers"  ; v3dv Vulkan driver for the Pi 5 V3D — Godot's Vulkan Mobile renderer
         "librsvg2-common"   ; gdk-pixbuf SVG loader (app icons in file dialogs etc.; librsvg2-2 is just the lib)
         "picom"             ; xrender compositor — transparency for floating dialogs + the transparent shell
