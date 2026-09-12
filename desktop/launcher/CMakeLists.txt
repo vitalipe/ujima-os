@@ -9,6 +9,7 @@ find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Qml Quick Network)
 
 add_executable(ujima-launcher
   src/main.cpp
+  src/nam.h
   src/stream.h  src/stream.cpp
   src/desktop.h src/desktop.cpp)
 

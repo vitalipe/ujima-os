@@ -5,6 +5,7 @@
 #include <QQmlContext>
 #include <QUrl>
 #include "desktop.h"
+#include "nam.h"
 
 int main(int argc, char** argv) {
     // the session points Qt apps at the GTK theme (Marble, Stellarium); this one paints itself
@@ -25,7 +26,9 @@ int main(int argc, char** argv) {
 
     Desktop desktop(QUrl(cli.value("desktop")));
 
+    PlainHttpFactory plainHttp;
     QQmlApplicationEngine engine;
+    engine.setNetworkAccessManagerFactory(&plainHttp);   // before anything loads: the icons ride it
     engine.rootContext()->setContextProperty("desktop", &desktop);
 
     const QString qmlDir = cli.value("qml");
