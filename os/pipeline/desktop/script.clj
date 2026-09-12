@@ -1,7 +1,7 @@
 (ns pipeline.desktop.script
   "Runs INSIDE the target chroot as root (and is the live `dev push desktop` deploy path).
    Stages the ujima *desktop* layer — the desktop/ tree, plus its concern files under
-   os/pipeline/desktop/ (theme, fonts, links, files, eww, i18n) — onto the base. The graphical
+   os/pipeline/desktop/ (theme, fonts, links, files, eww, chooser) — onto the base. The graphical
    session's systemd unit lives in the ujimaify stage; runtime desktop *settings* (wallpaper,
    resolution, …) are ujimad's job at runtime, not this build script.
 
@@ -13,8 +13,7 @@
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [build.apps :as apps]
-            [pipeline.desktop.i18n :as i18n]
-            [pipeline.desktop.files-app :as files-app]
+            [pipeline.desktop.native :as native]
             [build.files :as files]))
 
 
@@ -29,7 +28,7 @@
         (println "desktop: no desktop/ yet — scaffold no-op")))
 
     ;; the Files app's C++ host: compiled from the mirrored tree, image builds only
-    (files-app/build! project)
+    (native/build! project)
 
     ;; desktop background: rasterize the vector wall.svg -> a ≥1080p PNG for feh (the X root can't
     ;; take an SVG). Uses the librsvg gdk-pixbuf loader via python3-gi — both installed by
@@ -56,16 +55,6 @@
     (files/install! project "desktop/theme/chromium-policy.json"
                     "/etc/chromium/policies/managed/ujima.json")
 
-    ;; GTK chooser label override ("Home" -> "Temporary"; the why lives in the catalog):
-    ;; the .mo is GENERATED here from the catalog — no vendored binary, no gettext in the
-    ;; chroot (desktop.i18n writes the format directly). One catalog, two locale installs.
-    (let [mo (i18n/mo-bytes (edn/read-string
-                             (slurp (files/source project "desktop/i18n/catalog.edn"))))]
-      (doseq [loc ["en_GB" "en_US"]]
-        (fs/create-dirs (str "/usr/share/locale/" loc "/LC_MESSAGES"))
-        (with-open [out (io/output-stream (str "/usr/share/locale/" loc "/LC_MESSAGES/gtk30.mo"))]
-          (.write out mo))))
-
     ;; session-level home seeds → the ujima user's home (per-APP home defaults live in their
     ;; apps trees, staged below): links routing + the Files-plane defaults. install! creates
     ;; parent dirs as root — the chown heals them (apps + xdg rewrite these as ujima).
@@ -73,8 +62,12 @@
                     "/home/ujima/.config/mimeapps.list" {:owner "ujima:ujima"})
     (files/install! project "desktop/files/user-dirs.dirs"
                     "/home/ujima/.config/user-dirs.dirs" {:owner "ujima:ujima"})
+    (files/install! project "desktop/files/user-dirs.conf"
+                    "/home/ujima/.config/user-dirs.conf" {:owner "ujima:ujima"})
+    ;; empty AND read-only: the chooser's sidebar is hidden, and if the module ever fails to load
+    ;; the fail-open sidebar shows nothing extra — and GTK's own "add bookmark" write is refused
     (files/install! project "desktop/files/bookmarks"
-                    "/home/ujima/.config/gtk-3.0/bookmarks" {:owner "ujima:ujima"})
+                    "/home/ujima/.config/gtk-3.0/bookmarks" {:owner "ujima:ujima" :mode "0444"})
     ($! chown -R "ujima:ujima" "/home/ujima/.config")
 
     ;; the Files-area tmpfiles half (kid-facing /ujima/storage/files) — the files plane is

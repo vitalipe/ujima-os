@@ -3,4 +3,9 @@
   <group id="options">
     <group id="boot" enabled="0" />
   </group>
+  <!-- first-run dialog folders: Inkscape falls to $HOME otherwise, and $HOME is the Places screen -->
+  <group id="dialogs">
+    <group id="open" path="/home/ujima/Temporary/" />
+    <group id="save_as" path="/home/ujima/Temporary/" />
+  </group>
 </inkscape>

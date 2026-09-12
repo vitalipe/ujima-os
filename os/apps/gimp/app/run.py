@@ -25,4 +25,5 @@ if not os.path.exists(rc):
     except Exception as e:
         print("gimp run.py: sessionrc seed failed, launching unseeded:", e, file=sys.stderr)
 
+os.chdir(os.path.expanduser("~"))   # GIMP's Open dialog sets no folder: GTK falls to cwd — the Places screen
 os.execvp("gimp", ["gimp", *sys.argv[1:]])   # a file from open-file rides along

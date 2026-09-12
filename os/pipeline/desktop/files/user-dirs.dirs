@@ -1,4 +1,11 @@
-XDG_DOCUMENTS_DIR="/ujima/storage/files"
-XDG_DOWNLOAD_DIR="/ujima/storage/files"
-XDG_PICTURES_DIR="/ujima/storage/files"
+# managed by the ujima image build — source: os/pipeline/desktop/files/user-dirs.dirs
+#
+# every "default folder" an app asks for lands in Temporary (GIMP export, LibreOffice's Work
+# path, ONLYOFFICE, chromium downloads); a deliberate save goes to This Computer one click away.
+# Desktop = $HOME is the xdg convention for "disabled".
+XDG_DOCUMENTS_DIR="$HOME/Temporary"
+XDG_DOWNLOAD_DIR="$HOME/Temporary"
+XDG_PICTURES_DIR="$HOME/Temporary"
+XDG_MUSIC_DIR="$HOME/Temporary"
+XDG_VIDEOS_DIR="$HOME/Temporary"
 XDG_DESKTOP_DIR="$HOME"

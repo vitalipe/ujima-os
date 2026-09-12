@@ -1,6 +1,5 @@
 #!/bin/sh
-# geany's Save dialog follows process cwd (the only catalog app that does) — start in Files
-# so saves land on storage. cd is fail-open: with storage absent geany still launches,
-# falling back to the app-dir cwd like every other app.
-cd /ujima/storage/files 2>/dev/null
+# geany's dialogs fall to process cwd when no document is open (the only catalog app that does)
+# — start at home, the Places screen; its terminal opens there too
+cd "$HOME"
 exec geany "$@"

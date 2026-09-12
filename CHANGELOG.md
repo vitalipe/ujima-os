@@ -30,6 +30,9 @@ version truth; branch names and build labels may disagree.
   keyboard layout, the speaker, and the date behind the clock.
 - The keyboard layout opens on hover to show the other installed layouts, each one a
   direct pick rather than something to cycle to; the row closes as soon as you pick.
+- The user's home is the Places screen: one entry per place, named as its card
+  (Temporary, This Computer, USB Stick), kept in step as drives come and go.
+  Every GTK file dialog opens there, with the crumb trail collapsed behind home.
 
 ### Changed
 
@@ -71,6 +74,12 @@ version truth; branch names and build labels may disagree.
   partition. Disks installed with the old layout must be re-installed.
 - The Console rescans the circle each time its home screen opens, so a machine that was
   still coming up during the first sweep appears on its own instead of waiting for Rescan.
+- GTK file dialogs lose their left panel: no Recent, Trash, Other Locations or
+  bookmarks — the crumb trail and the folder view remain. Apps' default folder
+  is Temporary (documents, downloads, pictures; Inkscape and Geany first runs).
+- The places stream names each place; the Files app shows that name, numbering
+  sticks only when more than one is plugged in.
+- The session place lives at `~/Temporary` (was `~/files`).
 
 ### Fixed
 
@@ -78,6 +87,10 @@ version truth; branch names and build labels may disagree.
   itself as `ujimaos`, so two of them on one network fought over the name and which one
   you reached depended on boot order; each now announces `ujima-<serial>` from the moment
   it starts.
+
+### Removed
+
+- The "Home" → "Temporary" relabel of the GTK dialog sidebar — the sidebar is gone.
 
 ## [0.4.0] - 2026-08-25
 
