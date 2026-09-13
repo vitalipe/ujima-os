@@ -33,6 +33,8 @@ version truth; branch names and build labels may disagree.
 - The user's home is the Places screen: one entry per place, named as its card
   (Temporary, This Computer, USB Stick), kept in step as drives come and go.
   Every GTK file dialog opens there, with the crumb trail collapsed behind home.
+- Chromium, Electron and Qt file dialogs open the ujima file picker, a card over the
+  asking app.
 
 ### Changed
 

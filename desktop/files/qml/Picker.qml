@@ -8,7 +8,10 @@ import "."
 Window {
     id: win
     visible: true
-    width: 1280; height: 720
+    // a dialog, never a tab: a tab over the asking app gets it marked hidden by i3, and Chromium
+    // aborts File System Access pickers on hidden pages. Fits between the bars (48 top, 68 dock).
+    flags: Qt.Dialog
+    width: Math.min(1180, Screen.width - 64); height: Math.min(720, Screen.height - 48 - 68 - 40)
     color: Theme.bg
     title: pick.title !== "" ? pick.title : (pick.directory ? "Choose a folder" : pick.mode === "save" ? "Save file" : "Open a file")
     onClosing: pick.cancel()

@@ -10,8 +10,7 @@ reads get "dark" + the frost accent, and pipewire's Realtime probe gets a real a
 The picker itself is the Files app in --pick mode (desktop/files, WM_CLASS
 ujima-filepicker): one process per dialog, the request as a JSON file, the answer as one
 JSON line on its stdout. Untracked class, so ujimad leaves the window on the focused
-workspace where the tabbed layout covers the asking app, same doctrine as the tiled GTK
-choosers (i3 config: floated choosers overflow the bars).
+workspace, where it floats over the asking app as a dialog card — never a tab (Picker.qml).
 
 One dialog at a time: a second request while one is up is answered "ended" (2) — the
 portal spec's way to say try again, without stacking windows a shared machine never wants."""
