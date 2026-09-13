@@ -8,51 +8,101 @@ version truth; branch names and build labels may disagree.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-13
+
+Files and places: a USB drive becomes a place the moment it is plugged in, the
+Files app is a native window over those places, home is the Places screen, and
+every toolkit's file dialog opens on ujima's own picker or that screen.
+Underneath: a machine upgrades itself into its other slot through `ujimactl`,
+each slot carries its own settings, machines announce themselves to the
+Console, and the launcher and lock screen leave the browser engine behind.
+
 ### Added
 
-- The machine's own storage reports itself on the places stream — including,
-  truthfully, a partition that failed to mount, instead of pretending all is well.
+- A USB drive mounts read-write when plugged in — vfat, exFAT and ext4, checked
+  and repaired first when dirty; NTFS and everything else mounts read-only.
 - A drive labeled `UJIMAOS1` is an ujima drive: people's files live in its
   `files/` folder with ujima's cargo beside them; any other drive browses whole,
   and only labeled ujima drives are ever read for tokens.
-- A USB drive mounts read-write when plugged in — vfat, exFAT and ext4, checked
-  and repaired first when dirty; NTFS and everything else mounts read-only.
-- The desktop serves a places stream: the machine's Files area and every mounted
-  drive, with the tokens a drive carries (circle admin, a registered pack).
-- A machine upgrades itself: `bb dev upgrade <ip> <pack>` installs a pack into
-  the device's inactive slot and carries its settings across; `bb dev boot <ip>`
-  try-boots the prepared slot and commits it once the device comes back.
-- `ujimactl` — the runtime's one-shot CLI on every machine: migration
-  export/seed and the upgrade verbs (info, install, migrate, boot, commit).
+- The desktop serves a places stream: the machine's own storage, the Temporary
+  scratch place, and every mounted drive with the tokens it carries (circle
+  admin, a registered pack). A machine partition that failed to mount is
+  reported as such instead of pretending all is well.
+- The Files app is a native window of ujima's own (was pcmanfm): a Places home —
+  Temporary first, then This Computer and each drive, its card wearing the
+  drive's label and its tokens as chips — and a folder grid with new folder,
+  rename and delete.
+- Opening a file from Files launches the app that owns its type: Web views
+  images, video, audio, PDF, markdown, text and saved pages; ONLYOFFICE takes
+  documents and csv; Geany code; Thonny Python; GIMP its own xcf; TurboWarp
+  Scratch projects. Only a file on a mounted place opens — nothing else on the
+  disk.
+- The user's home is the Places screen: one entry per place, named as its card
+  (Temporary, This Computer, USB Stick — numbered only when more than one is
+  plugged in), kept in step as drives come and go. Every GTK file dialog opens
+  there, with the crumb trail collapsed behind home.
+- Chromium, Electron, Qt and Godot file dialogs open the ujima file picker over
+  the asking app — the Files app in pick mode: a rail of places led by
+  Temporary, open with a type filter, save with a replace check, folder picking.
+  It fills the band between the bars and the app stays visible behind it;
+  Godot's dialogs start in its project, shown as a place of its own.
+- `ujimactl` — the runtime's one-shot CLI on every machine: settings export and
+  seed, and the upgrade verbs (info, install, migrate, boot, commit).
+- A machine upgrades itself through it: a pack installs into the inactive slot,
+  its settings are carried across (what the new version does not accept is
+  named, never silently dropped), the slot try-boots and is committed once the
+  machine is back — one that never boots is never committed. `bb dev upgrade
+  <ip> <pack>` and `bb dev boot <ip>` drive it from a host over ssh.
 - Installing a pack streams real progress — validate, boot image, root image,
   verify, record — instead of going dark for the whole write.
 - Every control in the bar names itself on hover — the apps, the close button, the
   keyboard layout, the speaker, and the date behind the clock.
 - The keyboard layout opens on hover to show the other installed layouts, each one a
   direct pick rather than something to cycle to; the row closes as soon as you pick.
-- The user's home is the Places screen: one entry per place, named as its card
-  (Temporary, This Computer, USB Stick), kept in step as drives come and go.
-  Every GTK file dialog opens there, with the crumb trail collapsed behind home.
-- Chromium, Electron, Qt and Godot file dialogs open the ujima file picker over the
-  asking app; Godot's dialogs start in its project, shown as a place of its own.
 
 ### Changed
 
 - A stick's ujima cargo lives in one visible `ujima/` folder: the circle admin
   token is `ujima/circle.json` (was `.ujima-admin-token` at the root, which no
   longer counts), and `ujima/install.json` registers a pack by path.
-- ONLYOFFICE opens in a ujima theme — the desktop's charcoal and the office category
-  colour around a light document editor.
-- The Web app's browser frame and tab strip follow the desktop's charcoal instead of
-  Chromium's own grey.
-- ONLYOFFICE draws no window buttons of its own — a document closes from ujima's bar,
-  like every other app.
+- The session place lives at `~/Temporary` (was `~/files`).
+- GTK file dialogs lose their left panel: no Recent, Trash, Other Locations or
+  bookmarks — the crumb trail and the folder view remain. Apps' default folder
+  is Temporary (documents, downloads, pictures; Inkscape and Geany first runs).
+- The launcher is a native window drawn the way the Files app is, not a web page in
+  an embedded browser: the same home screen, at a fraction of the memory, and the
+  browser engine that carried it leaves the image.
 - Locking no longer starts a program of its own: the lock screen is part of the desktop
   shell, comes up at once over the wallpaper, and leaves what was open untouched behind it.
-- The live-deploy target is `bb dev push <ip> runtime` (was `ujimad`), and a
-  push now ships the runtime's entry-point wrappers along with the code.
+- A dialog is a card over its app: rounded, lifted by a soft shadow, the app dimmed
+  behind it while it has the focus — in every toolkit, with room inside GTK ones.
+  Page-sized dialogs (file choosers) stay flat; menus get a lighter lift.
+- The disk carries each slot's settings on that slot's own partition and the journal on
+  a partition of its own: a corrupt settings filesystem now halts only its slot instead
+  of both, a failed slot's logs stay readable from the one that boots, and user files
+  filling the disk can no longer squeeze the journal out. Settings and logs stop on the
+  first filesystem error rather than writing on; the machine id moved to the control
+  partition. Disks installed with the old layout must be re-installed.
+- The runtime lives at `/ujima/runtime` (was `/ujima/ujimad`): ujimad, `ujimactl`
+  and the Console app run from it; the daemon keeps its name and
+  `/usr/local/bin/ujimad`.
+- The machine API's liveness node is `query/machine/health` (was `monitor`):
+  uptime and warning messages.
+- The Console finds machines two ways: one that announces itself on the network appears
+  in about a second, and the subnet sweep still runs behind it — so a class fills in
+  promptly even where an access point throttles the sweep.
+- The Console rescans the circle each time its home screen opens, so a machine that was
+  still coming up during the first sweep appears on its own instead of waiting for Rescan.
+- ONLYOFFICE opens in a ujima theme — the desktop's charcoal and the office category
+  colour around a light document editor.
+- ONLYOFFICE draws no window buttons of its own — a document closes from ujima's bar,
+  like every other app.
+- The Web app's browser frame and tab strip follow the desktop's charcoal instead of
+  Chromium's own grey.
 - Volume lives in the bar itself: hovering the speaker slides a slider out beside it,
   and either the speaker or the number mutes. The separate volume panel is gone.
+- Moving the volume unmutes when you let go of the slider, so a machine you muted stays
+  silent while you set the level.
 - The close button in the top pane is a red ✕ you can see, not a faint grey mark.
 - The speaker icon shows roughly how loud the machine is, and the layout code sits
   beside a keyboard icon instead of standing alone.
@@ -62,32 +112,6 @@ version truth; branch names and build labels may disagree.
 - Anything an activity has pinned wears a padlock in the bar and cannot be changed there,
   sound and the keyboard layout alike: the volume track greys out, the layout picker will
   not open, and when sound is pinned off the volume panel stays shut too.
-- Moving the volume unmutes when you let go of the slider, so a machine you muted stays
-  silent while you set the level.
-
-- The Console finds machines two ways: one that announces itself on the network appears
-  in about a second, and the subnet sweep still runs behind it — so a class fills in
-  promptly even where an access point throttles the sweep.
-- The disk carries each slot's settings on that slot's own partition and the journal on
-  a partition of its own: a corrupt settings filesystem now halts only its slot instead
-  of both, a failed slot's logs stay readable from the one that boots, and user files
-  filling the disk can no longer squeeze the journal out. Settings and logs stop on the
-  first filesystem error rather than writing on; the machine id moved to the control
-  partition. Disks installed with the old layout must be re-installed.
-- The Console rescans the circle each time its home screen opens, so a machine that was
-  still coming up during the first sweep appears on its own instead of waiting for Rescan.
-- GTK file dialogs lose their left panel: no Recent, Trash, Other Locations or
-  bookmarks — the crumb trail and the folder view remain. Apps' default folder
-  is Temporary (documents, downloads, pictures; Inkscape and Geany first runs).
-- The places stream names each place; the Files app shows that name, numbering
-  sticks only when more than one is plugged in.
-- The session place lives at `~/Temporary` (was `~/files`).
-- The launcher is a native window drawn the way the Files app is, not a web page in
-  an embedded browser: the same home screen, at a fraction of the memory, and the
-  browser engine that carried it leaves the image.
-- A dialog is a card over its app: rounded, lifted by a soft shadow, the app dimmed
-  behind it while it has the focus — in every toolkit, with room inside GTK ones.
-  Page-sized dialogs (file choosers) stay flat; menus get a lighter lift.
 
 ### Fixed
 
@@ -95,6 +119,8 @@ version truth; branch names and build labels may disagree.
   itself as `ujimaos`, so two of them on one network fought over the name and which one
   you reached depended on boot order; each now announces `ujima-<serial>` from the moment
   it starts.
+- A settings write is forced to disk before it is renamed into place: a power cut
+  mid-write leaves the old settings or the new, never a torn file.
 
 ### Removed
 
@@ -290,7 +316,8 @@ read-only root, a babashka settings daemon (ujimad), an i3 + eww + WebKitGTK she
 - **Dev rig** — live `dev push` / `dev script` deploy to a dev Pi, e2e runner,
   screenshot/drive tooling.
 
-[Unreleased]: https://github.com/vitalipe/ujima-os/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/vitalipe/ujima-os/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/vitalipe/ujima-os/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/vitalipe/ujima-os/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/vitalipe/ujima-os/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/vitalipe/ujima-os/releases/tag/v0.2.0
