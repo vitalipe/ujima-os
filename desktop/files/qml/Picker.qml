@@ -9,9 +9,11 @@ Window {
     id: win
     visible: true
     // a dialog, never a tab: a tab over the asking app gets it marked hidden by i3, and Chromium
-    // aborts File System Access pickers on hidden pages. Fits between the bars (48 top, 68 dock).
+    // aborts File System Access pickers on hidden pages. Floating, it still fills the band between
+    // the bars — i3 centers it there, picom keeps it flat, a page. The screen's own size minus the
+    // bar heights (48 top, 68 dock: keep in sync with the i3 config gaps), never a resolution.
     flags: Qt.Dialog
-    width: Math.min(1180, Screen.width - 64); height: Math.min(720, Screen.height - 48 - 68 - 40)
+    width: Screen.width; height: Screen.height - 48 - 68
     color: Theme.bg
     title: pick.title !== "" ? pick.title : (pick.directory ? "Choose a folder" : pick.mode === "save" ? "Save file" : "Open a file")
     onClosing: pick.cancel()

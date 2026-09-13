@@ -33,8 +33,8 @@ version truth; branch names and build labels may disagree.
 - The user's home is the Places screen: one entry per place, named as its card
   (Temporary, This Computer, USB Stick), kept in step as drives come and go.
   Every GTK file dialog opens there, with the crumb trail collapsed behind home.
-- Chromium, Electron, Qt and Godot file dialogs open the ujima file picker, a card over
-  the asking app; Godot's dialogs start in its project, shown as a place of its own.
+- Chromium, Electron, Qt and Godot file dialogs open the ujima file picker over the
+  asking app; Godot's dialogs start in its project, shown as a place of its own.
 
 ### Changed
 

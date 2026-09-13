@@ -11,7 +11,8 @@ the tattletale spike).
 The picker itself is the Files app in --pick mode (desktop/files, WM_CLASS
 ujima-filepicker): one process per dialog, the request as a JSON file, the answer as one
 JSON line on its stdout. Untracked class, so ujimad leaves the window on the focused
-workspace, where it floats over the asking app as a dialog card — never a tab (Picker.qml).
+workspace, where it floats over the asking app filling the band like a tiled page — never
+a tab (Picker.qml).
 
 One dialog at a time: a second request while one is up is answered "ended" (2) — the
 portal spec's way to say try again, without stacking windows a shared machine never wants."""
