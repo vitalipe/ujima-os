@@ -1,7 +1,7 @@
 (ns pipeline.desktop.script
   "Runs INSIDE the target chroot as root (and is the live `dev push desktop` deploy path).
    Stages the ujima *desktop* layer — the desktop/ tree, plus its concern files under
-   os/pipeline/desktop/ (theme, fonts, links, files, eww, chooser, portal) — onto the base. The graphical
+   os/pipeline/desktop/ (theme, fonts, links, files, eww, chooser) — onto the base. The graphical
    session's systemd unit lives in the ujimaify stage; runtime desktop *settings* (wallpaper,
    resolution, …) are ujimad's job at runtime, not this build script.
 
@@ -55,13 +55,6 @@
     ;; own grey directly under the shell's top pane, which is the one place the seam shows
     (files/install! project "desktop/theme/chromium-policy.json"
                     "/etc/chromium/policies/managed/ujima.json")
-
-    ;; the audio stack grants every local client full access — the portal's sandbox marker
-    ;; must never starve PipeWire/WirePlumber (the why lives in portal/*.conf)
-    (files/install! project "desktop/portal/pipewire-access.conf"
-                    "/etc/pipewire/pipewire.conf.d/99-ujima-access.conf")
-    (files/install! project "desktop/portal/wireplumber-access.conf"
-                    "/etc/wireplumber/wireplumber.conf.d/99-ujima-access.conf")
 
     ;; session-level home seeds → the ujima user's home (per-APP home defaults live in their
     ;; apps trees, staged below): links routing + the Files-plane defaults. install! creates

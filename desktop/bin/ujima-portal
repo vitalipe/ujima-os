@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """UjimaOS portal — owns org.freedesktop.portal.Desktop on the session bus itself,
 deliberately NOT xdg-desktop-portal: no impl backends, no document portal, no FUSE —
-the caller gets plain paths under /ujima back. Apps reach it when their toolkit sees
-a sandbox marker (/.flatpak-info): file dialogs land here (the ujima picker), theme
+the caller gets plain paths under /ujima back. No sandbox marker: Chromium and Electron
+ask it for every file dialog, Qt apps through the xdgdesktopportal theme; GTK apps,
+ONLYOFFICE and Godot keep their own. File dialogs land here (the ujima picker), theme
 reads get "dark" + the frost accent, and pipewire's Realtime probe gets a real answer
 (errors there make it retry forever — measured, see the tattletale spike).
 
