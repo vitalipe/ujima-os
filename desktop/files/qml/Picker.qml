@@ -26,9 +26,23 @@ Window {
                                         : pick.mode === "save" ? nameField.text.trim() !== "" && !!nav.place
                                         : nav.selected.length > 0
 
+    // an app's own folder under /ujima/apps (Godot's res://) lies in no place: for this request it is
+    // a place of its own, first in the rail, so a project dialog can reach its project
+    readonly property var appPlace: {
+        const pre = "/ujima/apps/"
+        const name = pick.currentFolder.startsWith(pre) ? pick.currentFolder.substring(pre.length).split("/")[0] : ""
+        return name ? { id: "app:" + name, kind: "app", name: name, label: "", root: pre + name } : null
+    }
+    property var railPlaces: []
+    function syncRail() {
+        const out = appPlace ? [appPlace] : []
+        for (let i = 0; i < places.count; i++) out.push(places.get(i))
+        railPlaces = out
+    }
+
     QtObject {
         id: nav
-        property var place: null          // a row of the places model
+        property var place: null          // a row of the places model, or appPlace
         property var path: []             // folder names below the place root
         property var selected: []         // entry names in the current folder
         property int filter: -1           // index into pick.filters, -1 = all files
@@ -41,7 +55,7 @@ Window {
             listing.filter = (pick.mode === "open" && !pick.directory && filter >= 0) ? pick.filters[filter].patterns : []
             listing.path = dir
         }
-        function go(row, segs) { place = places.get(row); path = segs; selected = []; sync() }
+        function go(p, segs) { place = p; path = segs; selected = []; sync() }
         function enter(name) { path = path.concat([name]); selected = []; sync() }
         function crumb(depth) { path = path.slice(0, depth); selected = []; sync() }
         function tapped(name, isDir, toggle) {
@@ -70,23 +84,23 @@ Window {
         function start() {
             if (started || places.count === 0) return
             started = true
-            // the folder the app asked for, if it lives in a place; else Temporary; else the first place
+            // the folder the app asked for, in a place or in its own app folder; else Temporary; else the first place
+            const below = function(root) { return pick.currentFolder.substring(root.length).split("/").filter(function(s) { return s !== "" }) }
             for (let i = 0; i < places.count; i++) {
                 const p = places.get(i)
-                if (pick.currentFolder !== "" && files.inside(p.root, pick.currentFolder)) {
-                    const rel = pick.currentFolder.substring(p.root.length).split("/").filter(function(s) { return s !== "" })
-                    go(i, rel); return
-                }
+                if (pick.currentFolder !== "" && files.inside(p.root, pick.currentFolder)) { go(p, below(p.root)); return }
             }
-            for (let i = 0; i < places.count; i++) if (places.get(i).kind === "session") { go(i, []); return }
-            go(0, [])
+            if (win.appPlace) { go(win.appPlace, below(win.appPlace.root)); return }
+            for (let i = 0; i < places.count; i++) if (places.get(i).kind === "session") { go(places.get(i), []); return }
+            go(places.get(0), [])
         }
     }
     Connections {
         target: places
         function onPlacesChanged() {
+            win.syncRail()
             nav.start()
-            if (nav.place && places.indexOfId(nav.place.id) < 0) { nav.place = null; nav.path = []; nav.selected = []; listing.path = "" }
+            if (nav.place && nav.place.kind !== "app" && places.indexOfId(nav.place.id) < 0) { nav.place = null; nav.path = []; nav.selected = []; listing.path = "" }
         }
     }
     Component.onCompleted: {
@@ -96,6 +110,7 @@ Window {
             nav.filter = cur >= 0 ? cur : 0
         }
         if (pick.mode === "save") { nameField.text = pick.currentName; nameField.forceActiveFocus(); nameField.selectAll() }
+        win.syncRail()
         nav.start()
     }
 
@@ -129,12 +144,11 @@ Window {
                     spacing: 4
                     Text { text: "PLACES"; color: Theme.faint; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 1.5; font.family: Theme.font; leftPadding: 12; bottomPadding: 8 }
                     Repeater {
-                        model: places
+                        model: win.railPlaces
                         delegate: Rectangle {
-                            required property int index
-                            required property var model
-                            readonly property bool active: nav.place && nav.place.id === model.id
-                            readonly property var m: Theme.meta(model.kind, model.label)
+                            required property var modelData
+                            readonly property bool active: nav.place && nav.place.id === modelData.id
+                            readonly property var m: Theme.meta(modelData.kind, modelData.label)
                             // colour-coded like the app's cards: the kind's tint and ring, its glyph in its colour
                             width: rail.width - 20; height: 52; radius: 12
                             color: active ? Theme.tint(m.rgb, .12) : (ph.hovered ? Qt.rgba(1, 1, 1, .05) : "transparent")
@@ -152,12 +166,12 @@ Window {
                                 Column {
                                     spacing: 1
                                     anchors.verticalCenter: parent.verticalCenter
-                                    Text { text: model.name; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold; font.family: Theme.font }
+                                    Text { text: modelData.name; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold; font.family: Theme.font }
                                     Text { text: m.badge; color: active ? m.color : Theme.faint; font.pixelSize: 11; font.weight: Font.DemiBold; font.family: Theme.font }
                                 }
                             }
                             HoverHandler { id: ph; cursorShape: Qt.PointingHandCursor }
-                            TapHandler { onTapped: nav.go(index, []) }
+                            TapHandler { onTapped: nav.go(modelData, []) }
                         }
                     }
                 }

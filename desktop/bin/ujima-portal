@@ -2,10 +2,11 @@
 """UjimaOS portal — owns org.freedesktop.portal.Desktop on the session bus itself,
 deliberately NOT xdg-desktop-portal: no impl backends, no document portal, no FUSE —
 the caller gets plain paths under /ujima back. No sandbox marker: Chromium and Electron
-ask it for every file dialog, Qt apps through the xdgdesktopportal theme; GTK apps,
-ONLYOFFICE and Godot keep their own. File dialogs land here (the ujima picker), theme
-reads get "dark" + the frost accent, and pipewire's Realtime probe gets a real answer
-(errors there make it retry forever — measured, see the tattletale spike).
+ask it for every file dialog, Qt apps through the xdgdesktopportal theme, Godot through
+its native-dialogs setting; GTK apps and ONLYOFFICE keep their own. File dialogs land
+here (the ujima picker), theme reads get "dark" + the frost accent, and pipewire's
+Realtime probe gets a real answer (errors there make it retry forever — measured, see
+the tattletale spike).
 
 The picker itself is the Files app in --pick mode (desktop/files, WM_CLASS
 ujima-filepicker): one process per dialog, the request as a JSON file, the answer as one

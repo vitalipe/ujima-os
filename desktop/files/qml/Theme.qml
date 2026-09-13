@@ -45,6 +45,10 @@ QtObject {
             badge: "Removable", dashed: false,
             notice: "This is a USB stick. Come back to the Places screen before you unplug it.",
             emptyHint: "Use “New folder” to start organising files." }
+        if (kind === "app") return {   // never on the wire: the picker's place for an app's own folder
+            glyph: "folder", color: frost, rgb: frostRgb, dashed: false,
+            desc: "The asking app's own folder.", badge: "This app's folder",
+            notice: "", emptyHint: "Nothing here yet." }
         return {
             glyph: "local", color: "#8ab07c", rgb: [138, 176, 124],
             desc: "Shared by everyone who uses this computer.", badge: "Stays here", dashed: false,

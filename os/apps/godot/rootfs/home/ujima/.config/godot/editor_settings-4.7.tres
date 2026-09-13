@@ -1,0 +1,4 @@
+[gd_resource type="EditorSettings" format=3]
+
+[resource]
+interface/editor/appearance/use_native_file_dialogs = true
