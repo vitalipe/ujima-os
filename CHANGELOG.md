@@ -11,6 +11,7 @@ version truth; branch names and build labels may disagree.
 ### Fixed
 
 - The lock screen no longer flashes over the first app opened in a session.
+- Godot closes on the first ask, instead of needing a second close to force it.
 
 ## [0.5.0] - 2026-09-13
 

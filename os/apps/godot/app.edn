@@ -1,10 +1,12 @@
 ;; opens the editor straight into the vendored 2D platformer demo (../godot-demo — the payload
 ;; dir beside this one; cwd = this app dir, so the spec works from any root) — wow-on-open
-;; instead of an empty Project Manager. Forced to Vulkan Mobile: the V3D does Vulkan 1.3 but
-;; not the Forward+/Clustered tier (<48 textures/stage), and Mobile is the right renderer for
-;; a Pi GPU. The rootfs seeds use_native_file_dialogs: Godot takes its Open/Save dialogs to
-;; the portal (the ujima picker) only when sandboxed or so told.
+;; instead of an empty Project Manager. The driver is pinned because the V3D cannot do the
+;; Forward+/Clustered tier (<48 textures/stage); opengl3 is the pin, not Vulkan Mobile, because
+;; under Vulkan the editor deadlocks in V3D's swapchain teardown and never closes. It is also
+;; what the demo asks for — project.godot declares gl_compatibility, and the game the editor
+;; runs already uses it. The rootfs seeds use_native_file_dialogs: Godot takes its Open/Save
+;; dialogs to the portal (the ujima picker) only when sandboxed or so told.
 {:kind :exec :label "Godot" :category :code
  :exec ["./godot" "--editor" "--path" "../godot-demo"
-        "--rendering-driver" "vulkan" "--rendering-method" "mobile"]
+        "--rendering-driver" "opengl3"]
  :window {:class "Godot"}}  ; res_class, xprop-verified
