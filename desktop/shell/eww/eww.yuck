@@ -173,9 +173,6 @@
   :wm-ignore true :stacking "fg"
   (dock))
 
-;; SPIKE — the lock screen as shell state rather than an app: a fullscreen window this
-;; daemon already holds, opened on lock and closed on unlock. Opened last so it stacks
-;; over the bars (opened last = stacked last among :wm-ignore "fg" windows).
 (defwidget lockscreen []
   (box :class "lockscreen"
     (box :class "lockcard" :orientation "v" :halign "center" :valign "center"

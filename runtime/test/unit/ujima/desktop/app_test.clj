@@ -286,6 +286,20 @@
   (stubbed #(app/handle-event! {:type :window/changed}))
   (is (= [] (fx-of :cmd))))
 
+(deftest the-floating-lock-surface-gets-tiled-so-i3-never-reaps-its-workspace
+  ;; i3 counts only TILED windows when deciding a workspace is empty. Left floating, lock-ws
+  ;; reads as empty and i3 reaps it on the first switch to a new app workspace, dropping the
+  ;; lock card on top of the app the user just opened.
+  (setup! [(win "lock" :floating? true :title "Eww - lockscreen" :con 11)] "1")
+  (stubbed #(app/handle-event! {:type :window/changed}))
+  (is (some #{[:cmd "[con_id=11]" "floating" "disable"]} (fx-of :cmd))
+      "un-floated even though lock-ws is not an app workspace"))
+
+(deftest the-tiled-lock-surface-is-left-alone
+  (setup! [(win "lock" :title "Eww - lockscreen" :con 11)] "1")
+  (stubbed #(app/handle-event! {:type :window/changed}))
+  (is (= [] (fx-of :cmd)) "already tiled — idempotent"))
+
 
 ;; --- route: an orphan window lands on its app's workspace by class (no focus steal) ---
 

@@ -158,14 +158,16 @@
 
 
 (defn settle-floaters!
-  "chromium --app floats itself after mapping (class/role arrive too late for i3's for_window).
-   Un-float floating non-dialog windows on app workspaces. Idempotent."
+  "Un-float stray floaters: app windows that float themselves after mapping (chromium --app sets
+   class/role too late for i3's for_window), and the lock surface — i3 counts only TILED windows
+   when it decides a workspace is empty, so a floating one gets lock-ws reaped out from under it
+   and lands on the app the user just opened. Idempotent."
   [{:keys [ws->wins] :as world}]
   (doseq [[ws wins] ws->wins
-          {:keys [con-id floating? wtype]} wins
-          :when (and (proj/app-of-ws world ws) floating?
-                     (not (#{"dialog" "utility" "splash"} wtype)))]
-    (i3/try-command! (format "[con_id=%d]" con-id) "floating" "disable")))
+          {:keys [con-id floating? wtype title]} wins]
+    (when (and floating? (not (#{"dialog" "utility" "splash"} wtype)))
+      (when (or (proj/app-of-ws world ws) (= lock-title title))
+        (i3/try-command! (format "[con_id=%d]" con-id) "floating" "disable")))))
 
 
 (defn route-windows!

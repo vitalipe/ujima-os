@@ -8,6 +8,10 @@ version truth; branch names and build labels may disagree.
 
 ## [Unreleased]
 
+### Fixed
+
+- The lock screen no longer flashes over the first app opened in a session.
+
 ## [0.5.0] - 2026-09-13
 
 Files and places: a USB drive becomes a place the moment it is plugged in, the
