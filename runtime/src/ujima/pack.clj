@@ -13,16 +13,37 @@
             [ujima.linux.disk.mount  :refer [with-mounted-ext4]]))
 
 
+(def ^:private report-every-bytes (* 64 1024 1024))
+
+
+(defn copy-counting!
+  "Pump IN into OUT, telling ON-BYTES the running total every ~64 MB and once at the end —
+   a multi-GB write needs a pulse. Returns the total."
+  [^java.io.InputStream in ^java.io.OutputStream out on-bytes]
+  (let [buf (byte-array (* 4 1024 1024))]
+    (loop [total 0 reported 0]
+      (let [n (.read in buf)]
+        (if (neg? n)
+          (do (on-bytes total) total)
+          (let [total (+ total n)]
+            (.write out buf 0 n)
+            (if (>= (- total reported) report-every-bytes)
+              (do (on-bytes total) (recur total total))
+              (recur total reported))))))))
+
+
 (defn- unpack-to-partition!
   "Stream MEMBER into the partition, hashing in flight. A mismatch throws AFTER the
    write — nothing is activated yet, and the hash also catches an upstream tar that
-   died mid-stream (dd only sees EOF)."
-  [pack-path member partition-path expected-sha]
+   died mid-stream (dd only sees EOF). Closing dd's stdin is what ends it."
+  [pack-path member partition-path expected-sha on-bytes]
   (let [digest (java.security.MessageDigest/getInstance "SHA-256")
         tar    ($ tar --zstd -xOf [pack-path] [member])
-        hashed (java.security.DigestInputStream. (:out tar) digest)]
-    (-> (sudo$ {:in hashed} dd {:of partition-path :bs "4M" :conv "fsync"})
-        (result-or-fail!))
+        hashed (java.security.DigestInputStream. (:out tar) digest)
+        dd     (sudo$ dd {:of partition-path :bs "4M" :conv "fsync"})]
+    (with-open [^java.io.OutputStream into-dd (:in dd)]
+      (copy-counting! hashed into-dd on-bytes))
+    (result-or-fail! dd)
     (let [actual (format "%064x" (BigInteger. 1 (.digest digest)))]
       (when-not (= expected-sha actual)
         (throw
@@ -33,13 +54,19 @@
                     :actual    actual}))))))
 
 
+(defn- gb [bytes] (format "%.1f" (/ bytes 1e9)))
+
+
 (def pack-version 1)
 (def manifest-member "manifest.edn")
 (def install-record-path "ujima/install.edn")
 
 
-(defn manifest [ujima-pack-path]
-  (let [{:keys [ok? out]} ($? tar --zstd -xOf [ujima-pack-path] [manifest-member])]
+(defn manifest
+  "`--occurrence=1` or tar keeps scanning past the first member and decompresses the whole
+   pack — 50 s on a Pi, per plug."
+  [ujima-pack-path]
+  (let [{:keys [ok? out]} ($? tar --zstd --occurrence=1 -xOf [ujima-pack-path] [manifest-member])]
     (when ok?
       (try
         (edn/read-string out)
@@ -190,17 +217,25 @@
                            :member-bytes need
                            :partition-bytes have})))))))
 
-     (let [mf (manifest ujima-pack-path)]
+     (let [mf (manifest ujima-pack-path)
+           ;; a member's bytes -> this step's 0-100
+           pulse (fn [progress! member]
+                   (let [total (get-in mf [:members member :bytes])]
+                     (fn [written]
+                       (progress! (* 100 (/ written (max total 1)))
+                                  (str "writing " (get-in mf [:members member :file]) " — "
+                                       (gb written) " of " (gb total) " GB")))))]
        (<step! 8 :boot
          (progress! 0 "writing boot.img")
          (unpack-to-partition! ujima-pack-path "boot.img" boot-partition-path
-                               (get-in mf [:members :boot :sha256])))
+                               (get-in mf [:members :boot :sha256])
+                               (pulse progress! :boot)))
 
        (<step! 85 :root
-         (progress! 0 (str "writing root.img — "
-                           (format "%.1f" (/ (get-in mf [:members :root :bytes]) 1e9)) " GB"))
+         (progress! 0 (str "writing root.img — " (gb (get-in mf [:members :root :bytes])) " GB"))
          (unpack-to-partition! ujima-pack-path "root.img" root-partition-path
-                               (get-in mf [:members :root :sha256])))
+                               (get-in mf [:members :root :sha256])
+                               (pulse progress! :root)))
 
        (<step! 97 :verify
          (progress! 0 "fsck + grow the root fs")

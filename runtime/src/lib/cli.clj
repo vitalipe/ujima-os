@@ -292,6 +292,36 @@
       (throw (:error (:payload (timeline/timeline->last-of-type tl (:id t) :error))))
       (:payload (timeline/timeline->last-of-type tl (:id t) :done)))))
 
+(defn- event->line
+  "One event as plain data — no Throwables, which no reader could take."
+  [{:keys [type path payload]}]
+  (case type
+    :progress {:type :progress :path path
+               :progress (:progress payload) :message (:message payload)}
+    :error    (let [e (:error payload)]
+                {:type :error :path path
+                 :message (or (ex-message e) (:message payload))
+                 :data    (ex-data e)})
+    :done     {:type :done :path path :value payload}
+    {:type type :path path}))
+
+
+(defn run-and-stream!
+  "Runs a cold task, printing its ROOT events as EDN lines for a program reading stdout —
+   a joined child's progress arrives there already scaled. Returns :done, rethrows :error."
+  [t]
+  (task/run! t)
+  (loop []
+    (when-let [evt (task/take!! t)]
+      (when (= (:id evt) (:id t))
+        (prn (event->line evt))
+        (flush))
+      (recur)))
+  (let [tl (task/task->timeline t)]
+    (if (= :error (timeline/timeline->state tl))
+      (throw (:error (:payload (timeline/timeline->last-of-type tl (:id t) :error))))
+      (:payload (timeline/timeline->last-of-type tl (:id t) :done)))))
+
 ;; ----------------------------------------------------------------------------
 ;; Public API
 ;; ----------------------------------------------------------------------------

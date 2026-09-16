@@ -15,6 +15,7 @@
             [lib.task.flow :refer [flow <join!]]
             [ujima.linux.sudo       :refer [sudo$! sudo$?]]
             [ujima.linux.disk.mount :as mount]
+            [ujima.linux.system     :as system]
 
             [ujima.device    :as device]
             [ujima.device.ab :as ab]
@@ -137,6 +138,17 @@
         (assoc report :slot target)))))
 
 
+(defn- armable-target!
+  "The inactive slot; refused unless it carries an install record."
+  [disk rt]
+  (let [target (target-slot rt)]
+    (when-not (get-in (ab/ujima-disk-info disk) [:slots target :ujima-os])
+      (throw (ex-info (str "slot " (name target) " carries no install record — refusing to "
+                           "boot into a slot with nothing in it")
+                      {:slot target})))
+    target))
+
+
 (defn boot!
   "Arm the inactive slot and reboot into it on trial. Arms here rather than trusting an
    earlier install, so prepared and pointed-at never drift apart."
@@ -144,14 +156,22 @@
   (shell/require-root!)
   (let [disk   (require-disk!)
         rt     (device/system->boot-runtime)
-        i      (ab/ujima-disk-info disk)
-        target (target-slot rt)]
-    (when-not (get-in i [:slots target :ujima-os])
-      (throw (ex-info (str "slot " (name target) " carries no install record — refusing to "
-                           "try-boot into a slot with nothing in it")
-                      {:slot target})))
+        target (armable-target! disk rt)]
     (ab/set-try-boot-slot! disk target)
     (ab/try-boot! rt)
+    target))
+
+
+(defn activate!
+  "Point the disk at the inactive slot for good and reboot. No trial, so no automatic
+   fallback — for a slot already known to boot, or one whose runtime cannot confirm."
+  []
+  (shell/require-root!)
+  (let [disk   (require-disk!)
+        rt     (device/system->boot-runtime)
+        target (armable-target! disk rt)]
+    (ab/set-boot-slot! disk target)
+    (system/reboot!)
     target))
 
 

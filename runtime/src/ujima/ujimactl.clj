@@ -88,12 +88,16 @@
      :spec {}}
 
     "install"
-    {:usage "Usage: ujimactl upgrade install <pack>"
-     :target (fn [{:keys [pack]}]
-               (let [{:keys [slot]} (cli/run-and-display! (upgrade/install! pack))]
-                 (println (str "installed slot " (name slot)))))
+    {:usage "Usage: ujimactl upgrade install <pack> [--events]"
+     :target (fn [{:keys [pack events]}]
+               (if events
+                 (cli/run-and-stream! (upgrade/install! pack))
+                 (let [{:keys [slot]} (cli/run-and-display! (upgrade/install! pack))]
+                   (println (str "installed slot " (name slot))))))
      :args [:pack]
-     :spec {:pack {:desc "The .pack to write into the inactive slot" :require true}}}
+     :spec {:pack   {:desc "The .pack to write into the inactive slot" :require true}
+            :events {:coerce :boolean
+                     :desc "Print the install's events as EDN lines, for a program to follow"}}}
 
     "migrate"
     {:usage "Usage: ujimactl upgrade migrate             (EDN vector <- stdin, report -> stdout)"
@@ -103,6 +107,11 @@
     "boot"
     {:usage "Usage: ujimactl upgrade boot"
      :target (fn [_] (println (str "try-booting into slot " (name (upgrade/boot!)) "...")))
+     :spec {}}
+
+    "activate"
+    {:usage "Usage: ujimactl upgrade activate            (no trial — the slot becomes the boot slot)"
+     :target (fn [_] (println (str "activating slot " (name (upgrade/activate!)) " and restarting...")))
      :spec {}}
 
     "commit"
