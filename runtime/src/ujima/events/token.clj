@@ -11,11 +11,12 @@
             [ujima.log           :as log]
             [ujima.desktop.app   :as app]
             [ujima.desktop.app.catalog :as catalog]
+            [ujima.events.tryboot :as tryboot]
             [ujima.linux.systemd :as systemd]))
 
 
 (def ^:private console  :console)
-(def ^:private token-env "UJIMA_CIRCLE_TOKEN")
+(def ^:private token-env tryboot/token-env)
 (def eject-grace-ms 3000)      ; a yank is not always an eject — let a re-insert cancel it
 
 
@@ -66,8 +67,15 @@
     (log/warn "circle token replaced — a console already running keeps the old one until it closes"))
   ;; app/run! switches workspace BEFORE its own active? gate, so ask here: a stick that
   ;; flaps must not yank whoever is working, once per bad contact
-  (if (systemd/active? console)
+  (cond
+    (systemd/active? console)
     (log/info "circle token back before the console closed — leaving it as it is")
+
+    ;; a trial boot keeps the screen: the console is pinned in the dock, not opened over it
+    (tryboot/trial?)
+    (log/info "circle token present — the console is pinned; the trial boot keeps the screen")
+
+    :else
     (do (log/info "circle token present — opening the console")
         (app/run! console))))
 

@@ -18,7 +18,8 @@
             [ujima.desktop.app      :as app]
             [ujima.desktop.app.catalog.loader :as loader]
             [ujima.storage          :as storage]
-            [ujima.events           :as events]))
+            [ujima.events           :as events]
+            [ujima.events.tryboot   :as tryboot]))
 
 
 
@@ -28,6 +29,7 @@
   (let [env         (io/slurp-config "config" "ujimad")
         deploy      (io/slurp-config "config" "env")     ; image facts; hosts see env.dev.edn
         disk        (device/system->disk)                ; nil on hosts, FIXME: make autodetect fallback, put in config
+        boot-rt     (device/system->boot-runtime)        ; how this boot came about — read once
         app-cfg     (get-in env [:desktop :app])
         app-catalog (loader/load-catalog (:catalog app-cfg) (:fallback-icon app-cfg))
         api-http    (get-in env [:api :http] {})
@@ -50,13 +52,16 @@
 
     (storage/init! (get-in env [:storage] {}))
 
+    ;; a trial boot opens its app first — ahead of the storage push that may open the Console
+    (tryboot/init! boot-rt)
+    (tryboot/open!)
+
     ;; every arrow, then the boot converge — before anything serves
     (events/init! (get-in env [:events] {}))
     (control/converge-fresh!)
 
     (let [{system-disk-id :system-disk-id :as disk-info} (ab/ujima-disk-info disk)
 
-          boot-rt      (device/system->boot-runtime) 
           auth-cfg     (merge (get-in env [:api :auth] {})
                               {:key     (:effective (control/setting [:circle :token]))
                                :self-id system-disk-id})]

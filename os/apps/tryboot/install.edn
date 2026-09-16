@@ -1,0 +1,2 @@
+;; the kiosk window; the backend is the console's, from the desktop layer
+{:apt ["chromium"]}

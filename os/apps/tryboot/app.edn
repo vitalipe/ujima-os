@@ -1,0 +1,4 @@
+{:kind :exec :label "New version" :category :system   ; system = pinned in the dock, no launcher tile
+ :hidden true                         ; until ujimad wakes in a trial boot (events/tryboot)
+ :exec ["sh" "app/run.sh"]            ; the console backend on its own port + the trial-boot page
+ :window {:class "ujima-tryboot"}}    ; chromium --class, set in run.sh

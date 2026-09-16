@@ -5,7 +5,8 @@
             [ujima.desktop.app   :as app]
             [ujima.desktop.app.catalog :as catalog]
             [ujima.linux.systemd :as systemd]
-            [ujima.events.token :as token]))
+            [ujima.events.token :as token]
+            [ujima.events.tryboot :as tryboot]))
 
 
 (defn- mounted [& [tokens]]
@@ -76,6 +77,19 @@
               [:run :console]]
              @calls*)
           "env + unhide must land BEFORE run! — the launch captures the entry"))))
+
+
+(deftest in-a-trial-boot-the-console-is-pinned-but-never-opened
+  (let [calls* (atom [])]
+    (with-redefs [systemd/active?    (constantly false)
+                  tryboot/trial?     (constantly true)
+                  app/release! (fn [] nil)
+                  catalog/merge-app! (fn [id changes] (swap! calls* conj [:update id changes]))
+                  app/run!           (fn [id]     (swap! calls* conj [:run id]))]
+      (is (= :open (token/on-storage! (mounted secret) nil)))
+      (is (= [[:update :console {:env {"UJIMA_CIRCLE_TOKEN" "abc"} :hidden false}]]
+             @calls*)
+          "the key and the dock pin land; the tryboot app keeps the screen"))))
 
 
 (deftest a-quiet-storage-event-touches-nothing
