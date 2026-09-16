@@ -8,6 +8,20 @@ version truth; branch names and build labels may disagree.
 
 ## [Unreleased]
 
+### Added
+
+- The Console has an Update page: a labeled stick registering a pack (`ujima/install.json`,
+  path relative to the stick's root) offers Update, the other slot's install offers Revert,
+  and either restarts into a trial boot — or, with the skip-trial checkbox, onto the slot
+  outright. The install's progress shows as it writes.
+- A trial boot opens the New version app first: keep this version, or go back — a plain
+  restart, and the firmware falls back. The Console, when its stick is in, is pinned in the
+  dock but does not take the screen.
+- The machine tree carries the places blob (`query/machine/places`): each place's root,
+  browse root and token types.
+- `ujimactl upgrade activate` points the disk at the other slot with no trial, and
+  `upgrade install --events` streams the install's progress as EDN lines.
+
 ### Fixed
 
 - The lock screen no longer flashes over the first app opened in a session.
