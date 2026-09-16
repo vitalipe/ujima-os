@@ -1,0 +1,20 @@
+/* New version — one card, one decision. Setup's palette and buttons. */
+.stage{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{width:min(560px,100%);background:var(--panel);border-radius:22px;padding:34px 32px 28px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);display:flex;flex-direction:column;gap:18px}
+.card .glyph{width:64px;height:64px;color:rgb(var(--frost))}
+.card .glyph svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.card h1{font-size:24px;font-weight:700;letter-spacing:-.4px;line-height:1.2}
+.card h1 b{color:rgb(var(--frost))}
+.card p{font-size:14px;color:var(--dim);line-height:1.5}
+.vers{display:flex;gap:12px}
+.ver{flex:1;background:rgba(255,255,255,.045);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:3px}
+.ver .k{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;color:var(--faint)}
+.ver .v{font-size:16px;font-weight:700}
+.ver.now{box-shadow:inset 0 0 0 1.5px rgba(var(--frost),.45)}
+.ver.now .v{color:rgb(var(--frost))}
+.acts{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.acts .btn{height:44px;padding:0 18px;font-size:13.5px}
+.done{display:flex;align-items:center;gap:10px;font-size:14px;color:rgb(var(--ok))}
+.done .ic{width:18px;height:18px}
+.fail{font-size:13px;color:rgb(var(--danger))}

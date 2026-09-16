@@ -7,7 +7,7 @@
    the verb returns data (checks). Jobs carry the :app that started them
    (:circle | :setup) so each panel's view sees only its own actions."
   (:require [lib.task          :as task]
-            [lib.task.timeline :refer [->TimelineEvent]]))
+            [lib.task.timeline :as timeline :refer [->TimelineEvent]]))
 
 
 (def ^:private reply-timeout-ms 8500)   ;; a hair over the 8s command transport — a job never gives up first
@@ -44,23 +44,49 @@
       nil)))
 
 
+(defn- remember! [t entry]
+  (swap! jobs* (fn [jobs]
+                 (->> (assoc jobs (:id t) entry)
+                      (sort-by key)
+                      (take-last keep-jobs)
+                      (into {})))))
+
+
 (defn act!
   "Starts verb against targets on an async thread; returns the job id."
   [send! app verb targets args]
   (let [t (task/->task verb (fanout send! verb targets args))]
-    (swap! jobs* (fn [jobs]
-                   (->> (assoc jobs (:id t) {:task t :verb verb :targets targets :app app})
-                        (sort-by key)
-                        (take-last keep-jobs)
-                        (into {}))))
+    (remember! t {:task t :verb verb :targets targets :app app})
     (task/run! t)
     (:id t)))
+
+
+(defn run-local!
+  "A cold lib.task the console runs itself — no peer, so no targets; its own progress is the view."
+  [app verb t]
+  (remember! t {:task t :verb verb :targets [] :app app :local true})
+  (task/run! t)
+  (:id t))
 
 
 (defn- shown-status [verb status]
   (if (and (#{:restart :poweroff} verb) (= :ok status)) :accepted status))
 
-(defn- job-view [{:keys [task verb targets app]}]
+
+(defn- local-view
+  "A local job's progress, its last message, and how it ended."
+  [task]
+  (let [tl     (task/task->timeline task)
+        id     (:id task)
+        latest (fn [type] (:payload (timeline/timeline->last-of-type tl id type)))
+        error  (latest :error)]
+    (cond-> {:progress (timeline/timeline->progress tl)
+             :message  (:message (latest :progress))}
+      error          (assoc :error (or (ex-message (:error error)) (:message error)))
+      (latest :done) (assoc :result (latest :done)))))
+
+
+(defn- job-view [{:keys [task verb targets app local]}]
   (let [replies (into {}
                       (comp (filter #(= :peer-result (:type %)))
                             (map (fn [{{:keys [peer reply]} :payload}]
@@ -79,13 +105,25 @@
                                           (shown-status verb (reply-status reply))
                                           :pending)]))
                              targets)}
-      (seq data) (assoc :data data))))
+      (seq data) (assoc :data data)
+      local      (merge (local-view task)))))
 
 (defn job [id]
   (some-> (get @jobs* id) job-view))
 
 (defn jobs []
   (->> @jobs* (sort-by key) vals (mapv job-view)))
+
+(defn- app-jobs [app]
+  (->> @jobs* (sort-by key) vals (filter #(= app (:app %)))))
+
+
+(defn latest-action
+  "The app's most recent job, running or not — a failure stays readable after it ends, which
+   `active-action` (the busy gate) cannot do."
+  [app]
+  (some-> (last (app-jobs app)) job-view))
+
 
 (defn active-action
   "The app's single running action: its latest unfinished job, nil when idle."

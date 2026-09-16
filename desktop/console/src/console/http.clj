@@ -2,18 +2,22 @@
   "The console's HTTP edge (http-kit). Transport only:
      POST /circle/<verb>       circle's command tier -> 202 {:job id}
      POST /setup/<op>          setup's commands (jobs) + panel ops (sync)
+     POST /update/<op>         update's jobs — this computer only
+     POST /trial-boot/<op>     the trial-boot page's decision — this computer only
      POST /console/rescan      sweep the subnet — console-plane, either panel
-     GET  /ui/circle, /ui/setup   the composed views the panels poll
+     GET  /ui/<panel>          the composed views the panels poll
      GET  /console/job[/<id>]  the shared job inspection tier
-   plus statics: / the chooser, /circle/* and /setup/* the panels."
+   plus statics: / the chooser, /<panel>/* the panels."
   (:require [clojure.string     :as str]
             [clojure.java.io    :as io]
             [org.httpkit.server :as http]
             [lib.edn            :refer [edn->json json->edn]]
-            [console.jobs         :as jobs]
-            [console.circle       :as circle]
-            [console.panel.circle :as circle-panel]
-            [console.panel.setup  :as setup-panel]))
+            [console.jobs          :as jobs]
+            [console.circle        :as circle]
+            [console.panel.circle  :as circle-panel]
+            [console.panel.setup   :as setup-panel]
+            [console.panel.update  :as update-panel]
+            [console.panel.tryboot :as tryboot-panel]))
 
 
 (defn- json [status body]
@@ -32,8 +36,10 @@
                               "js"   "text/javascript"})
 
 (def ^:private ui-files
-  {"circle" #{"index.html" "circle.css" "circle.js"}
-   "setup"  #{"index.html" "setup.css" "setup.js"}})
+  {"circle"     #{"index.html" "circle.css" "circle.js"}
+   "setup"      #{"index.html" "setup.css" "setup.js"}
+   "update"     #{"index.html" "update.css" "update.js"}
+   "trial-boot" #{"index.html" "trial-boot.css" "trial-boot.js"}})
 
 (defn- serve-file [root name]
   (let [f   (io/file root name)
@@ -67,6 +73,18 @@
     "remove"   (json 200 (setup-panel/remove! body))
     nil))
 
+(defn- update-route [op body]
+  (case op
+    "install" (json 202 {:job (update-panel/install-job! body)})
+    "revert"  (json 202 {:job (update-panel/revert-job! body)})
+    nil))
+
+(defn- trial-boot-route [op]
+  (case op
+    "keep" (json 202 {:job (tryboot-panel/keep-job!)})
+    "back" (json 202 {:job (tryboot-panel/back-job!)})
+    nil))
+
 (defn- handler [{:keys [ui-roots]} req]
   (try
     (let [method (:request-method req)
@@ -81,11 +99,25 @@
         (or (setup-route (second parts) (body-edn req))
             (json 404 {:error "not found"}))
 
+        (and (= :post method) (= 2 (count parts)) (= "update" (first parts)))
+        (or (update-route (second parts) (body-edn req))
+            (json 404 {:error "not found"}))
+
+        (and (= :post method) (= 2 (count parts)) (= "trial-boot" (first parts)))
+        (or (trial-boot-route (second parts))
+            (json 404 {:error "not found"}))
+
         (and (= :get method) (= ["ui" "circle"] parts))
         (json 200 (circle-panel/view))
 
         (and (= :get method) (= ["ui" "setup"] parts))
         (json 200 (setup-panel/view))
+
+        (and (= :get method) (= ["ui" "update"] parts))
+        (json 200 (update-panel/view))
+
+        (and (= :get method) (= ["ui" "trial-boot"] parts))
+        (json 200 (tryboot-panel/view))
 
         (and (= :post method) (= ["console" "rescan"] parts))
         (json 200 (circle/rescan!))

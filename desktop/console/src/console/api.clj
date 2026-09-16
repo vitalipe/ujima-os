@@ -78,8 +78,9 @@
                      (and retry? (= 409 http) (= "auth/stale" (:reason answer)))
                      (call peer method uri body timeout-ms false)
 
+                     ;; the gate's :reason, a verb's :error, else the status
                      :otherwise
-                     {:status :fail :data {:reason (or (:reason answer) http)}})))))
+                     {:status :fail :data {:reason (or (:reason answer) (:error answer) http)}})))))
 
 
 (defn machine
