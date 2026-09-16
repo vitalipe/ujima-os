@@ -22,13 +22,14 @@
   {:session "Temporary" :local "This Computer" :usb "USB Stick" :peer "Nearby Computer"})
 
 
-(defn- entry->place [{:keys [kind state storage label fstype tokens reason] :as entry}]
+(defn- entry->place [{:keys [kind state storage mount label fstype tokens reason] :as entry}]
   (let [state ({:mounted :ready :detected :mounting} state state)]
     (cond-> {:id    [kind (:name entry)]
              :kind  kind
              :name  (kind->name kind (name kind))
              :state state :label label :fstype fstype}
       (= :ready   state) (assoc :storage storage
+                                :mount   mount
                                 :tokens  (->> (keys tokens) (map #(str (symbol %))) sort vec))  ; types only
       (= :invalid state) (assoc :reason reason))))
 

@@ -1,7 +1,9 @@
 (ns ujima.api-test
   "The frozen v1 shapes against what the tier answers."
   (:require [clojure.test :refer [deftest is]]
+            [clojure.string :as str]
             [babashka.fs  :as fs]
+            [ujima.storage]
             [malli.core   :as m]
             [malli.error  :as me]
             [lib.edn      :refer [edn->json]]
@@ -47,6 +49,20 @@
   (fresh!)
   (is (nil? (drift query/machine (GET "/api/query/machine")))
       "every node together has to make the shape the contract promises"))
+
+
+(deftest the-places-node-is-the-desktop-blob-values-withheld
+  (fresh!)
+  (with-redefs [ujima.storage/snapshot
+                (constantly [{:kind :usb :name "U" :state :mounted :mount "/ujima/run/storage/U"
+                              :storage "/ujima/run/storage/U/files" :label "UJIMAOS1" :fstype "ext4"
+                              :tokens {:ujima/pack {:pack "ujima/x.pack"} :circle/secret {:key "s3cret"}}}])]
+    (let [places (GET "/api/query/machine/places")]
+      (is (= 1 (count places)))
+      (is (= {:mount "/ujima/run/storage/U" :tokens ["circle/secret" "ujima/pack"]}
+             (select-keys (first places) [:mount :tokens]))
+          "the root and the token types ride the wire")
+      (is (not (str/includes? (pr-str places) "s3cret")) "a token's value never does"))))
 
 
 (deftest every-settings-leaf-is-a-record-and-secrets-are-not-served

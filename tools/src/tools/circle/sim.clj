@@ -181,6 +181,9 @@
                              :storage  {:total-mb 5889 :free-mb 5542}
                              :settings {:total-mb 973  :free-mb 906}})
 
+     "places"   (constantly [{:id [:local "storage"] :kind :local :name "This Computer" :state :ready
+                             :mount "/ujima/storage" :storage "/ujima/storage/files" :tokens []}])
+
      "desktop/locked"  #(boolean (:locked (m)))
      "desktop/mode"    #(let [it (m)]
                           (cond (:locked it) {:mode "locked"}

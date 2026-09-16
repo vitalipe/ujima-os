@@ -27,19 +27,20 @@
 (deftest a-machine-partition-projects-as-the-local-place
   (is (= {:id [:local "storage"] :kind :local :name "This Computer" :state :ready
           :label "UJSTORE" :fstype "ext4"
-          :storage "/ujima/storage/files" :tokens []}
+          :mount "/ujima/storage" :storage "/ujima/storage/files" :tokens []}
          (usb-place ujstore-entry))
       "the label's convention names the place; :apps stays off this wire"))
 
 
 (deftest a-mounted-partition-is-a-ready-usb-place
   (is (= {:id      [:usb "6962-5E15"] :kind :usb :name "USB Stick" :state :ready
+          :mount   "/ujima/run/storage/6962-5E15"
           :storage "/ujima/run/storage/6962-5E15"
           :label   nil :fstype "vfat"
           :tokens  ["circle/secret"]}
          (usb-place mounted-entry))
-      "plane plumbing (:rm :disk) stays behind; tokens flatten to type names —
-       full ns/name strings, since the wire encoder drops keyword namespaces"))
+      "plane plumbing (:rm :disk) stays behind; the root rides along so a registration
+       resolves; tokens flatten to type names, ns/name strings since the wire drops namespaces"))
 
 
 (deftest token-values-never-reach-the-wire

@@ -8,6 +8,8 @@
             [ujima.control.queries  :as queries]
             [ujima.control.commands :as effects]
             [ujima.desktop.app      :as desktop]
+            [ujima.desktop.places   :as places]
+            [ujima.storage          :as storage]
             [ujima.linux.devicetree :as devicetree]
             [ujima.linux.disk       :as disk]
             [ujima.linux.net        :as net]
@@ -85,6 +87,9 @@
                       :slot     slot
                       :storage  (disk/device->space (:storage system-disk))
                       :settings (disk/device->space (get-in system-disk [:slots slot :config]))})
+
+   ;; the same blob the desktop's places stream carries: roots and token types, never values
+   "places"   (fn [] (:places (places/places->ui (storage/snapshot))))
 
    "desktop/locked"  #(desktop/locked?)
    "desktop/mode"    #(desktop/mode-state)
