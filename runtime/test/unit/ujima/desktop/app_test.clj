@@ -594,7 +594,9 @@
   (stubbed #(do (catalog/merge-app! :console {:env {"T" "1"}})
                 (catalog/merge-app! :console {:hidden false})))
   (stubbed #(app/run! :console))
-  (is (= [[:spawn-opts :console {:extra-env {"T" "1"}}]] (fx-of :spawn-opts))
+  ;; the env only — the console's scope also carries :privileged? (app.act), which is not
+  ;; what this is about
+  (is (= {"T" "1"} (:extra-env (last (first (fx-of :spawn-opts)))))
       "the second change carried only :hidden — it must not drop the env the first one set"))
 
 

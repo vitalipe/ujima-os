@@ -34,15 +34,21 @@
      (spawn-scoped! :console [\"ujima-console\"] \"/ujima/apps/console\"
                     {:extra-env {\"UJIMA_CIRCLE_TOKEN\" token}})
 
+   `:privileged?` is OURS, stripped before the spawn: it drops the no-new-privs prefix, the
+   only way anything in a scope reaches `sudo`. Who gets it is app.act's call, never an app.edn.
+
    Keep secrets out of EXEC: systemd-run copies the command line into the scope's
    Description, and systemd logs that to the journal."
   [id exec dir opts]
-  (apply shell/sh (merge {:out :inherit :err :inherit :dir dir} opts)
-         :systemd-run :--user :--scope :--collect
-         (str "--unit=" prefix (name id) "-" (System/currentTimeMillis))
-         "--property=TimeoutStopSec=3"
-         "--expand-environment=no"
-         "--" :setpriv :--no-new-privs exec))
+  (let [privileged? (:privileged? opts)]
+    (apply shell/sh (merge {:out :inherit :err :inherit :dir dir} (dissoc opts :privileged?))
+           :systemd-run :--user :--scope :--collect
+           (str "--unit=" prefix (name id) "-" (System/currentTimeMillis))
+           "--property=TimeoutStopSec=3"
+           "--expand-environment=no"
+           "--" (if privileged? 
+                  (into [] exec) 
+                  (into [:setpriv :--no-new-privs] exec)))))
 
 
 (defn- live-units [pattern]

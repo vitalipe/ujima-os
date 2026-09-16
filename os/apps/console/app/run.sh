@@ -14,4 +14,6 @@ bb -cp "src:/ujima/runtime/src" -m console.main &
 
 until curl -sf "http://127.0.0.1:$PORT/" >/dev/null 2>&1; do sleep 0.2; done
 
-exec ujima-open-web-app "http://127.0.0.1:$PORT/" ujima-console
+# the backend keeps the scope's privilege (it drives `ujimactl upgrade`); the window does
+# not need it — back under no-new-privs.
+exec setpriv --no-new-privs ujima-open-web-app "http://127.0.0.1:$PORT/" ujima-console

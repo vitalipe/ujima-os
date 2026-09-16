@@ -14,6 +14,17 @@
 (defonce ^:private close* (atom nil))   ; last close: {:con :app :at}
 
 
+;; Scopes that may reach `sudo` — they drive `ujimactl upgrade`. Named here and never in an
+;; app.edn: a spec file must not grant itself root. By id alone while this is an early test
+;; system, so a console built outside the image can be dropped into a later scan root and
+;; still elevate; require the baked dir too before the add-on root is writable.
+(def ^:private privileged-apps #{:console :tryboot})
+
+
+(defn- privileged? [{:keys [id]}]
+  (contains? privileged-apps id))
+
+
 (def ^:private launcher-class "ujima-launcher")   ; not an app, lives home
 (def ^:private lock-title    "Eww - lockscreen") ; not an app either, lives on lock-ws
 
@@ -44,9 +55,13 @@
   (i3/switch-workspace! (name id))
   (when-not (systemd/active? id)
     (try
-      (systemd/spawn-scoped! id (into (app->runnable @bins* app) extra) dir
-                             (when-some [env (:env app)] {:extra-env env}))
-      (log/info "app launched" {:app id})
+      ;; nothing to say = no opts at all, never an empty :extra-env
+      (let [elevated? (privileged? app)]
+        (systemd/spawn-scoped! id (into (app->runnable @bins* app) extra) dir
+                               (not-empty (cond-> {}
+                                            (:env app) (assoc :extra-env (:env app))
+                                            elevated?  (assoc :privileged? true))))
+        (log/info "app launched" (cond-> {:app id} elevated? (assoc :privileged true))))
       (catch Throwable e
         (log/error "app launch failed" {:app id :error (ex-message e)})
         (i3/switch-workspace! home-ws)))))
