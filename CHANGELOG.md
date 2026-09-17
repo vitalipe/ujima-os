@@ -8,24 +8,25 @@ version truth; branch names and build labels may disagree.
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-09-17
+
+Updating from a stick: the Console installs a pack from a labeled drive into the
+other slot, and the machine try-boots it behind a keep-or-go-back screen.
+
 ### Added
 
-- The Console has an Update page: a labeled stick registering a pack (`ujima/install.json`,
-  path relative to the stick's root) offers Update, the other slot's install offers Revert,
-  and either restarts into a trial boot — or, with the skip-trial checkbox, onto the slot
-  outright. The install's progress shows as it writes.
-- A trial boot opens the New version app first: keep this version, or go back — a plain
-  restart, and the firmware falls back. The Console, when its stick is in, is pinned in the
-  dock but does not take the screen.
-- The machine tree carries the places blob (`query/machine/places`): each place's root,
-  browse root and token types.
-- `ujimactl upgrade activate` points the disk at the other slot with no trial, and
-  `upgrade install --events` streams the install's progress as EDN lines.
+- The Console's Update page installs a pack registered on a stick (`ujima/install.json`)
+  into the other slot, or reverts to it, with live progress and an optional no-trial restart.
+- A trial boot opens the New version app first, to keep the new version or go back.
+- The machine API lists each place's root and token types (`query/machine/places`).
+- `ujimactl upgrade activate` switches slots with no trial; `upgrade install --events`
+  streams progress as EDN.
 
 ### Fixed
 
 - The lock screen no longer flashes over the first app opened in a session.
 - Godot closes on the first ask, instead of needing a second close to force it.
+- Reading a pack's manifest no longer scans the whole pack (~50 s on a Pi).
 
 ## [0.5.0] - 2026-09-13
 
@@ -335,7 +336,8 @@ read-only root, a babashka settings daemon (ujimad), an i3 + eww + WebKitGTK she
 - **Dev rig** — live `dev push` / `dev script` deploy to a dev Pi, e2e runner,
   screenshot/drive tooling.
 
-[Unreleased]: https://github.com/vitalipe/ujima-os/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/vitalipe/ujima-os/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/vitalipe/ujima-os/compare/v0.5.0...v0.5.2
 [0.5.0]: https://github.com/vitalipe/ujima-os/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/vitalipe/ujima-os/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/vitalipe/ujima-os/compare/v0.2.0...v0.3.0
