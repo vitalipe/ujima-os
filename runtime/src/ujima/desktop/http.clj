@@ -48,7 +48,11 @@
    ;; a named verb, not settings/**: the generic write stays on the signed tier
    "audio/muted"  {:doc     "Mute or unmute this machine."
                    :params  [:map [:value :boolean]]
-                   :handler (fn [{:keys [value]}] (effects/change-setting! [:audio :muted] value :session))}})
+                   :handler (fn [{:keys [value]}] (effects/change-setting! [:audio :muted] value :session))}
+
+   "audio/volume" {:doc     "Set the active output's volume; the effect clamps to 0-100."
+                   :params  [:map [:value [:or :int :double]]]
+                   :handler (fn [{:keys [value]}] (effects/change-current-volume! value :session))}})
 
 
 ;; --- what this module serves ---------------------------------------------
@@ -57,7 +61,8 @@
   ;; every error a verb here can raise — an unnamed one is a 500
   {:errors {:app/unknown-app         404
             :app/bad-url             400
-            :keyboard/unknown-layout 409}
+            :keyboard/unknown-layout 409
+            :audio/no-output         409}
 
    :routes
    (merge

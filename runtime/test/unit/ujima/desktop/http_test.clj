@@ -75,13 +75,17 @@
     (with-redefs [effects/change-setting! (fn [path value scope] (reset! seen [path value scope]))]
       (is (= 202 (:status (POST "/ujima-desktop/commands/audio/muted" {:value true}))))
       (is (= [[:audio :muted] true :session] @seen)
-          "a named verb, not the generic settings write"))))
+          "a named verb, not the generic settings write"))
+    (with-redefs [effects/change-current-volume! (fn [value scope] (reset! seen [value scope]))]
+      (is (= 202 (:status (POST "/ujima-desktop/commands/audio/volume" {:value 40}))))
+      (is (= [40 :session] @seen) "the bar's slider, at the session's scope"))))
 
 
 (deftest a-command-still-checks-its-params
   (is (= 400 (:status (POST "/ujima-desktop/commands/app/open" {}))))
   (is (= 400 (:status (POST "/ujima-desktop/commands/app/open-url" {:url ""}))))
-  (is (= 400 (:status (POST "/ujima-desktop/commands/audio/muted" {:value "maybe"})))))
+  (is (= 400 (:status (POST "/ujima-desktop/commands/audio/muted" {:value "maybe"}))))
+  (is (= 400 (:status (POST "/ujima-desktop/commands/audio/volume" {:value "loud"})))))
 
 
 (deftest a-verbs-own-errors-are-named-here-too
@@ -89,6 +93,8 @@
     (with-redefs [effects/change-keyboard-layout! (boom :keyboard/unknown-layout)]
       (is (= 409 (:status (POST "/ujima-desktop/commands/keyboard/layout" {:layout "de"})))
           "the same status /api gives — an unnamed error would be a silent 500"))
+    (with-redefs [effects/change-current-volume! (boom :audio/no-output)]
+      (is (= 409 (:status (POST "/ujima-desktop/commands/audio/volume" {:value 40})))))
     (with-redefs [app/run! (boom :app/unknown-app)]
       (is (= 404 (:status (POST "/ujima-desktop/commands/app/open" {:app "nope"})))))
     (with-redefs [app/open-url! (boom :app/bad-url)]
