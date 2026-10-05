@@ -1,11 +1,11 @@
 # managed by the ujima image build — source: os/pipeline/ujimaify/session/ujima-shell.service
 #
-# The shell (desktop/shell) as a user unit. The user manager outlives the X session, so the
-# session binds it: i3 `exec`s a restart (one fresh instance per session) and the ujimad
-# wrapper stops it before `i3-msg exit`. UJIMA_DESKTOP is the tier it dials; a file in the
-# runtime dir overrides it (`bb shell sim` points the shell at a fake).
+# The shell (desktop/shell) as a user unit, bound to the X session through ujima-session.target.
+# UJIMA_DESKTOP is the tier it dials; a file in the runtime dir overrides it (`bb shell sim`
+# points the shell at a fake).
 [Unit]
 Description=ujima shell
+PartOf=ujima-session.target
 StartLimitIntervalSec=0
 
 [Service]

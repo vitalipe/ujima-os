@@ -1,11 +1,11 @@
 # managed by the ujima image build — source: os/pipeline/ujimaify/session/ujima-portal.service
 #
 # The portal bridge (desktop/bin/ujima-portal: org.freedesktop.portal.Desktop -> the ujima picker)
-# as a user unit, bound to the session like the shell: i3 `exec`s a restart (one fresh instance per
-# session) and the ujimad wrapper stops it before `i3-msg exit`. It needs no X to live, so outside a
-# unit a session that died left it holding the bus name and every later portal crash-looped.
+# as a user unit, bound to the X session through ujima-session.target. It needs no X to live, so
+# unbound, a session that died left it holding the bus name and every later portal crash-looped.
 [Unit]
 Description=ujima portal
+PartOf=ujima-session.target
 StartLimitIntervalSec=0
 
 [Service]

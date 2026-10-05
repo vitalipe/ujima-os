@@ -1,0 +1,9 @@
+# managed by the ujima image build — source: os/pipeline/ujimaify/session/ujima-session.target
+#
+# Every user unit that lives and dies with the X session — the one list. i3 `exec`s a restart of
+# this target (fresh members each session) and the ujimad wrapper stops it before `i3-msg exit`;
+# the members are PartOf it, so both reach them. The user manager outlives the session, so without
+# that binding they would too.
+[Unit]
+Description=ujima session
+Wants=ujima-shell.service ujima-portal.service
