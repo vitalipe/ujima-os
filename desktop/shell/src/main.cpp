@@ -4,12 +4,18 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickWindow>
+#include <QSocketNotifier>
 #include <QTimer>
 #include <QUrl>
+#include <csignal>
+#include <sys/socket.h>
+#include <unistd.h>
 #include "desktop.h"
 #include "dock.h"
 #include "nam.h"
 #include "notify.h"
+
+static int quitPipe[2];
 
 int main(int argc, char** argv) {
     // the session points Qt apps at the GTK theme (Marble, Stellarium); this one paints itself
@@ -47,6 +53,13 @@ int main(int argc, char** argv) {
     QObject* shell = engine.rootObjects().first();
     for (const char* bar : {"topbar", "dock"})
         makeDock(qobject_cast<QWindow*>(shell->property(bar).value<QObject*>()));
+
+    // SIGTERM (the unit stopping) quits through the event loop, not mid-frame — a clean exit is
+    // also what lets a sanitizer build report its leaks
+    socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, quitPipe);
+    std::signal(SIGTERM, [](int) { const char c = 1; (void) !::write(quitPipe[0], &c, 1); });
+    QSocketNotifier quit(quitPipe[1], QSocketNotifier::Read);
+    QObject::connect(&quit, &QSocketNotifier::activated, &app, &QCoreApplication::quit);
 
     sdNotify("READY=1");
     QTimer watchdog;
