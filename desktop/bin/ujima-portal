@@ -19,6 +19,7 @@ portal spec's way to say try again, without stacking windows a shared machine ne
 
 import json
 import os
+import socket
 import subprocess
 import sys
 import tempfile
@@ -136,6 +137,21 @@ APPEARANCE = {"color-scheme": GLib.Variant("u", 1),   # 1 = prefer dark
 
 def log(*parts):
     print("ujima-portal:", *parts, flush=True)
+
+
+def sd_notify(msg):
+    """systemd's notify protocol, as the shell's src/notify.h: one datagram to $NOTIFY_SOCKET
+    (absent outside the unit, so a hand-started portal stays quiet)."""
+    path = os.environ.get("NOTIFY_SOCKET")
+    if not path:
+        return
+    if path.startswith("@"):
+        path = "\0" + path[1:]
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as s:
+            s.sendto(msg.encode(), path)
+    except OSError as e:
+        log("notify failed:", repr(e))
 
 
 class Dialog:
@@ -358,9 +374,19 @@ def main():
         log("bus name lost — the real xdg-desktop-portal must not be installed")
         sys.exit(1)
 
+    def up(*_):
+        log("up")
+        sd_notify("READY=1")
+
+    # from the main loop that dispatches every call: if it stops turning, the pings stop and
+    # the unit's watchdog kills and restarts us
+    def ping():
+        sd_notify("WATCHDOG=1")
+        return GLib.SOURCE_CONTINUE
+
     Gio.bus_own_name_on_connection(conn, "org.freedesktop.portal.Desktop",
-                                   Gio.BusNameOwnerFlags.NONE,
-                                   lambda *_: log("up"), lost)
+                                   Gio.BusNameOwnerFlags.NONE, up, lost)
+    GLib.timeout_add_seconds(2, ping)
     GLib.MainLoop().run()
 
 

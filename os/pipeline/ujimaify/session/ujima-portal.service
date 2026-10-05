@@ -9,8 +9,14 @@ PartOf=ujima-session.target
 StartLimitIntervalSec=0
 
 [Service]
+# ready once it owns the bus name; alive but stuck would hang every file dialog, so it pings
+Type=notify
+NotifyAccess=main
 # the picker it spawns per dialog is an X client
 Environment=DISPLAY=:0
 ExecStart=/ujima/desktop/bin/ujima-portal
 Restart=always
 RestartSec=1
+# SIGKILL: the default SIGABRT waits on a stopped process until the abort timeout
+WatchdogSec=10
+WatchdogSignal=SIGKILL
