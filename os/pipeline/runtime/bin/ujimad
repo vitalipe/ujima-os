@@ -12,8 +12,8 @@ cd /ujima/runtime
 CP="src$(find /ujima/m2 -name '*.jar' -printf ':%p' 2>/dev/null)"
 # NOT exec: when ujimad exits (crash/OOM), tear the session down with `i3-msg exit` so
 # systemd's Restart=always rebuilds it cold — no orphaned app zombies, one startup path.
-# The shell's user unit outlives X unless stopped first: it would crash-loop until the next
-# session (which restarts it anyway).
+# The session's user units outlive X unless stopped first: the shell would crash-loop until the
+# next session, the portal would keep its bus name (each session restarts both anyway).
 bb -cp "$CP" -m ujima.ujimad
-systemctl --user stop ujima-shell.service
+systemctl --user stop ujima-shell.service ujima-portal.service
 i3-msg exit

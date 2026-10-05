@@ -18,11 +18,12 @@
 (defn run! [{:keys [project]}]
   (with-console-out
     ;; the desktop session: the supervising unit (PAMName/teardown story lives in the
-    ;; file), its stop path, the xinitrc startx runs, and the shell's user unit
+    ;; file), its stop path, the xinitrc startx runs, and the shell's and portal's user units
     (files/install! project "ujimaify/session/ujima.service" "/etc/systemd/system/ujima.service")
     (files/install! project "ujimaify/session/ujima-session-stop" "/usr/local/bin/ujima-session-stop")
     (files/install! project "ujimaify/session/xinitrc" "/etc/X11/xinit/xinitrc")
     (files/install! project "ujimaify/session/ujima-shell.service" "/etc/systemd/user/ujima-shell.service")
+    (files/install! project "ujimaify/session/ujima-portal.service" "/etc/systemd/user/ujima-portal.service")
     ($! systemctl enable "ujima")
 
     ;; persistent capped journal on storage + the /ujima runtime dirs

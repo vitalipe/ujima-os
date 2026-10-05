@@ -58,10 +58,10 @@ bindsym Mod1+Escape    exec --no-startup-id ujima-desktop POST commands/app/home
 # same image aligned to it, one continuous background under everything.
 exec_always --no-startup-id feh --bg-fill /ujima/desktop/shell/wall.png
 
-# ujimad reconciles settings and serves the shell's tier; the shell is its own user unit, restarted
-# here so every session gets a fresh one (the ujimad wrapper stops it on the way out)
+# ujimad reconciles settings and serves the shell's tier; the shell and the portal are user units,
+# restarted here so every session gets fresh ones (the ujimad wrapper stops them on the way out)
 exec --no-startup-id ujimad
-exec --no-startup-id systemctl --user restart ujima-shell.service
+exec --no-startup-id systemctl --user restart ujima-shell.service ujima-portal.service
 
 # compositor: picom — transparency for the shell's surfaces, fades, the tooltip card and the dialog
 # treatment (a floating dialog is a card, its app dims behind it). All of it in shell/picom.conf.
