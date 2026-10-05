@@ -22,6 +22,7 @@ version truth; branch names and build labels may disagree.
 ### Removed
 
 - eww: its bars and lock are the shell's now; its binary and `libdbusmenu-gtk3-4` leave the image.
+- xdotool leaves release images; dev images keep it for the desktop relay.
 
 ## [0.5.2] - 2026-09-17
 

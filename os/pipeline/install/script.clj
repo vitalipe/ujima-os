@@ -46,7 +46,6 @@
         "mesa-vulkan-drivers"  ; v3dv Vulkan driver for the Pi 5 V3D — Godot's Vulkan Mobile renderer
         "librsvg2-common"   ; gdk-pixbuf SVG loader (app icons in file dialogs etc.; librsvg2-2 is just the lib)
         "picom"             ; xrender compositor — transparency for floating dialogs + the transparent shell
-        "xdotool"           ; synthetic input (startup focus tap; also the dev relay)
         "x11-xserver-utils" ; xrandr — output/mode inspection + forcing; a display converge needs
                             ; it at RUNTIME on release images, so it is core, not dev-only
         "feh"               ; sets the desktop background (wall.png) on the X root — i3 `exec feh --bg-fill`
