@@ -251,16 +251,14 @@
 ;; ── up / down ───────────────────────────────────────────────────────────────
 
 (defn- static-root!
-  "The tier's static tree: the repo's shell icons + wall.svg, and the Pi's own wall.png (the
-   image build rasterizes it; the repo has none). Copies — the tier refuses symlinks out."
+  "The tier's static tree: just the Pi's own wall.png — the image build rasterizes it, the repo
+   has none. A copy: the tier refuses a symlink out of its root."
   [dir]
-  (let [root (str (fs/create-dirs (fs/path dir "static")))]
-    (fs/copy-tree "desktop/shell/icons" (str (fs/path root "icons")) {:replace-existing true})
-    (fs/copy "desktop/shell/wall.svg" (str (fs/path root "wall.svg")) {:replace-existing true})
-    (let [{:keys [password ssh-opts host]} @pi*
-          png (str (fs/path root "wall.png"))]
-      (apply p/shell {:out (io/file png)} "sshpass" "-p" password "ssh" "-q" "-o" "LogLevel=ERROR"
-             (concat ssh-opts [host "cat /ujima/desktop/shell/wall.png"])))
+  (let [root (str (fs/create-dirs (fs/path dir "static")))
+        {:keys [password ssh-opts host]} @pi*]
+    (apply p/shell {:out (io/file (str (fs/path root "wall.png")))}
+           "sshpass" "-p" password "ssh" "-q" "-o" "LogLevel=ERROR"
+           (concat ssh-opts [host "cat /ujima/desktop/shell/wall.png"]))
     root))
 
 (defn start!

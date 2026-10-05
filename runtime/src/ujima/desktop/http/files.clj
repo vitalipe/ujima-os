@@ -1,14 +1,13 @@
 (ns ujima.desktop.http.files
-  "What the shell answers with a file: its own tree, containment-checked, and
-   the app icons, which are catalog-resolved and live elsewhere."
+  "What the shell answers with a file: the wall from its own tree, containment-checked,
+   and the app icons, which are catalog-resolved and live elsewhere."
   (:require [clojure.string  :as str]
             [clojure.java.io :as io]
             [ujima.desktop.app :as app]))
 
 
 (def ^:private content-types
-  {"html" "text/html; charset=utf-8" "css" "text/css" "js" "text/javascript"
-   "svg" "image/svg+xml" "png" "image/png" "json" "application/json"})
+  {"png" "image/png"})
 
 
 ;; --- file serving: statics + the app icon --------------------------------
@@ -22,11 +21,6 @@
       {:status 200
        :headers {"content-type" (get content-types ext "application/octet-stream")}
        :body f})))
-
-(defn static-file
-  "TAIL under DIR; an empty tail is that directory's index.html."
-  [static-root dir tail]
-  (serve static-root (io/file static-root dir (if (str/blank? tail) "index.html" tail))))
 
 (defn icon-file
   "The catalog-resolved icon, so the launcher never sees the layout."

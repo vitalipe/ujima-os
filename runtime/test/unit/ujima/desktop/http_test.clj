@@ -1,6 +1,6 @@
 (ns ujima.desktop.http-test
-  "The shell module: its file serving (the shell tree is the only thing served,
-   and containment is checked after the path resolves) and its /ui verbs."
+  "The shell module: its file serving (the wall comes only from the shell tree,
+   containment checked after the path resolves) and its verbs."
   (:require [clojure.test :refer [deftest is]]
             [babashka.fs  :as fs]
             [lib.edn      :refer [edn->json]]
@@ -12,12 +12,7 @@
 
 (defn- tree []
   (let [root (str (fs/create-temp-dir))]
-    (fs/create-dirs (str root "/icons"))
-    (spit (str root "/icons/close.svg") "<svg/>")
     (spit (str root "/wall.png") "PNGDATA")
-    (spit (str root "/../ESCAPED") "not under the root")
-    ;; a way out that carries no ".." in the url at all
-    (fs/create-sym-link (str root "/icons/leak") (str root "/../ESCAPED"))
     root))
 
 
@@ -33,20 +28,16 @@
       body (assoc :body (edn->json body))))))
 
 
-(deftest the-shell-tree-is-served
-  (let [root (tree)]
-    (is (= 200 (:status (GET root "/ujima-desktop/assets/icons/close.svg"))))
-    (is (= 200 (:status (GET root "/ujima-desktop/assets/wall.png"))))
-    (is (= 404 (:status (GET root "/ujima-desktop/assets/icons/nope.svg"))))))
+(deftest the-wall-is-served
+  (is (= 200 (:status (GET (tree) "/ujima-desktop/assets/wall.png")))))
 
 
-(deftest nothing-outside-it-is
-  (let [root (tree)]
-    (is (= 404 (:status (GET root "/ujima-desktop/assets/icons/../ESCAPED"))) "climbing out")
-    (is (= 200 (:status (GET root "/ujima-desktop/assets/icons/../wall.png")))
-        "the tree is the boundary, not the route's dir — climbing within it is fine")
-    (is (= 404 (:status (GET root "/ujima-desktop/assets/icons/leak")))
-        "a symlink out of the tree — no .. in the url, so only containment catches it")))
+(deftest a-wall-that-leads-out-of-the-tree-is-not
+  (let [root (str (fs/create-temp-dir))]
+    (spit (str root "/../ESCAPED") "not under the root")
+    (fs/create-sym-link (str root "/wall.png") (str root "/../ESCAPED"))
+    (is (= 404 (:status (GET root "/ujima-desktop/assets/wall.png")))
+        "containment is checked after the path resolves")))
 
 
 (deftest the-command-verbs-reach-the-same-effects-api-does

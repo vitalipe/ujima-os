@@ -81,7 +81,5 @@
 
       "GET  /app/catalog"  (fn [_] {:status 200 :body {:apps (app/catalog-listing)}})
 
-      "GET  /assets/icons/**"     (fn [{[tail] :path-params}] (files/static-file static-root "icons" tail))
       "GET  /assets/app-icon/*"   (fn [{[id]   :path-params}] (files/icon-file id))
-      "GET  /assets/wall.png"     (fn [_] (files/wall static-root "wall.png"))
-      "GET  /assets/wall.svg"     (fn [_] (files/wall static-root "wall.svg"))})})
+      "GET  /assets/wall.png"     (fn [_] (files/wall static-root "wall.png"))})})
