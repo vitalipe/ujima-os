@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(ujima-launcher LANGUAGES CXX)
+project(ujima-shell LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -7,10 +7,11 @@ set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Qml Quick Network)
 
-add_executable(ujima-launcher
+add_executable(ujima-shell
   src/main.cpp
   src/nam.h
+  src/notify.h
   src/stream.h  src/stream.cpp
   src/desktop.h src/desktop.cpp)
 
-target_link_libraries(ujima-launcher PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Network)
+target_link_libraries(ujima-shell PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Network)

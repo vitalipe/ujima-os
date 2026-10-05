@@ -19,8 +19,9 @@ Window {
     // the SAME desktop background as the X root (wall.png), shifted up by the top bar so it lines
     // up exactly with the root behind the transparent top bar and on empty workspaces. Opaque —
     // correct text AA, and none of the see-through hover-repaint artefact the web view had.
+    // Fetched once the tier has answered: the shell's unit can start before ujimad listens.
     Image {
-        source: desktop.wall
+        source: desktop.hasCatalog ? desktop.wall : ""
         x: 0; y: -win.barTop
         width: win.width; height: win.height + win.barTop + win.barBottom
         fillMode: Image.Stretch

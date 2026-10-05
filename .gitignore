@@ -9,6 +9,6 @@ tools/config/*.local.edn
 # personal per-network wifi wrappers (e.g. wifi.home); the `wifi` tool itself stays tracked
 os/pipeline/dev/kit/wifi.*
 
-# built in the image chroot or on a Pi, not vendored (desktop/{files,launcher}/CMakeLists.txt)
+# built in the image chroot or on a Pi, not vendored (desktop/{files,shell}/CMakeLists.txt)
 desktop/files/bin/
-desktop/launcher/bin/
+desktop/shell/bin/

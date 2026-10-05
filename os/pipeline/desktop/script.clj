@@ -27,7 +27,7 @@
           ($! cp -a [src] "/ujima/desktop"))
         (println "desktop: no desktop/ yet — scaffold no-op")))
 
-    ;; the native pieces (the Files and launcher hosts, the chooser module): compiled from the
+    ;; the native pieces (the Files and shell hosts, the chooser module): compiled from the
     ;; mirrored tree, image builds only
     (native/build! project)
 

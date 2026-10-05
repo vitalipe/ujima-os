@@ -8,6 +8,11 @@ version truth; branch names and build labels may disagree.
 
 ## [Unreleased]
 
+### Changed
+
+- The launcher runs as its own user service, `ujima-shell`: back within a second of a crash,
+  restarted when it hangs, and a restart no longer covers or unfocuses the app in front.
+
 ## [0.5.2] - 2026-09-17
 
 Updating from a stick: the Console installs a pack from a labeled drive into the

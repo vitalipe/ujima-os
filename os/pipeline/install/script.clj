@@ -55,8 +55,8 @@
         "libfile-mimeinfo-perl" ; `mimetype` — what xdg-mime (hence xdg-open, no DE here) uses to type a file by the
                                 ; shared mime database; without it the fallback `file --mime-type` calls .py/.md plain text
                                 ; and .sb3 a zip, and the mimeapps routing lands everything in the Web viewer
-        ;; the Qt Quick runtime: the launcher home surface (desktop/launcher, a window ujimad keeps
-        ;; up) and the Files app + its --pick dialog paint with it; the SVG image format draws the
+        ;; the Qt Quick runtime: the shell (desktop/shell, a user unit the session binds) and the
+        ;; Files app + its --pick dialog paint with it; the SVG image format draws the
         ;; app icons. Core, not an app recipe — the shell's home must not hang off a catalog app.
         "libqt6quick6" "libqt6qml6" "libqt6svg6" "qt6-svg-plugins"
         "qml6-module-qtquick" "qml6-module-qtquick-window" "qml6-module-qtqml-workerscript"

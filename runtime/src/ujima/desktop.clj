@@ -16,19 +16,6 @@
         (log/warn "X never accepted an authorized connection — proceeding" {})))))
 
 
-(defn- launcher-init!
-  "The home surface (desktop/launcher, a Qt Quick window): kept up for the whole session. It
-   finds this daemon's desktop tier on its own — nothing to pass."
-  [bin]
-  (future
-    (loop []
-      (let [{:keys [exit]} @(shell/with-spawn (shell/inheriting shell/*spawn*)
-                              (shell/sh bin))]
-        (log/warn "launcher exited — respawning" {:exit exit})
-        (Thread/sleep 2000)
-        (recur)))))
-
-
 (defn- portal-init!
   "The portal bridge (org.freedesktop.portal.Desktop -> the Qt picker). No :portal configured
    means no portal — a dev host without the session bus stays quiet."
@@ -45,13 +32,10 @@
           (recur))))))
 
 
-(defn init!! [cfg]
-
-  (log/info "opening ujima shell" cfg)
-
-  (launcher-init! (:launcher cfg))
-
-
+(defn init!!
+  "The portal and eww. The shell (desktop/shell) is not ours: it is a user unit the session binds."
+  [cfg]
+  (log/info "opening the desktop" cfg)
   (portal-init! (:portal cfg))
   (eww/init!! (:eww cfg))) 
 

@@ -25,7 +25,7 @@
   (contains? privileged-apps id))
 
 
-(def ^:private launcher-class "ujima-launcher")   ; not an app, lives home
+(def ^:private launcher-class "ujima-shell")      ; the shell's launcher window, not an app: lives home
 (def ^:private lock-title    "Eww - lockscreen") ; not an app either, lives on lock-ws
 
 (def force-lo-ms 1000)                     ; a 2nd close sooner is a double-click

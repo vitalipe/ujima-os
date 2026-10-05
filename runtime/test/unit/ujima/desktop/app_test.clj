@@ -317,13 +317,13 @@
 (deftest the-launcher-is-routed-home
   ;; an app opened before the shell is up (a token stick at boot) maps the launcher on the app's
   ;; workspace, leaving home empty
-  (setup! [(win "sky" :focused? true :con 9 :class "ujima-launcher")] "sky" :scopes #{:sky})
+  (setup! [(win "sky" :focused? true :con 9 :class "ujima-shell")] "sky" :scopes #{:sky})
   (stubbed #(app/handle-event! {:type :window/changed}))
   (is (= [[:cmd "[con_id=9]" "move" "container" "to" "workspace" "1"]] (fx-of :cmd))))
 
 
 (deftest the-launcher-at-home-is-left-alone
-  (setup! [(win "1" :focused? true :con 9 :class "ujima-launcher")] "1")
+  (setup! [(win "1" :focused? true :con 9 :class "ujima-shell")] "1")
   (stubbed #(app/handle-event! {:type :window/changed}))
   (is (= [] (fx-of :cmd)) "already home — idempotent"))
 
@@ -451,7 +451,7 @@
   (is (= gaps0 (fx-of :cmd)) "fills the screen"))
 
 (deftest solo-current-app-at-home-throws
-  (setup! [(win "1" :focused? true :class "ujima-launcher")] "1")
+  (setup! [(win "1" :focused? true :class "ujima-shell")] "1")
   (stubbed #(is (thrown? clojure.lang.ExceptionInfo (app/solo-current-app!))))  ; nothing to solo
   (is (false? (app/solo?)) "did not enter solo"))
 

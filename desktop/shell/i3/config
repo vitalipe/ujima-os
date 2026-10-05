@@ -27,9 +27,10 @@ for_window [window_type="utility"] floating enable
 # confirm dialogs still float.
 for_window [window_role="GtkFileChooserDialog"] floating disable
 
-# eww topbar/dock are :wm-ignore (override-redirect) in eww.yuck, so i3 doesn't manage them; the
-# launcher (desktop/launcher, WM_CLASS ujima-launcher) is a normal window ujimad tracks + places
-# on HOME like any app.
+# eww topbar/dock are :wm-ignore (override-redirect) in eww.yuck, so i3 doesn't manage them. The
+# shell's managed windows (WM_CLASS ujima-shell) are placed by title before they ever map, so a
+# shell restarting under an app never covers it or takes its focus; ujimad routes them too.
+assign [class="^ujima-shell$" title="^Launcher$"] 1
 
 # the bars reserve no strut, so reserve their space here — keep in sync with eww.yuck heights
 # (topbar :height 48px, dock :height 68px) so the launcher + apps sit in the mid-section.
@@ -59,9 +60,10 @@ bindsym Mod1+Escape    exec --no-startup-id ujima-desktop POST commands/app/home
 # same image aligned to it, one continuous background under everything.
 exec_always --no-startup-id feh --bg-fill /ujima/desktop/shell/wall.png
 
-# ujimad owns the shell now: it reconciles settings, then brings up eww (top bar + dock) and
-# the launcher window itself once ready — so i3 only launches ujimad + the compositor below.
+# ujimad reconciles settings, then brings up eww (top bar + dock); the shell is its own user unit,
+# restarted here so every session gets a fresh one (the ujimad wrapper stops it on the way out)
 exec --no-startup-id ujimad
+exec --no-startup-id systemctl --user restart ujima-shell.service
 
 # compositor: picom — transparency for the eww surfaces, fades, the tooltip card and the dialog
 # treatment (a floating dialog is a card, its app dims behind it). All of it in shell/picom.conf.

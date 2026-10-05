@@ -1,0 +1,22 @@
+# managed by the ujima image build — source: os/pipeline/ujimaify/session/ujima-shell.service
+#
+# The shell (desktop/shell) as a user unit. The user manager outlives the X session, so the
+# session binds it: i3 `exec`s a restart (one fresh instance per session) and the ujimad
+# wrapper stops it before `i3-msg exit`. UJIMA_DESKTOP is the tier it dials; a file in the
+# runtime dir overrides it (`bb shell sim` points the shell at a fake).
+[Unit]
+Description=ujima shell
+StartLimitIntervalSec=0
+
+[Service]
+Type=notify
+NotifyAccess=main
+Environment=DISPLAY=:0
+Environment=UJIMA_DESKTOP=http://127.0.0.1:1336/ujima-desktop
+EnvironmentFile=-%t/ujima-shell.env
+ExecStart=/ujima/desktop/shell/bin/ujima-shell --desktop ${UJIMA_DESKTOP}
+Restart=always
+RestartSec=1
+# SIGKILL: the default SIGABRT waits on a stopped process until the abort timeout
+WatchdogSec=10
+WatchdogSignal=SIGKILL

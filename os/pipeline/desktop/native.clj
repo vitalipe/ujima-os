@@ -1,12 +1,12 @@
 (ns pipeline.desktop.native
   "The desktop's native pieces, compiled INSIDE the image chroot (aarch64 under qemu) from the
    mirrored /ujima/desktop tree, so an image build produces them with no device in the loop:
-   the two Qt Quick hosts (the Files app, the launcher) and the GTK chooser module. Only the
+   the two Qt Quick hosts (the Files app, the shell) and the GTK chooser module. Only the
    image build compiles: a live `dev script desktop` skips this (the toolchain is not image
    content; a live device keeps what it built by hand). Every target's build-deps are installed
    once before the builds and purged once after; the Files app's declared runtime
    (os/apps/files/install.edn) is pinned manual so the purge keeps it — the Qt Quick runtime
-   itself is core (the install stage), the launcher's floor."
+   itself is core (the install stage), the shell's floor."
   (:require [clojure.edn :as edn]
             [babashka.fs :as fs]
             [lib.shell :refer [sh! sh?]]))
@@ -34,11 +34,11 @@
     :marker     "CMakeLists.txt"
     :build-deps ["qt6-base-dev" "qt6-declarative-dev" "qt6-svg-dev" "cmake" "ninja-build" "g++"]
     :build!     #(build-qt-app! "/ujima/desktop/files" "/ujima/desktop/files/bin/ujima-files")}
-   {:name       "launcher"
-    :src        "/ujima/desktop/launcher"
+   {:name       "shell"
+    :src        "/ujima/desktop/shell"
     :marker     "CMakeLists.txt"
     :build-deps ["qt6-base-dev" "qt6-declarative-dev" "cmake" "ninja-build" "g++"]
-    :build!     #(build-qt-app! "/ujima/desktop/launcher" "/ujima/desktop/launcher/bin/ujima-launcher")}
+    :build!     #(build-qt-app! "/ujima/desktop/shell" "/ujima/desktop/shell/bin/ujima-shell")}
    {:name       "chooser module"
     :src        "/ujima/desktop/chooser"
     :marker     "chooser.c"
