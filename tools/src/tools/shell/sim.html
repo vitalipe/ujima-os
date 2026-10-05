@@ -52,7 +52,8 @@
     <fieldset><legend>Pinned by an activity</legend><div id="locked"></div></fieldset>
     <fieldset><legend>Machine name</legend><input type="text" id="name"></fieldset>
   </section>
-  <section><h2>What the shell sent <button class="small" id="clear">clear</button></h2><div class="log" id="log"></div></section>
+  <section><h2>What the shell sent <button class="small" id="clear">clear</button>
+    <button class="small" id="bounce" title="drop every stream, as an ujimad restart would">drop streams</button></h2><div class="log" id="log"></div></section>
 </main>
 <script>
 const $ = id => document.getElementById(id);
@@ -132,6 +133,7 @@ $("presets").addEventListener("click", async e => {
   current = b.dataset.name; shown = ""; render(await call("preset", { name: current }));
 });
 $("clear").addEventListener("click", async () => render(await call("clear-log", {})));
+$("bounce").addEventListener("click", () => call("bounce", {}));
 (async function poll() { try { render(await call("state")); } catch (_) {} setTimeout(poll, 700); })();
 </script>
 </body>

@@ -39,6 +39,13 @@
                     :clicks-only {:desc "Skip the captures, play only the clicks" :coerce :boolean}
                     :http-port {:desc "Port the fake tier listens on" :coerce :long}})}
 
+     "soak"
+     {:usage "Usage: shell sim soak <ip> [--cycles 1000]"
+      :target check/soak!
+      :args [:ip]
+      :spec (merge ssh-spec {:cycles    {:desc "State changes to churn through" :coerce :long}
+                             :http-port {:desc "Port the fake tier listens on" :coerce :long}})}
+
      "compare"
      {:usage "Usage: shell sim compare [--a out/shell-check/eww] [--b out/shell-check/qt]"
       :target check/compare!

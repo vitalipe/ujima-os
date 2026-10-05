@@ -236,3 +236,54 @@
     (doseq [{:keys [name px pct]} rows]
       (println (format "  %-4s %-36s %6d px  %5.2f%%" (if (> pct 0.5) "DIFF" "ok") name px pct)))
     (println "report:" (str (fs/path out "compare.html")))))
+
+
+;; ── soak: does the shell hold its memory under churn? ───────────────────────
+
+(defn- sample
+  "The shell's own memory (KB) and its X resources, off the Pi."
+  []
+  (let [out (str (:out (sim/on-pi! (str "p=$(systemctl --user show ujima-shell -p MainPID --value); "
+                                        "grep -E '^(Pss|Rss):' /proc/$p/smaps_rollup; grep RssAnon /proc/$p/status; "
+                                        "DISPLAY=:0 xrestop -b -m 1 2>/dev/null | awk -v p=\"PID:$p \" "
+                                        "'index($0, p) {on=1; next} /^[0-9]+ - / {on=0} on'"))))
+        kb  (fn [k] (some-> (re-find (re-pattern (str "(?m)^" k ":\\s+(\\d+)")) out) second parse-long))
+        x   (fn [k] (some-> (re-find (re-pattern (str k "\\s*:\\s*~?(\\d+)")) out) second parse-long))]
+    {:pss (or (kb "Pss") 0) :rss (or (kb "Rss") 0) :anon (or (kb "RssAnon") 0)
+     :windows (x "windows") :pixmaps (x "pixmaps") :pixmap-kb (some-> (x "pixmap bytes") (quot 1024))}))
+
+(defn- sweep! [scr]
+  (let [[vx vy] (target scr :volume) [kx ky] (target scr :keyboard) [hx hy] (target scr :home) [ax ay] [(quot (first scr) 2) 300]]
+    (sim/on-pi! (format "DISPLAY=:0 xdotool mousemove %d %d sleep 0.35 mousemove %d %d sleep 0.35 mousemove %d %d sleep 0.7 mousemove %d %d"
+                        vx vy kx ky hx hy ax ay))))
+
+(defn soak!
+  "CYCLES state changes through the whole matrix — the tray swept by the pointer every 10 (the
+   reveals and the tooltip), the tier bounced every 200 (every stream dropped and reconnected) —
+   the shell's memory and X resources sampled every 100. A leak is a slope after the warm-up."
+  [{:keys [ip cycles] :or {cycles 1000} :as opts}]
+  (let [{:keys [stop]} (sim/start! opts)
+        names (mapv :name (:states (sim/matrix)))
+        done  (atom false)
+        restore (fn [] (when (compare-and-set! done false true) (stop)))]
+    (.addShutdownHook (Runtime/getRuntime) (Thread. ^Runnable restore))
+    (try
+      (let [scr (screen)
+            t0  (System/currentTimeMillis)
+            row (fn [i] (let [s (sample)]
+                          (println (format "%6d %6ds  pss %5.1f  rss %5.1f  anon %5.1f MB  x: windows %s pixmaps %s (%s KB)"
+                                           i (quot (- (System/currentTimeMillis) t0) 1000)
+                                           (/ (:pss s) 1024.0) (/ (:rss s) 1024.0) (/ (:anon s) 1024.0)
+                                           (:windows s) (:pixmaps s) (:pixmap-kb s)))
+                          s))
+            samples (atom [(row 0)])]
+        (doseq [i (range 1 (inc cycles))]
+          (sim/apply-preset! (names (mod i (count names))))
+          (Thread/sleep 40)
+          (when (zero? (mod i 10))  (sweep! scr))
+          (when (zero? (mod i 200)) (sim/bounce!) (Thread/sleep 1500))
+          (when (zero? (mod i 100)) (sim/apply-preset! "home") (Thread/sleep 1500) (swap! samples conj (row i))))
+        (let [late (drop (quot (count @samples) 2) @samples)
+              d    (- (:anon (last late)) (:anon (first late)))]
+          (println (format "anon over the second half: %+d KB across %d cycles" d (* 100 (dec (count late)))))))
+      (finally (restore)))))

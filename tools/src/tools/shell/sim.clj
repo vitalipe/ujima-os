@@ -31,6 +31,7 @@
 (defonce facts* (atom nil))   ; {:apps {…} :settings {…}} — what the page edits
 (defonce log*   (atom []))    ; what the shell sent, oldest first
 (defonce ^:private pi*    (atom nil))   ; the ssh transport to the Pi the shell runs on
+(defonce ^:private server* (atom nil))  ; {:cfg — what was listened with, :stop — http-kit's}
 
 
 ;; ── the matrix ──────────────────────────────────────────────────────────────
@@ -235,12 +236,16 @@
   {:status 200 :headers {"content-type" "text/html; charset=utf-8"}
    :body   (slurp (io/resource "tools/shell/sim.html"))})
 
+(declare bounce!)
+
 (def ^:private sim-tier
   {:routes {"GET  /"       page
             "GET  /state"  (fn [_] {:status 200 :body (status)})
             "POST /facts"  (fn [{body :body}] (apply-facts! (normalize body)) {:status 200 :body (status)})
             "POST /preset" (fn [{{:keys [name]} :body}] (apply-preset! name) {:status 200 :body (status)})
-            "POST /clear-log" (fn [_] (reset! log* []) {:status 200 :body (status)})}})
+            "POST /clear-log" (fn [_] (reset! log* []) {:status 200 :body (status)})
+            ;; answered first, bounced after: the request rides the connection being dropped
+            "POST /bounce"    (fn [_] (future (Thread/sleep 100) (bounce!)) {:status 202 :body {}})}})
 
 
 ;; ── up / down ───────────────────────────────────────────────────────────────
@@ -270,13 +275,22 @@
     (control/on-converge! converge/converge-ui!)
     (catalog/init! (loader/load-catalog ["os/apps"] "desktop/shell/icons/launcher.svg"))
     (apply-preset! state)
-    (let [stop-http (lib-http/listen! {:host "0.0.0.0" :port http-port :log (fn [& _])
-                                       :endpoints {"ujima-desktop" (desktop-tier (static-root! dir))
-                                                   "sim"           sim-tier}})]
+    (let [cfg {:host "0.0.0.0" :port http-port :log (fn [& _])
+               :endpoints {"ujima-desktop" (desktop-tier (static-root! dir))
+                           "sim"           sim-tier}}]
+      (reset! server* {:cfg cfg :stop (lib-http/listen! cfg)})
       (point-shell! url)
       (println (str "shell sim up — the shell on " ip " dials " url))
       (println (str "  states: http://localhost:" http-port "/sim/"))
-      {:url url :stop (fn [] (release-shell!) (stop-http))})))
+      {:url url :stop (fn [] (release-shell!) ((:stop @server*)))})))
+
+(defn bounce!
+  "Drop the listener and every stream on it, then listen again — an ujimad restart, as the shell
+   sees one."
+  []
+  (let [{:keys [cfg stop]} @server*]
+    (stop)
+    (swap! server* assoc :stop (lib-http/listen! cfg))))
 
 (defn up!
   [{:keys [ip] :as opts}]
