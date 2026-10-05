@@ -13,7 +13,7 @@ Window {
 
     Column {
         anchors.centerIn: parent
-        spacing: 26
+        spacing: 27       // GTK's label boxes run a pixel taller than Qt's
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             width: 96; height: 96; radius: 28
@@ -32,7 +32,7 @@ Window {
         }
         Column {
             anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 4
+            spacing: 5
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: Clock.time; color: Theme.text

@@ -75,7 +75,7 @@ Window {
             anchors.verticalCenter: parent.verticalCenter
             rightPadding: 8
             text: Clock.time; color: Theme.dim
-            font { family: Theme.font; pixelSize: 14; weight: Font.Medium }
+            font { family: Theme.font; pixelSize: 14 }
             Tip { tip: dock.tip; text: Clock.date }
         }
     }

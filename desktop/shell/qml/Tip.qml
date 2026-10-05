@@ -5,7 +5,7 @@ HoverHandler {
     id: h
     required property var tip
     property string text
-    property bool above: true
-    onHoveredChanged: hovered ? tip.show(parent, text, above) : tip.hide(parent)
-    onTextChanged: if (hovered && tip.visible) tip.show(parent, text, above)
+    onHoveredChanged: hovered ? tip.show(parent, text, parent.mapToGlobal(point.position)) : tip.hide(parent)
+    onPointChanged: if (hovered) tip.track(parent, parent.mapToGlobal(point.position))
+    onTextChanged: if (hovered && tip.visible) tip.show(parent, text, tip.at)
 }

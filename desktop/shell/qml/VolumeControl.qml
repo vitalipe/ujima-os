@@ -100,7 +100,7 @@ Item {
                     text: v.noOutput ? "--" : v.shown
                     color: numHover.hovered ? Theme.text : Theme.dim
                     Behavior on color { ColorAnimation { duration: 150 } }
-                    font { family: Theme.font; pixelSize: 14; weight: Font.Medium }
+                    font { family: Theme.font; pixelSize: 14 }
                     Tip { id: numHover; tip: v.tip; text: v.muteTip }
                     TapHandler { onTapped: v.toggleMute() }
                 }

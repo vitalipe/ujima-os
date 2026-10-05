@@ -51,7 +51,7 @@ Item {
                         text: modelData
                         color: altHover.hovered ? Theme.text : Theme.faint
                         Behavior on color { ColorAnimation { duration: 150 } }
-                        font { family: Theme.font; pixelSize: 14; weight: Font.Medium }
+                        font { family: Theme.font; pixelSize: 14 }
                         Tip { id: altHover; tip: k.tip; text: "Switch to " + modelData }
                         // collapse before posting: picking is a decision, not a round-trip
                         TapHandler { onTapped: { k.picked = true; desktop.setLayout(modelData) } }
@@ -69,7 +69,7 @@ Item {
                 id: label
                 x: 8; anchors.verticalCenter: parent.verticalCenter
                 text: k.current; color: Theme.dim
-                font { family: Theme.font; pixelSize: 14; weight: Font.Medium }
+                font { family: Theme.font; pixelSize: 14 }
             }
             Image {
                 x: label.x + label.implicitWidth + 7; y: 6

@@ -35,7 +35,7 @@ Window {
         anchors { left: parent.left; leftMargin: 48; right: close.left; verticalCenter: parent.verticalCenter }
         text: bar.home ? "" : (bar.app.title || "")
         color: Theme.text; elide: Text.ElideRight
-        font { family: Theme.font; pixelSize: 13; weight: Font.DemiBold }
+        font { family: Theme.font; pixelSize: 13 }
     }
 
     // chipless: the red is baked into the glyph, only the hover fill is drawn
@@ -51,7 +51,7 @@ Window {
             width: 17; height: 17; sourceSize: Qt.size(17, 17)
             source: Theme.icon("close.svg")
         }
-        Tip { id: closeHover; tip: bar.tip; above: false; text: "Close " + (bar.app.label || "") }
+        Tip { id: closeHover; tip: bar.tip; text: "Close " + (bar.app.label || "") }
         TapHandler { onTapped: desktop.closeApp() }
     }
 }
