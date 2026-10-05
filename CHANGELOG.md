@@ -14,6 +14,7 @@ version truth; branch names and build labels may disagree.
   a second of a crash, restarted when hung, and a crash no longer ends the session.
 - The bars are i3 docks: a fullscreen app covers them, and solo and lock hand their space over.
 - The file-dialog portal is restarted when it hangs, not only when it exits.
+- A new desktop background.
 
 ### Fixed
 

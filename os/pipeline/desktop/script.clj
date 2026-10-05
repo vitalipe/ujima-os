@@ -31,15 +31,6 @@
     ;; mirrored tree, image builds only
     (native/build! project)
 
-    ;; desktop background: rasterize the vector wall.svg -> a ≥1080p PNG for feh (the X root can't
-    ;; take an SVG). Uses the librsvg gdk-pixbuf loader via python3-gi — both installed by
-    ;; the install stage. wall.svg is the editable source; wall.png is what i3's `exec feh` sets.
-    (when (fs/exists? "/ujima/desktop/shell/wall.svg")
-      ($! python3 "-c"
-          (str "import gi; gi.require_version('GdkPixbuf','2.0'); from gi.repository import GdkPixbuf; "
-               "GdkPixbuf.Pixbuf.new_from_file_at_scale('/ujima/desktop/shell/wall.svg',1920,1200,False)"
-               ".savev('/ujima/desktop/shell/wall.png','png',[],[])")))
-
     ;; the skin: Public Sans (shell face) + Nordic + the GTK defaults that point at them
     ;; (the why lives in theme/settings.ini)
     (files/mirror! project "desktop/fonts/public-sans" "/usr/share/fonts/truetype/public-sans")

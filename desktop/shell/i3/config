@@ -52,9 +52,8 @@ bindsym Mod1+Tab       exec --no-startup-id ujima-desktop POST commands/app/next
 bindsym Mod1+Shift+Tab exec --no-startup-id ujima-desktop POST commands/app/prev >/dev/null
 bindsym Mod1+Escape    exec --no-startup-id ujima-desktop POST commands/app/home >/dev/null
 
-# desktop background: the launcher's gradient (desktop/shell/wall.svg, rasterized to wall.png by
-# os.desktop) set on the X root. i3 draws over it, so empty workspaces show the gradient
-# instead of the black root — the transparent top bar shows it through, and the launcher paints the
+# desktop background: the launcher's gradient (desktop/shell/wall.png) set on the X root. i3 draws
+# over it, so empty workspaces show the gradient instead of the black root — the transparent top bar shows it through, and the launcher paints the
 # same image aligned to it, one continuous background under everything.
 exec_always --no-startup-id feh --bg-fill /ujima/desktop/shell/wall.png
 

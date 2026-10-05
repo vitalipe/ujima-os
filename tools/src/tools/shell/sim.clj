@@ -240,8 +240,8 @@
 ;; ── up / down ───────────────────────────────────────────────────────────────
 
 (defn- static-root!
-  "The tier's static tree: just the Pi's own wall.png — the image build rasterizes it, the repo
-   has none. A copy: the tier refuses a symlink out of its root."
+  "The tier's static tree: just the Pi's own wall.png. A copy: the tier refuses a symlink out of
+   its root."
   [dir]
   (let [root (str (fs/create-dirs (fs/path dir "static")))
         {:keys [password ssh-opts host]} @pi*]
