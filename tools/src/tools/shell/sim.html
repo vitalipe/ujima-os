@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shell sim</title>
+<style>
+  :root { --bg:#14171b; --panel:#1b2027; --brd:#282e38; --text:#e7eaef; --dim:#9aa4b2; --faint:#697180; --accent:#88c0d0; --warn:#d68383; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:13px/1.4 system-ui, sans-serif; }
+  header { padding:10px 16px; border-bottom:1px solid var(--brd); display:flex; gap:12px; align-items:baseline; }
+  header b { font-size:15px; } header span { color:var(--dim); }
+  main { display:grid; grid-template-columns:220px minmax(0,1fr) minmax(0,1fr); gap:12px; padding:12px 16px; }
+  @media (max-width: 900px) { main { grid-template-columns:1fr; } }
+  section { background:var(--panel); border:1px solid var(--brd); border-radius:10px; padding:10px 12px; min-width:0; }
+  h2 { margin:0 0 8px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); }
+  .preset { display:block; width:100%; text-align:left; margin:0 0 4px; padding:5px 8px; border-radius:6px;
+            border:1px solid transparent; background:none; color:var(--text); cursor:pointer; font:inherit; }
+  .preset:hover { background:rgba(255,255,255,.06); } .preset.on { border-color:var(--accent); }
+  .preset small { display:block; color:var(--faint); }
+  fieldset { border:0; margin:0 0 12px; padding:0; }
+  legend { color:var(--dim); margin-bottom:4px; }
+  label { display:inline-flex; gap:4px; align-items:center; margin:0 10px 4px 0; }
+  input[type=text], select { background:var(--bg); color:var(--text); border:1px solid var(--brd); border-radius:6px; padding:3px 6px; font:inherit; }
+  input[type=text] { width:100%; }
+  .apps { display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); }
+  .log { font:12px/1.5 ui-monospace, monospace; max-height:70vh; overflow:auto; }
+  .log div { border-bottom:1px solid var(--brd); padding:2px 0; overflow-wrap:anywhere; }
+  .log .t { color:var(--faint); } .log .bad { color:var(--warn); }
+  button.small { background:none; border:1px solid var(--brd); color:var(--dim); border-radius:6px; padding:2px 8px; cursor:pointer; font:inherit; }
+</style>
+</head>
+<body>
+<header><b>Shell sim</b><span>ujimad's routes and projections, a fake app layer — the Pi's shell shows this</span></header>
+<main>
+  <section><h2>States</h2><div id="presets"></div></section>
+  <section>
+    <h2>Facts</h2>
+    <fieldset><legend>Mode</legend><div id="mode"></div></fieldset>
+    <fieldset><legend>Open apps</legend><div class="apps" id="open"></div></fieldset>
+    <fieldset><legend>Focused</legend><select id="focused"></select>
+      <label><input type="checkbox" id="fullscreen"> fullscreen</label>
+      <label><input type="checkbox" id="console"> console pinned (token in)</label></fieldset>
+    <fieldset><legend>Title of the focused app</legend><input type="text" id="title" placeholder="(its label)"></fieldset>
+    <fieldset><legend>Sound</legend>
+      <label>output <select id="output"><option value="hdmi">hdmi</option><option value="usb">usb</option><option value="">none</option></select></label>
+      <label>volume <input type="range" id="volume" min="0" max="100"><span id="volnum"></span></label>
+      <label><input type="checkbox" id="muted"> muted</label></fieldset>
+    <fieldset><legend>Keyboard</legend>
+      <label>layouts <input type="text" id="layouts" style="width:140px"></label>
+      <label>current <select id="layout"></select></label></fieldset>
+    <fieldset><legend>Pinned by an activity</legend><div id="locked"></div></fieldset>
+    <fieldset><legend>Machine name</legend><input type="text" id="name"></fieldset>
+  </section>
+  <section><h2>What the shell sent <button class="small" id="clear">clear</button></h2><div class="log" id="log"></div></section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let facts = null, shown = "", catalog = [], current = "";
+
+async function call(path, body) {
+  const r = await fetch("/sim/" + path, body === undefined ? {} :
+    { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  return r.json();
+}
+
+function readForm() {
+  const f = structuredClone(facts);
+  f.apps.mode = document.querySelector("input[name=mode]:checked").value;
+  f.apps.open = [...document.querySelectorAll("#open input:checked")].map(i => i.value);
+  f.apps.focused = $("focused").value || null;
+  f.apps.console = $("console").checked;
+  f.apps.fullscreen = f.apps.focused && $("fullscreen").checked ? [f.apps.focused] : [];
+  if (f.apps.focused) { f.apps.titles = { ...(f.apps.titles || {}) };
+                        if ($("title").value) f.apps.titles[f.apps.focused] = $("title").value;
+                        else delete f.apps.titles[f.apps.focused]; }
+  f.settings.output = $("output").value || null;
+  f.settings.volume = +$("volume").value;
+  f.settings.muted = $("muted").checked;
+  f.settings.layouts = $("layouts").value.split(/[\s,]+/).filter(Boolean);
+  f.settings.layout = $("layout").value;
+  f.settings.locked = [...document.querySelectorAll("#locked input:checked")].map(i => i.value);
+  f.settings.name = $("name").value;
+  return f;
+}
+
+async function push() { current = ""; render(await call("facts", readForm())); }
+
+function radio(name, value, on) {
+  return `<label><input type="radio" name="${name}" value="${value}" ${on ? "checked" : ""}> ${value}</label>`;
+}
+function check(value, on) {
+  return `<label><input type="checkbox" value="${value}" ${on ? "checked" : ""}> ${value}</label>`;
+}
+
+function renderFacts() {
+  const a = facts.apps, s = facts.settings;
+  $("mode").innerHTML = ["multi", "solo", "locked"].map(m => radio("mode", m, a.mode === m)).join("");
+  $("open").innerHTML = catalog.map(c => check(c.id, a.open.includes(c.id))).join("");
+  $("focused").innerHTML = `<option value="">— home —</option>` +
+    a.open.map(id => `<option ${a.focused === id ? "selected" : ""}>${id}</option>`).join("");
+  $("fullscreen").checked = !!a.focused && (a.fullscreen || []).includes(a.focused);
+  $("console").checked = a.console;
+  $("title").value = (a.focused && a.titles && a.titles[a.focused]) || "";
+  $("output").value = s.output || "";
+  $("volume").value = s.volume; $("volnum").textContent = s.volume;
+  $("muted").checked = s.muted;
+  $("layouts").value = s.layouts.join(", ");
+  $("layout").innerHTML = s.layouts.map(l => `<option ${s.layout === l ? "selected" : ""}>${l}</option>`).join("");
+  $("locked").innerHTML = ["volume", "muted", "output", "layout"].map(k => check(k, s.locked.includes(k))).join("");
+  $("name").value = s.name;
+}
+
+function render(st) {
+  catalog = st.catalog;
+  const key = JSON.stringify(st.facts);
+  facts = st.facts;
+  // never yank a field out from under the pointer
+  if (key !== shown && !document.activeElement.matches("input[type=text], input[type=range], select")) {
+    renderFacts(); shown = key;
+  }
+  $("presets").innerHTML = st.states.map(p =>
+    `<button class="preset ${p.name === current ? "on" : ""}" data-name="${p.name}">${p.name}${p.doc ? `<small>${p.doc}</small>` : ""}</button>`).join("");
+  $("log").innerHTML = st.log.slice().reverse().map(e =>
+    `<div class="${e.status >= 400 ? "bad" : ""}"><span class="t">${new Date(e.at).toLocaleTimeString()}</span> ${e.route} ${e.body ? JSON.stringify(e.body) : ""} → ${e.status}</div>`).join("");
+}
+
+document.addEventListener("change", e => { if (e.target.closest("main section:nth-child(2)")) push(); });
+$("volume").addEventListener("input", () => $("volnum").textContent = $("volume").value);
+$("presets").addEventListener("click", async e => {
+  const b = e.target.closest(".preset"); if (!b) return;
+  current = b.dataset.name; shown = ""; render(await call("preset", { name: current }));
+});
+$("clear").addEventListener("click", async () => render(await call("clear-log", {})));
+(async function poll() { try { render(await call("state")); } catch (_) {} setTimeout(poll, 700); })();
+</script>
+</body>
+</html>

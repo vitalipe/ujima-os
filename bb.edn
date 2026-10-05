@@ -42,6 +42,11 @@
    :requires ([tools.cli :as cli])
    :task (apply cli/-main "circle" *command-line-args*)}
 
+  shell
+  {:doc "The shell dev loop: sim up <ip> [--state <name>] | sim down <ip>"
+   :requires ([tools.cli :as cli])
+   :task (apply cli/-main "shell" *command-line-args*)}
+
   loopback
   {:doc "Loop-device utility: attach | detach | list"
    :requires ([tools.cli :as cli])

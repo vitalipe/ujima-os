@@ -13,7 +13,8 @@
 
 ;; --- the verbs -----------------------------------------------------------
 
-(def ^:private verbs
+;; public: tools.shell.sim answers the app verbs from a fake world over this same table
+(def verbs
   ;; no hold verbs here: the hold is the circle's, taken and handed back over the signed tier.
   ;; A machine that could release itself is not held, and the token stick's escape needs no
   ;; route — it calls app/release! in-process.

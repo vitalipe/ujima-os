@@ -1,0 +1,61 @@
+;; The shell's state matrix: every state the bars and the lock card render, as facts the sim
+;; turns into ujimad's own settings and app projections. A state is merged over :base.
+;; :apps     — :open (ids), :focused (an id, or nil = home), :titles, :fullscreen (ids),
+;;             :mode (:multi | :solo | :locked), :console (pinned once a token unhides it)
+;; :settings — :name, :output (:hdmi | :usb | nil = no output), :volume, :muted, :layouts,
+;;             :layout, :locked (a subset of #{:volume :muted :output :layout} = pinned by an
+;;             activity)
+{:base
+ {:apps     {:open [] :focused nil :titles {} :fullscreen #{} :mode :multi :console false}
+  :settings {:name "UjimaOS" :output :hdmi :volume 60 :muted false
+             :layouts ["us" "il" "ru"] :layout "us" :locked #{}}}
+
+ :states
+ [;; --- the top bar and the dock
+  {:name "home" :doc "nothing focused: bare top bar, launcher tile lit"}
+  {:name "home-with-apps" :doc "apps open behind home: their tiles subtle, none active"
+   :apps {:open [:geany :gimp :write]}}
+  {:name "app" :doc "an app in front: icon, title, close; its tile blooms"
+   :apps {:open [:geany] :focused :geany}}
+  {:name "app-long-title" :doc "a title wider than the bar"
+   :apps {:open [:geany] :focused :geany
+          :titles {:geany "a-very-long-file-name-that-keeps-going-and-going-past-any-reasonable-width-for-a-title-bar.py — /home/ujima/projects/an/equally/deep/directory/tree/that/nobody/asked/for - Geany"}}}
+  {:name "focus-learn"   :apps {:open [:tuxtype :marble :write :gimp :geany] :focused :tuxtype}}
+  {:name "focus-explore" :apps {:open [:tuxtype :marble :write :gimp :geany] :focused :marble}}
+  {:name "focus-office"  :apps {:open [:tuxtype :marble :write :gimp :geany] :focused :write}}
+  {:name "focus-create"  :apps {:open [:tuxtype :marble :write :gimp :geany] :focused :gimp}}
+  {:name "focus-code"    :apps {:open [:tuxtype :marble :write :gimp :geany] :focused :geany}}
+  {:name "many-apps" :doc "every tile app open"
+   :apps {:open [:tuxtype :marble :stellarium :web :xaos :write :calc :impress :onlyoffice
+                 :draw :gimp :inkscape :excalidraw :geany :thonny :godot :turbowarp]
+          :focused :stellarium}}
+  {:name "files-focused" :doc "a pinned (system) app in front: its pinned button lit, no centre tile"
+   :apps {:open [:files :geany] :focused :files}}
+  {:name "console-pinned" :doc "a token unhid the console: a second pinned button"
+   :apps {:console true :open [:geany] :focused :geany}}
+  {:name "console-focused" :apps {:console true :open [:console] :focused :console}}
+
+  ;; --- the keyboard
+  {:name "kbd-one-layout" :doc "nothing to choose: no reveal"
+   :settings {:layouts ["us"] :layout "us"}}
+  {:name "kbd-rotated" :doc "the current layout is last in the switcher"
+   :settings {:layout "il"}}
+  {:name "kbd-locked" :doc "pinned: padlock, no reveal, inert"
+   :settings {:layout "il" :locked #{:layout}}}
+
+  ;; --- the sound
+  {:name "vol-0"   :settings {:volume 0}}
+  {:name "vol-30"  :settings {:volume 30}}
+  {:name "vol-80"  :settings {:volume 80}}
+  {:name "vol-usb" :doc "the other output class holds its own level" :settings {:output :usb :volume 45}}
+  {:name "muted"   :settings {:muted true}}
+  {:name "no-output" :doc "\"--\", the track dimmed" :settings {:output nil}}
+  {:name "vol-locked" :settings {:locked #{:volume}}}
+  {:name "muted-locked" :settings {:muted false :locked #{:muted}}}
+  {:name "muted-and-muted-locked" :doc "the well is suppressed" :settings {:muted true :locked #{:muted}}}
+  {:name "vol-locked-muted" :settings {:muted true :locked #{:volume}}}
+  {:name "everything-locked" :settings {:muted true :layout "ru" :locked #{:volume :muted :output :layout}}}
+
+  ;; --- what is shown at all
+  {:name "solo" :doc "one app held: no bars" :apps {:open [:geany] :focused :geany :mode :solo}}
+  {:name "locked" :doc "the lock card, no bars" :apps {:open [:geany] :mode :locked}}]}

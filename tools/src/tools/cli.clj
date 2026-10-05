@@ -2,7 +2,7 @@
   "The host CLI, one bb task per noun: build (artifacts: a pack, or a provisioned disk),
    stage (an image from the pinned base), os (the 2-partition rootfs image), pack (the .pack
    artifact), disk (the full A/B disk, one subtree per boot scheme), dev (a RUNNING device
-   over ssh), loopback (loop-device utility), circle (the console dev loop). Each noun's surface lives with its own tools.cmd.* ns as `cli` and is
+   over ssh), loopback (loop-device utility), circle (the console dev loop), shell (the shell's). Each noun's surface lives with its own tools.cmd.* ns as `cli` and is
    merged here; os is the exception, its verbs belonging to the image builder. Nesting is
    free — a node with a :target is a command, anything else groups them.
    `bb pack <src> <out>` sugars to `pack make` (see pack-defaulted)."
@@ -20,7 +20,8 @@
     [tools.cmd.build    :as build]
     [tools.cmd.dev      :as dev]
     [tools.cmd.pin      :as pin]
-    [tools.cmd.circle   :as circle]))
+    [tools.cmd.circle   :as circle]
+    [tools.cmd.shell    :as shell-cmd]))
 
 
 (defn- merge-nouns
@@ -43,6 +44,7 @@
     pack/cli
     disk/cli
     circle/cli
+    shell-cmd/cli
     dev/cli
     pin/cli
     loopback/cli
