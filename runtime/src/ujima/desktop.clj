@@ -1,12 +1,14 @@
 (ns ujima.desktop
   (:require [lib.shell :as shell]
-            [ujima.log :as log]))
+            [ujima.log :as log]
+            [ujima.desktop.app                :as app]
+            [ujima.desktop.app.catalog.loader :as loader]))
 
 
 (def ^:private x-tries    60)   ; x 250ms = ~15s for X to accept an authorized connection
 
 
-(defn await-x!
+(defn- await-x!
   []
   (loop [n x-tries]
     (when-not (:ok? (shell/sh? :setxkbmap "-query"))
@@ -31,11 +33,14 @@
           (recur))))))
 
 
-(defn init!!
-  "The portal, then park: the shell (desktop/shell) is not ours — a user unit the session binds —
-   so nothing here ends the session; ujimad's own death does (its wrapper exits i3)."
-  [cfg]
+(defn init!
+  "X first, then the app layer over the scanned catalog, then the portal. The shell
+   (desktop/shell) is not started here: it is a user unit the session binds."
+  [{app-cfg :app :keys [portal] :as cfg}]
+  
   (log/info "opening the desktop" cfg)
-  (portal-init! (:portal cfg))
-  @(promise)) 
-
+  
+  (await-x!)
+  (app/init! (merge (select-keys app-cfg [:open-web-app-bin :serve-web-app-bin])
+                    {:catalog (loader/load-catalog (:catalog app-cfg) (:fallback-icon app-cfg))}))
+  (portal-init! portal))

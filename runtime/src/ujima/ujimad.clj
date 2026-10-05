@@ -15,8 +15,6 @@
             [ujima.desktop.http     :as shell-http]
             [ujima.desktop.http.converge :as shell-http-converge]
             [ujima.desktop.places   :as places]
-            [ujima.desktop.app      :as app]
-            [ujima.desktop.app.catalog.loader :as loader]
             [ujima.storage          :as storage]
             [ujima.events           :as events]
             [ujima.events.tryboot   :as tryboot]))
@@ -30,8 +28,6 @@
         deploy      (io/slurp-config "config" "env")     ; image facts; hosts see env.dev.edn
         disk        (device/system->disk)                ; nil on hosts, FIXME: make autodetect fallback, put in config
         boot-rt     (device/system->boot-runtime)        ; how this boot came about — read once
-        app-cfg     (get-in env [:desktop :app])
-        app-catalog (loader/load-catalog (:catalog app-cfg) (:fallback-icon app-cfg))
         api-http    (get-in env [:api :http] {})
         ui-http     (get-in env [:desktop :http] {})]
 
@@ -43,13 +39,10 @@
 
     ;; the planes; events/init! connects them
     (shell-http-converge/init!)
-    (places/init! (get-in env [:desktop] {}))
+
+    (places/init!  (get-in env [:desktop] {}))
     (control/init! (get-in env [:control] {}))
-    (desktop/await-x!)
-
-    (app/init! (merge (select-keys app-cfg [:open-web-app-bin :serve-web-app-bin])
-                      {:catalog app-catalog}))
-
+    (desktop/init! (get-in env [:desktop] {}))
     (storage/init! (get-in env [:storage] {}))
 
     ;; a trial boot opens its app first — ahead of the storage push that may open the Console
@@ -61,7 +54,6 @@
     (control/converge-fresh!)
 
     (let [{system-disk-id :system-disk-id :as disk-info} (ab/ujima-disk-info disk)
-
           auth-cfg     (merge (get-in env [:api :auth] {})
                               {:key     (:effective (control/setting [:circle :token]))
                                :self-id system-disk-id})]
@@ -79,8 +71,5 @@
                          {:endpoints {"ujima-desktop" (shell-http/endpoints ui-http)}
                           :log       log/log!}))
 
-    (try
-      (desktop/init!! (get-in env [:desktop] {}))
-      (catch Throwable e (log/error "shell died" {:error (ex-message e)})))
-
-    (System/exit 1)))
+    ;; the session lives as long as this process — when it dies, its wrapper exits i3
+    @(promise)))

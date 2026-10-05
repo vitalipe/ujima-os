@@ -7,8 +7,9 @@
             [ujima.control.commands      :as effects]
             [ujima.desktop.app           :as app]
             [ujima.desktop.http.converge :as converge]
-            [ujima.desktop.http.files    :as files]
-            [ujima.desktop.http.ui       :as ui]))
+            [ujima.control               :as control]
+            [ujima.control.queries       :as queries]
+            [ujima.desktop.http.files    :as files]))
 
 
 ;; --- the verbs -----------------------------------------------------------
@@ -75,7 +76,8 @@
       "GET  /stream/places" (fn [req] (converge/stream-places req))
 
       ;; a read the stream doesn't carry, for a keybind
-      "GET  /ui/keyboard/layout/next"  (fn [_] {:status 200 :body (ui/keyboard-next)})
+      "GET  /ui/keyboard/layout/next"  (fn [_] {:status 200
+                                                :body   {:next (queries/next-keyboard-layout (control/settings))}})
 
       "GET  /app/catalog"  (fn [_] {:status 200 :body {:apps (app/catalog-listing)}})
 
