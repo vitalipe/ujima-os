@@ -28,8 +28,8 @@
 (def ^:private stop-timeout-ms 5000)
 (def ^:private env-file     "$XDG_RUNTIME_DIR/ujima-shell.env")
 
-(defonce ^:private facts* (atom nil))   ; {:apps {…} :settings {…}} — what the page edits
-(defonce ^:private log*   (atom []))    ; what the shell sent, oldest first
+(defonce facts* (atom nil))   ; {:apps {…} :settings {…}} — what the page edits
+(defonce log*   (atom []))    ; what the shell sent, oldest first
 (defonce ^:private pi*    (atom nil))   ; the ssh transport to the Pi the shell runs on
 
 
@@ -41,7 +41,7 @@
 (defn matrix []
   (edn/read-string (slurp (io/resource "tools/shell/states.edn"))))
 
-(defn- preset [name]
+(defn preset [name]
   (let [{:keys [base states]} (matrix)]
     (or (some->> states (filter #(= name (:name %))) first (deep-merge base))
         (throw (ex-info (str "no such state: " name) {:name name})))))
@@ -49,7 +49,9 @@
 
 ;; ── the Pi ──────────────────────────────────────────────────────────────────
 
-(defn- on-pi!
+(defn pi [] @pi*)
+
+(defn on-pi!
   "CMD (one shell string) on the Pi the shell runs on; nil when none is attached."
   [cmd]
   (when-let [{:keys [password ssh-opts host]} @pi*]
@@ -256,29 +258,36 @@
              (concat ssh-opts [host "cat /ujima/desktop/shell/wall.png"])))
     root))
 
-(defn up!
+(defn start!
+  "Serve the tier from this machine and point IP's shell at it: {:url, :stop — undoes both}."
   [{:keys [ip http-port state] :or {http-port default-port state "home"} :as opts}]
-  (when-let [{:keys [pid] :as held} (state/read! state-file)]
-    (when (state/ours? held)
-      (throw (ex-info (str "a shell sim is already running (pid " pid ") — `bb shell sim down " ip "`")
-                      {:pid pid}))))
   (let [dir (str (fs/create-temp-dir {:prefix "ujima-shell-sim"}))
         url (str "http://" (lan-ip ip) ":" http-port "/ujima-desktop")]
     (reset! pi* (dev/ssh-transport (merge {:user "ujima" :password "ujima" :port "22"} opts)))
+    (reset! log* [])
     (control/init! {:storage (str (fs/path dir "settings")) :tmp (str (fs/path dir "session"))})
     (converge/init!)
     (control/on-converge! converge/converge-ui!)
     (catalog/init! (loader/load-catalog ["os/apps"] "desktop/shell/icons/launcher.svg"))
     (apply-preset! state)
-    (lib-http/listen! {:host "0.0.0.0" :port http-port :log (fn [& _])
-                       :endpoints {"ujima-desktop" (desktop-tier (static-root! dir))
-                                   "sim"           sim-tier}})
+    (let [stop-http (lib-http/listen! {:host "0.0.0.0" :port http-port :log (fn [& _])
+                                       :endpoints {"ujima-desktop" (desktop-tier (static-root! dir))
+                                                   "sim"           sim-tier}})]
+      (point-shell! url)
+      (println (str "shell sim up — the shell on " ip " dials " url))
+      (println (str "  states: http://localhost:" http-port "/sim/"))
+      {:url url :stop (fn [] (release-shell!) (stop-http))})))
+
+(defn up!
+  [{:keys [ip] :as opts}]
+  (when-let [{:keys [pid] :as held} (state/read! state-file)]
+    (when (state/ours? held)
+      (throw (ex-info (str "a shell sim is already running (pid " pid ") — `bb shell sim down " ip "`")
+                      {:pid pid}))))
+  (let [{:keys [stop]} (start! opts)]
     (state/write! state-file (merge (state/me) {:ip ip}))
     (.addShutdownHook (Runtime/getRuntime)
-                      (Thread. #(do (release-shell!) (state/clear! state-file))))
-    (point-shell! url)
-    (println (str "shell sim up — the shell on " ip " dials " url))
-    (println (str "  states: http://localhost:" http-port "/sim/"))
+                      (Thread. #(do (stop) (state/clear! state-file))))
     (println "ctrl-c (or `bb shell sim down <ip>`) points the shell back at ujimad")
     @(promise)))
 

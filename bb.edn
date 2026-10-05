@@ -43,7 +43,7 @@
    :task (apply cli/-main "circle" *command-line-args*)}
 
   shell
-  {:doc "The shell dev loop: sim up <ip> [--state <name>] | sim down <ip>"
+  {:doc "The shell dev loop: sim up <ip> [--state <name>] | sim down <ip> | sim check <ip> | sim compare"
    :requires ([tools.cli :as cli])
    :task (apply cli/-main "shell" *command-line-args*)}
 

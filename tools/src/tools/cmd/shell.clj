@@ -1,7 +1,8 @@
 (ns tools.cmd.shell
   "The `shell` noun — the dev loop for desktop/shell: `sim` serves a fake desktop tier from this
    machine and points a Pi's shell at it. The work is tools.shell.sim."
-  (:require [tools.shell.sim :as sim]))
+  (:require [tools.shell.check :as check]
+            [tools.shell.sim   :as sim]))
 
 
 (def ^:private ssh-spec
@@ -26,4 +27,21 @@
      {:usage "Usage: shell sim down <ip>"
       :target sim/down!
       :args [:ip]
-      :spec ssh-spec}}}})
+      :spec ssh-spec}
+
+     "check"
+     {:usage "Usage: shell sim check <ip> [--renderer qt|eww] [--out out/shell-check]"
+      :target check/check!
+      :args [:ip]
+      :spec (merge ssh-spec
+                   {:renderer  {:desc "qt (the shell, + its clicks) or eww (v05's bars, visuals only)" :coerce :string}
+                    :out       {:desc "Where the captures land (<out>/<renderer>/)" :coerce :string}
+                    :clicks-only {:desc "Skip the captures, play only the clicks" :coerce :boolean}
+                    :http-port {:desc "Port the fake tier listens on" :coerce :long}})}
+
+     "compare"
+     {:usage "Usage: shell sim compare [--a out/shell-check/eww] [--b out/shell-check/qt]"
+      :target check/compare!
+      :spec {:a   {:desc "One run's captures" :coerce :string}
+             :b   {:desc "The other's" :coerce :string}
+             :out {:desc "Where compare.html lands" :coerce :string}}}}}})
