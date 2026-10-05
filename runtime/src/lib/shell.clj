@@ -28,7 +28,7 @@
 
 ;; ---------------------------------------------------------------------------
 ;; Command timeout — an ARMED WATCHDOG on the runners, off by default. Daemons
-;; spawned outside a `with-timeout` extent (eww, udevadm monitor) are untouched.
+;; spawned outside a `with-timeout` extent (udevadm monitor) are untouched.
 ;; ---------------------------------------------------------------------------
 
 (def ^:dynamic *timeout-ms*

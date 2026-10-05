@@ -1,7 +1,7 @@
 (ns pipeline.desktop.script
   "Runs INSIDE the target chroot as root (and is the live `dev push desktop` deploy path).
    Stages the ujima *desktop* layer — the desktop/ tree, plus its concern files under
-   os/pipeline/desktop/ (theme, fonts, links, files, eww, chooser) — onto the base. The graphical
+   os/pipeline/desktop/ (theme, fonts, links, files, chooser) — onto the base. The graphical
    session's systemd unit lives in the ujimaify stage; runtime desktop *settings* (wallpaper,
    resolution, …) are ujimad's job at runtime, not this build script.
 
@@ -39,11 +39,6 @@
           (str "import gi; gi.require_version('GdkPixbuf','2.0'); from gi.repository import GdkPixbuf; "
                "GdkPixbuf.Pixbuf.new_from_file_at_scale('/ujima/desktop/shell/wall.svg',1920,1200,False)"
                ".savev('/ujima/desktop/shell/wall.png','png',[],[])")))
-
-    ;; eww binary: built out-of-band on a Pi (build-eww, dev kit) and vendored as the
-    ;; single tracked file — versions live in git history. Staged here (not install) so a
-    ;; rebuilt eww ships via `dev push desktop` without rebuilding the cached vendor base.
-    (files/install! project "desktop/eww/eww" "/usr/local/bin/eww")
 
     ;; the skin: Public Sans (shell face) + Nordic + the GTK defaults that point at them
     ;; (the why lives in theme/settings.ini)

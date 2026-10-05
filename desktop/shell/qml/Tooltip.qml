@@ -5,7 +5,7 @@ import "."
 // The one tooltip card, reused by every bar item: its own window, since a card inside the 68px
 // dock would clip. Placed as GTK places one: a small item (32px or less) anchors it on itself, a
 // bigger one on the pointer where it rested; below when there is room, else above; centred, and
-// slid to stay on screen (offsets measured off eww's). A neighbour while one shows is instant.
+// slid to stay on screen (offsets measured off GTK's). A neighbour while one shows is instant.
 Window {
     id: tip
     flags: Qt.ToolTip | Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus

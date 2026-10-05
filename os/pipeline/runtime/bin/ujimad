@@ -11,7 +11,7 @@ cd /ujima/runtime
 # image doesn't carry); whatever jars are baked are on the path.
 CP="src$(find /ujima/m2 -name '*.jar' -printf ':%p' 2>/dev/null)"
 # NOT exec: when ujimad exits (crash/OOM), tear the session down with `i3-msg exit` so
-# systemd's Restart=always rebuilds it cold — no orphaned eww/app zombies, one startup path.
+# systemd's Restart=always rebuilds it cold — no orphaned app zombies, one startup path.
 # The shell's user unit outlives X unless stopped first: it would crash-loop until the next
 # session (which restarts it anyway).
 bb -cp "$CP" -m ujima.ujimad

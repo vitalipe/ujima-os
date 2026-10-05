@@ -14,6 +14,10 @@ version truth; branch names and build labels may disagree.
   a second of a crash, restarted when hung, and a crash no longer ends the session.
 - The bars are i3 docks: a fullscreen app covers them, and solo and lock hand their space over.
 
+### Removed
+
+- eww: its bars and lock are the shell's now; its binary and `libdbusmenu-gtk3-4` leave the image.
+
 ## [0.5.2] - 2026-09-17
 
 Updating from a stick: the Console installs a pack from a labeled drive into the

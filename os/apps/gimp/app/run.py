@@ -7,7 +7,7 @@ import os
 import subprocess
 import sys
 
-TOP, DOCK = 48, 68  # eww bar heights — keep in sync with i3 config gaps
+TOP, DOCK = 48, 68  # the shell's bars (i3 docks) — keep in sync with desktop/shell/qml/Theme.qml
 
 rc = os.path.expanduser("~/.config/GIMP/3.0/sessionrc")
 if not os.path.exists(rc):

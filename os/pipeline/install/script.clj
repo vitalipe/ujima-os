@@ -35,14 +35,12 @@
     ($! apt-get install -y --no-install-recommends "overlayroot")
 
     ;; minimal desktop runtime (cached in the vendor base): i3 + core X + the legacy setuid Xorg.wrap
-    ;; (so the systemd session — a non-console user — can open the VT). eww is NOT apt — built from
-    ;; source (build-eww, dev kit), staged by the desktop stage; libgtk-3-0 is its runtime lib
-    ;; (apt pulls the rest of the GTK stack). Pin the exact eww lib set from build-eww's `ldd` dump.
+    ;; (so the systemd session — a non-console user — can open the VT). libgtk-3-0: the GTK apps, the
+    ;; Nordic theme and the chooser module (desktop/chooser) that loads into them.
     ($! apt-get install -y --no-install-recommends
         "i3" "xserver-xorg-core" "xserver-xorg-input-libinput" "xinit"
         "xserver-xorg-legacy"
         "libgtk-3-0"
-        "libdbusmenu-gtk3-4"  ; eww's systray/dbusmenu runtime lib (pulls libdbusmenu-glib4) — libgtk-3-0 does NOT pull it, so it must be pinned; its absence crash-loops eww on a clean image
         "qt6-gtk-platformtheme" "qt5-gtk-platformtheme"  ; Qt/KDE apps (Marble, Stellarium) follow the GTK Nordic theme — the base under the portal theme (ujima.service, the ujimaify stage)
         "qt6-xdgdesktopportal-platformtheme" "qt5-xdgdesktopportal-platformtheme"  ; QFileDialog -> org.freedesktop.portal.FileChooser = the ujima picker
         "mesa-vulkan-drivers"  ; v3dv Vulkan driver for the Pi 5 V3D — Godot's Vulkan Mobile renderer

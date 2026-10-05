@@ -74,9 +74,7 @@
       "GET  /stream/apps"   (fn [req] (converge/stream-apps req))
       "GET  /stream/places" (fn [req] (converge/stream-places req))
 
-      ;; interaction, not state: a coalesced gesture and a read the stream doesn't carry
-      "POST /ui/volume/move"           (fn [{body :body}] (ui/volume-moved! (:value body))
-                                                          {:status 202 :body {}})
+      ;; a read the stream doesn't carry, for a keybind
       "GET  /ui/keyboard/layout/next"  (fn [_] {:status 200 :body (ui/keyboard-next)})
 
       "GET  /app/catalog"  (fn [_] {:status 200 :body {:apps (app/catalog-listing)}})

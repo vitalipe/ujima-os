@@ -6,7 +6,6 @@
 
             [lib.shell-test]
             [lib.shell.command-test]
-            [lib.throttle-test]
 
             [ujima.sudo-test]
 
@@ -43,7 +42,6 @@
             [ujima.desktop.app.catalog-test]
             [ujima.desktop.app.catalog.loader-test]
             [ujima.desktop.app-test]
-            [ujima.desktop.eww-test]
             [ujima.storage-test]
             [ujima.events.audio-test]
             [ujima.events.token-test]))
@@ -56,7 +54,6 @@
 
     lib.shell-test
     lib.shell.command-test
-    lib.throttle-test
 
     ujima.sudo-test
 
@@ -93,7 +90,6 @@
     ujima.desktop.app.catalog-test
     ujima.desktop.app.catalog.loader-test
     ujima.desktop.app-test
-    ujima.desktop.eww-test
     ujima.storage-test
     ujima.events.audio-test
     ujima.events.token-test])

@@ -1,7 +1,7 @@
 # managed by the ujima image build — source: os/pipeline/ujimaify/session/ujima.service
 #
 # The graphical session is the boot service — NOT ujimad. ujimad moved INTO the X
-# session (it owns desktop lifecycle: i3 IPC, eww, app launch, audio — all session-scoped),
+# session (it owns desktop lifecycle: i3 IPC, app launch, audio — all session-scoped),
 # so it runs as `ujima` via i3 `exec` (see /ujima/desktop/shell/i3/config) through the `ujimad`
 # wrapper (runtime/bin/ujimad). `ujima.service` is repurposed to run + SUPERVISE the session:
 # systemd runs startx on tty1 as ujima, and Restart=always brings the whole desktop back
