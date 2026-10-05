@@ -3,9 +3,11 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQuickWindow>
 #include <QTimer>
 #include <QUrl>
 #include "desktop.h"
+#include "dock.h"
 #include "nam.h"
 #include "notify.h"
 
@@ -15,6 +17,8 @@ int main(int argc, char** argv) {
     // the shell is always alive and draws flat surfaces: the software rasterizer is the cheaper
     // floor (numbers in the launcher's commit). The env still wins, for a comparison.
     if (!qEnvironmentVariableIsSet("QT_QUICK_BACKEND")) qputenv("QT_QUICK_BACKEND", "software");
+    // the top bar at home, the lock and the tooltip card are see-through
+    QQuickWindow::setDefaultAlphaBuffer(true);
     // WM_CLASS of every shell window: i3 tells the managed ones apart by title (Launcher, Lock)
     QGuiApplication::setApplicationName("ujima-shell");
     QGuiApplication::setOrganizationName("ujima");
@@ -38,6 +42,11 @@ int main(int argc, char** argv) {
     engine.addImportPath(qmlDir);
     engine.load(QUrl::fromLocalFile(qmlDir + "/Main.qml"));
     if (engine.rootObjects().isEmpty()) return 1;
+
+    // the bars are docks before they ever map; they show on the first apps snapshot
+    QObject* shell = engine.rootObjects().first();
+    for (const char* bar : {"topbar", "dock"})
+        makeDock(qobject_cast<QWindow*>(shell->property(bar).value<QObject*>()));
 
     sdNotify("READY=1");
     QTimer watchdog;

@@ -22,8 +22,6 @@
            :http     {:host "127.0.0.1" :port 1336
                       :static-root "/ujima/desktop/shell"}
 
-           :eww      {:eww-config "/ujima/desktop/shell/eww"}
-
            :app      {:catalog           ["/ujima/apps" "/ujima/storage/apps"]  ; scan order: later root wins
                       :fallback-icon     "/ujima/desktop/shell/icons/launcher.svg"
                       :open-web-app-bin  "/ujima/desktop/bin/ujima-open-web-app"

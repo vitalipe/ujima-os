@@ -1,5 +1,5 @@
-# UjimaOS — minimal i3 config. No i3bar; eww is the top bar + dock, the launcher is a Qt Quick
-# window, ujimad owns app/window lifecycle.
+# UjimaOS — minimal i3 config. No i3bar; the shell (desktop/shell, Qt Quick) is the top bar, dock,
+# launcher and lock, ujimad owns app/window lifecycle.
 # new windows stack as tabs (cover the previous), never tile-split; font 1 + a
 # topbar-matched palette shrink the only surviving decoration — the tab bar — to
 # an invisible ~2px sliver that blends into the topbar above it
@@ -13,7 +13,7 @@ client.focused_inactive #1b2027 #1b2027 #1b2027 #1b2027 #1b2027
 client.unfocused        #1b2027 #1b2027 #1b2027 #1b2027 #1b2027
 client.urgent           #1b2027 #1b2027 #1b2027 #1b2027 #1b2027
 
-# real dialogs float. Deliberately NO fullscreen keybind — the eww bars must stay visible, and
+# real dialogs float. Deliberately NO fullscreen keybind — the bars must stay visible, and
 # apps that must not own the screen (Stellarium) launch windowed instead (their app.edn).
 # chromium --app windows auto-float (fixed size hints) but set class/role only AFTER mapping, so
 # for_window can't catch them here — ujimad un-floats app windows instead (settle-floaters!).
@@ -23,19 +23,17 @@ for_window [window_type="dialog"]  floating enable
 for_window [window_type="utility"] floating enable
 # open/save file choosers overflow the bars when floated (buttons hide behind the dock) — TILE them
 # instead: a tiled window fills exactly the band between the top bar and dock at any resolution
-# (i3's gaps handle the fixed 48/68px), so no hardcoded size. Targets the GTK chooser role so small
+# (i3's dock areas hold the bars), so no hardcoded size. Targets the GTK chooser role so small
 # confirm dialogs still float.
 for_window [window_role="GtkFileChooserDialog"] floating disable
 
-# eww topbar/dock are :wm-ignore (override-redirect) in eww.yuck, so i3 doesn't manage them. The
-# shell's managed windows (WM_CLASS ujima-shell) are placed by title before they ever map, so a
-# shell restarting under an app never covers it or takes its focus; ujimad routes them too.
+# the top bar and the dock are i3 docks (desktop/shell types them): i3 holds their space, so the
+# launcher + apps get the band between, an i3-fullscreen app covers them, and unmapping them (solo,
+# lock) hands their space over — no gaps to keep in sync. The shell's managed windows (WM_CLASS
+# ujima-shell) are placed by title before they ever map, so a shell restarting under an app never
+# covers it or takes its focus; ujimad routes them too.
 assign [class="^ujima-shell$" title="^Launcher$"] 1
-
-# the bars reserve no strut, so reserve their space here — keep in sync with eww.yuck heights
-# (topbar :height 48px, dock :height 68px) so the launcher + apps sit in the mid-section.
-gaps top 48
-gaps bottom 68
+assign [class="^ujima-shell$" title="^Lock$"] lock
 
 # super+space cycles the keyboard layout — through ujimad (concrete-state POST),
 # NEVER an XKB group toggle: X-side switching would drift from the control plane
@@ -60,11 +58,11 @@ bindsym Mod1+Escape    exec --no-startup-id ujima-desktop POST commands/app/home
 # same image aligned to it, one continuous background under everything.
 exec_always --no-startup-id feh --bg-fill /ujima/desktop/shell/wall.png
 
-# ujimad reconciles settings, then brings up eww (top bar + dock); the shell is its own user unit,
-# restarted here so every session gets a fresh one (the ujimad wrapper stops it on the way out)
+# ujimad reconciles settings and serves the shell's tier; the shell is its own user unit, restarted
+# here so every session gets a fresh one (the ujimad wrapper stops it on the way out)
 exec --no-startup-id ujimad
 exec --no-startup-id systemctl --user restart ujima-shell.service
 
-# compositor: picom — transparency for the eww surfaces, fades, the tooltip card and the dialog
+# compositor: picom — transparency for the shell's surfaces, fades, the tooltip card and the dialog
 # treatment (a floating dialog is a card, its app dims behind it). All of it in shell/picom.conf.
 exec_always --no-startup-id picom --config /ujima/desktop/shell/picom.conf

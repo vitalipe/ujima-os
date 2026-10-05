@@ -87,13 +87,21 @@
            (mapv :id (:pinned (converge/apps->ui {:running [] :catalog shown :current nil})))))))
 
 
-(deftest the-wire-shape-is-exactly-four-keys
-  (let [out (converge/apps->ui {:mode :multi :running [{:id :paint}] :catalog catalog :current {:id :paint}})]
-    (is (= #{:mode :running :pinned :current} (set (keys out)))
+(deftest the-wire-shape-is-exactly-five-keys
+  (let [out (converge/apps->ui {:mode :multi :bars-hidden? false :running [{:id :paint}]
+                                :catalog catalog :current {:id :paint}})]
+    (is (= #{:mode :bars-hidden :running :pinned :current} (set (keys out)))
         "spelled out, so an internal projection key can never leak to the shell")
     (is (= :multi (:mode out)))
+    (is (false? (:bars-hidden out)))
     (is (= [{:id :paint}] (:running out)))
     (is (= {:id :paint}   (:current out)))))
+
+
+(deftest the-shell-reads-the-bars-visibility-off-the-wire
+  (is (true? (:bars-hidden (converge/apps->ui {:mode :solo :bars-hidden? true :running [] :catalog catalog}))))
+  (is (false? (:bars-hidden (converge/apps->ui {:running [] :catalog catalog})))
+      "a snapshot that never said keeps the bars"))
 
 
 (deftest a-token-on-a-catalog-entry-never-reaches-the-wire

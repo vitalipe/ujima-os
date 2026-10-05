@@ -10,8 +10,9 @@ version truth; branch names and build labels may disagree.
 
 ### Changed
 
-- The launcher runs as its own user service, `ujima-shell`: back within a second of a crash,
-  restarted when it hangs, and a restart no longer covers or unfocuses the app in front.
+- The launcher, top bar, dock and lock screen are one Qt user service, `ujima-shell`: back within
+  a second of a crash, restarted when hung, and a crash no longer ends the session.
+- The bars are i3 docks: a fullscreen app covers them, and solo and lock hand their space over.
 
 ## [0.5.2] - 2026-09-17
 

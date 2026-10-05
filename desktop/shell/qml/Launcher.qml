@@ -3,7 +3,7 @@ import QtQuick.Window
 import "."
 
 // UjimaOS launcher (design turn 47a): the identity line + the category grid. JUST the launcher —
-// the top bar and dock are eww's, this window fills the band i3 keeps between them. The grid is
+// the top bar and dock are their own windows, this one fills the band i3 keeps between them. The grid is
 // built ONCE from the catalog; the identity line and the open-state come live from ujimad's streams.
 Window {
     id: win
@@ -12,18 +12,14 @@ Window {
     color: Theme.bg
     title: "Launcher"
 
-    // what i3 reserves above and below this window for eww's bars (i3 config `gaps`)
-    readonly property int barTop: 48
-    readonly property int barBottom: 68
-
     // the SAME desktop background as the X root (wall.png), shifted up by the top bar so it lines
     // up exactly with the root behind the transparent top bar and on empty workspaces. Opaque —
     // correct text AA, and none of the see-through hover-repaint artefact the web view had.
     // Fetched once the tier has answered: the shell's unit can start before ujimad listens.
     Image {
         source: desktop.hasCatalog ? desktop.wall : ""
-        x: 0; y: -win.barTop
-        width: win.width; height: win.height + win.barTop + win.barBottom
+        x: 0; y: -Theme.barTop
+        width: win.width; height: win.height + Theme.barTop + Theme.barBottom
         fillMode: Image.Stretch
         asynchronous: true
     }
@@ -41,7 +37,7 @@ Window {
         function reveal() { opacity = 1 }
         function settle() { if (desktop.hasCatalog && pending === 0) reveal() }
         onPendingChanged: settle()
-        Connections { target: desktop; function onAppsChanged() { Qt.callLater(home.settle) } }
+        Connections { target: desktop; function onCatalogChanged() { Qt.callLater(home.settle) } }
         Timer { running: true; interval: 2000; onTriggered: home.reveal() }
 
         // the mock's small-screen steps
@@ -49,7 +45,7 @@ Window {
 
         // the catalog folded into the categories, in display order; empty ones vanish
         readonly property var cats: Theme.categories
-            .map(c => Object.assign({}, c, { apps: desktop.apps.filter(a => a.category === c.key) }))
+            .map(c => Object.assign({}, c, { apps: desktop.catalog.filter(a => a.category === c.key) }))
             .filter(c => c.apps.length > 0)
 
         // identity: the machine's display name from the settings plane, its serial tail beside it

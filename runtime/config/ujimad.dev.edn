@@ -5,7 +5,6 @@
                      :provides {:storage "/"}}]}
  :desktop {:places-home "/tmp/ujima/home"   ; never the developer's real home
            :http     {:static-root "desktop/shell"}
-           :eww      {:eww-config "desktop/shell/eww"}
            :app      {:catalog ["apps"]
                       :fallback-icon     "desktop/shell/icons/launcher.svg"
                       :open-web-app-bin  "desktop/bin/ujima-open-web-app"

@@ -91,8 +91,7 @@
   (let [now (System/currentTimeMillis) elapsed (- now @relaunch*)]
     (if (>= elapsed relaunch-ms)
       (do (reset! relaunch* now)
-          (act/run! (catalog/resolve! app) [])
-          (act/fill-screen!))
+          (act/run! (catalog/resolve! app) []))
       (future (Thread/sleep (- relaunch-ms elapsed))
               (handle-event! {:type :scope/died :app-id app})))))
 
@@ -119,14 +118,17 @@
 
 
 (defn- pin!
-  "The shared setup for solo and lock: run APP (switch-then-launch) and fill the screen."
+  "Solo's setup: run APP (switch-then-launch). The bars leave on :bars-hidden?, and i3 hands
+   their space to the app."
   [app]
-  (act/run! (catalog/resolve! app) [])
-  (act/fill-screen!))
+  (act/run! (catalog/resolve! app) []))
 
 
-(defn- pin-project [world mode-kw]
-  (assoc (proj/base world) :mode mode-kw :bars-hidden? true))
+(defn snapshot
+  "The tree, projected and stamped with MODE. The bars show only in multi — an app that goes
+   i3-fullscreen there covers them on its own. Public: tools.shell.sim projects through it too."
+  [mode world]
+  (assoc (proj/base world) :mode mode :bars-hidden? (not= mode :multi)))
 
 
 ;; --- the three modes (see the ns doc). enter! RETURNS the mode to store, so it can enrich
@@ -144,17 +146,15 @@
   (enter!   [m]       m)
   (exit!    [_]       nil)
   (act!     [_ ev]    (dispatch multi-handlers ev))
-  (project! [_ world] (let [snap (proj/base world)]
-                        (assoc snap :mode :multi
-                                    :bars-hidden? (boolean (get-in snap [:current :fullscreen]))))))
+  (project! [_ world] (snapshot :multi world)))
 
 
 (defrecord Solo [app]
   Mode
   (enter!   [m]       (pin! app) m)
-  (exit!    [_]       (act/restore-gaps!))
+  (exit!    [_]       nil)
   (act!     [_ ev]    (dispatch (keep-alive-handlers app) ev))
-  (project! [_ world] (pin-project world :solo)))
+  (project! [_ world] (snapshot :solo world)))
 
 
 (defrecord Locked [app-to-focus]
@@ -165,9 +165,7 @@
                         (act/show-lock!)
                         (assoc m :app-to-focus focus))) ; remember it for exit!
 
-  (exit!    [m]       (act/hide-lock!)
-
-                      (let [w    (observe!)
+  (exit!    [m]       (let [w    (observe!)
                             back (:app-to-focus m)]
 
                         (i3/switch-workspace!
@@ -176,7 +174,7 @@
                             home-ws))))                            ; gone (or was home)
 
   (act!     [_ ev]    (dispatch {} ev))    ; no handlers: every verb refused
-  (project! [_ world] (pin-project world :locked)))
+  (project! [_ world] (snapshot :locked world)))
 
 
 (defn- event->mode [ev]

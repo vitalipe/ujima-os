@@ -25,8 +25,14 @@
   (contains? privileged-apps id))
 
 
-(def ^:private launcher-class "ujima-shell")      ; the shell's launcher window, not an app: lives home
-(def ^:private lock-title    "Eww - lockscreen") ; not an app either, lives on lock-ws
+(def ^:private shell-class "ujima-shell")   ; the shell's managed windows: neither is an app
+
+
+(defn- shell-window? [title {:keys [class] :as win}]
+  (and (= shell-class class) (= title (:title win))))
+
+(def ^:private launcher? (partial shell-window? "Launcher"))   ; lives home
+(def ^:private lock?     (partial shell-window? "Lock"))       ; lives on lock-ws
 
 (def force-lo-ms 1000)                     ; a 2nd close sooner is a double-click
 (def force-hi-ms 3000)                     ; a 2nd close later is a fresh close
@@ -141,35 +147,11 @@
           (i3/switch-workspace! target))))))
 
 
-(defn fill-screen!
-  "Solo: drop the bar gaps on EVERY workspace so the one app fills the screen. NOT i3
-   fullscreen — a tiled dialog (the file chooser) still covers via the tabbed layout and
-   stays usable. `all`, not `current`: one restore-gaps! then cleans up every workspace a
-   re-solo (X->Y) touched, so a backgrounded app can't be left rendering under the bars."
-  []
-  (i3/try-command! "gaps" "top"    "all" "set" "0")
-  (i3/try-command! "gaps" "bottom" "all" "set" "0"))
-
-
-(defn restore-gaps!
-  "Leaving solo: put the bar gaps back on every workspace."
-  []
-  (i3/try-command! "gaps" "top"    "all" "set" "48")  ; keep in sync with i3 config `gaps top`  + eww topbar height
-  (i3/try-command! "gaps" "bottom" "all" "set" "68")) ; keep in sync with i3 config `gaps bottom` + eww dock height
-
-
 (defn show-lock!
-  "Lock: the surface is already on lock-ws, so this is a switch and a gap drop — nothing is
-   mapped, spawned or torn down."
+  "Lock: the surface is already on lock-ws, so this is a switch — nothing is mapped, spawned or
+   torn down. The bars leave on the projection's :bars-hidden?, and i3 hands their space over."
   []
-  (i3/switch-workspace! lock-ws)
-  (fill-screen!))
-
-
-(defn hide-lock!
-  "Release: put the gaps back. Where the session lands next is the caller's call."
-  []
-  (restore-gaps!))
+  (i3/switch-workspace! lock-ws))
 
 
 (defn settle-floaters!
@@ -179,9 +161,9 @@
    and lands on the app the user just opened. Idempotent."
   [{:keys [ws->wins] :as world}]
   (doseq [[ws wins] ws->wins
-          {:keys [con-id floating? wtype title]} wins]
+          {:keys [con-id floating? wtype] :as win} wins]
     (when (and floating? (not (#{"dialog" "utility" "splash"} wtype)))
-      (when (or (proj/app-of-ws world ws) (= lock-title title))
+      (when (or (proj/app-of-ws world ws) (lock? win))
         (i3/try-command! (format "[con_id=%d]" con-id) "floating" "disable")))))
 
 
@@ -192,10 +174,10 @@
    lock surface on lock-ws. No focus change; idempotent."
   [{:keys [ws->wins catalog]}]
   (doseq [[ws wins] ws->wins
-          {:keys [con-id class title] :as win} wins
+          {:keys [con-id] :as win} wins
           :let  [target (cond
-                          (= launcher-class class) home-ws
-                          (= lock-title title)     lock-ws
+                          (launcher? win) home-ws
+                          (lock? win)     lock-ws
                           :else (some-> (catalog/app-of-window catalog win) name))]
           :when (and target (not= ws target))]
     (i3/try-command! (format "[con_id=%d]" con-id) "move" "container" "to" "workspace" target)))

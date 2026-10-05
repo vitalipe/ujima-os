@@ -1,7 +1,6 @@
 (ns ujima.desktop
   (:require [lib.shell :as shell]
-            [ujima.log :as log]
-            [ujima.desktop.eww :as eww]))
+            [ujima.log :as log]))
 
 
 (def ^:private x-tries    60)   ; x 250ms = ~15s for X to accept an authorized connection
@@ -33,9 +32,10 @@
 
 
 (defn init!!
-  "The portal and eww. The shell (desktop/shell) is not ours: it is a user unit the session binds."
+  "The portal, then park: the shell (desktop/shell) is not ours — a user unit the session binds —
+   so nothing here ends the session; ujimad's own death does (its wrapper exits i3)."
   [cfg]
   (log/info "opening the desktop" cfg)
   (portal-init! (:portal cfg))
-  (eww/init!! (:eww cfg))) 
+  @(promise)) 
 

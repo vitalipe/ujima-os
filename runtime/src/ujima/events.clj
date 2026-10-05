@@ -13,7 +13,6 @@
             [ujima.control               :as control]
             [ujima.storage               :as storage]
             [ujima.desktop.app           :as app]
-            [ujima.desktop.eww           :as eww]
             [ujima.desktop.places        :as places]
             [ujima.desktop.http.converge :as shell-http-converge]
 
@@ -62,9 +61,8 @@
   (control/on-converge! linux/converge!)
   (control/on-converge! shell-http-converge/converge-ui!)
 
-  ;; apps -> UI, bar
+  ;; apps -> UI (the shell reads the bars' visibility off it too)
   (app/on-converge! shell-http-converge/converge-apps!)
-  (app/on-converge! eww/converge!)
 
   ;; circle token on a stick -> console
   (storage/on-converge! token-events/on-storage!)

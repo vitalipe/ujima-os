@@ -13,6 +13,7 @@
             [lib.shell         :refer [sh?]]
             [ujima.api.routes  :as routes]
             [ujima.control     :as control]
+            [ujima.desktop.app                :as app]
             [ujima.desktop.app.catalog        :as catalog]
             [ujima.desktop.app.catalog.loader :as loader]
             [ujima.desktop.app.projection     :as proj]
@@ -107,13 +108,10 @@
                                  (str/replace #"^desktop/" "/ujima/desktop/"))))
 
 (defn- snapshot [{:keys [mode] :as apps}]
-  (let [b (proj/base (world apps))]
-    (-> b
-        (update :running #(mapv on-device %))
-        (update :catalog #(mapv on-device %))
-        (update :current #(some-> % on-device))
-        (assoc :mode mode
-               :bars-hidden? (if (= mode :multi) (boolean (get-in b [:current :fullscreen])) true)))))
+  (-> (app/snapshot mode (world apps))
+      (update :running #(mapv on-device %))
+      (update :catalog #(mapv on-device %))
+      (update :current #(some-> % on-device))))
 
 (defn- show-lock!
   "The lock card only shows on its workspace: switch the Pi there and back, as ujimad does."

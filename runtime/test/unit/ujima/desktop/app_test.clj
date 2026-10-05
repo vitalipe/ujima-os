@@ -263,11 +263,13 @@
   (is (= :web (current-id)))
   (is (= [:web] (open-ids))))
 
-(deftest fullscreen-is-detected-and-hides-the-bars-in-multi
+(deftest fullscreen-is-detected-but-multi-keeps-the-bars
+  ;; the bars are i3 docks: a fullscreen app covers them on its own, and hiding them would hand
+  ;; their space to the workspace and resize the app again on its way out of fullscreen
   (setup! [(win "web" :focused? true :full? true)] "web" :scopes #{:web})
   (stubbed #(app/handle-event! {:type :tick}))
   (is (true? (:fullscreen (:current (snap)))) "detected on the entry")
-  (is (true? (:bars-hidden? (snap)))          "multi hides the bars for a fullscreen window")
+  (is (false? (:bars-hidden? (snap)))         "multi keeps the bars")
 
   (setup! [(win "web" :focused? true)] "web" :scopes #{:web})
   (stubbed #(app/handle-event! {:type :tick}))
@@ -290,13 +292,13 @@
   ;; i3 counts only TILED windows when deciding a workspace is empty. Left floating, lock-ws
   ;; reads as empty and i3 reaps it on the first switch to a new app workspace, dropping the
   ;; lock card on top of the app the user just opened.
-  (setup! [(win "lock" :floating? true :title "Eww - lockscreen" :con 11)] "1")
+  (setup! [(win "lock" :floating? true :class "ujima-shell" :title "Lock" :con 11)] "1")
   (stubbed #(app/handle-event! {:type :window/changed}))
   (is (some #{[:cmd "[con_id=11]" "floating" "disable"]} (fx-of :cmd))
       "un-floated even though lock-ws is not an app workspace"))
 
 (deftest the-tiled-lock-surface-is-left-alone
-  (setup! [(win "lock" :title "Eww - lockscreen" :con 11)] "1")
+  (setup! [(win "lock" :class "ujima-shell" :title "Lock" :con 11)] "1")
   (stubbed #(app/handle-event! {:type :window/changed}))
   (is (= [] (fx-of :cmd)) "already tiled — idempotent"))
 
@@ -317,25 +319,25 @@
 (deftest the-launcher-is-routed-home
   ;; an app opened before the shell is up (a token stick at boot) maps the launcher on the app's
   ;; workspace, leaving home empty
-  (setup! [(win "sky" :focused? true :con 9 :class "ujima-shell")] "sky" :scopes #{:sky})
+  (setup! [(win "sky" :focused? true :con 9 :class "ujima-shell" :title "Launcher")] "sky" :scopes #{:sky})
   (stubbed #(app/handle-event! {:type :window/changed}))
   (is (= [[:cmd "[con_id=9]" "move" "container" "to" "workspace" "1"]] (fx-of :cmd))))
 
 
 (deftest the-launcher-at-home-is-left-alone
-  (setup! [(win "1" :focused? true :con 9 :class "ujima-shell")] "1")
+  (setup! [(win "1" :focused? true :con 9 :class "ujima-shell" :title "Launcher")] "1")
   (stubbed #(app/handle-event! {:type :window/changed}))
   (is (= [] (fx-of :cmd)) "already home — idempotent"))
 
 
 (deftest the-lock-surface-is-routed-to-the-lock-workspace
   ;; it maps wherever focus happened to be; unpinned, locking would switch to an empty ws
-  (setup! [(win "1" :focused? true :con 9 :title "Eww - lockscreen")] "1")
+  (setup! [(win "1" :focused? true :con 9 :class "ujima-shell" :title "Lock")] "1")
   (stubbed #(app/handle-event! {:type :window/changed}))
   (is (= [[:cmd "[con_id=9]" "move" "container" "to" "workspace" "lock"]] (fx-of :cmd))))
 
 (deftest the-lock-surface-on-its-own-workspace-is-left-alone
-  (setup! [(win "lock" :con 9 :title "Eww - lockscreen")] "1")
+  (setup! [(win "lock" :con 9 :class "ujima-shell" :title "Lock")] "1")
   (stubbed #(app/handle-event! {:type :window/changed}))
   (is (= [] (fx-of :cmd)) "already on the lock workspace — idempotent"))
 
@@ -365,15 +367,12 @@
 
 (defn- mode-of [] (:mode (snap)))
 
-(def ^:private gaps0 [[:cmd "gaps" "top" "all" "set" "0"] [:cmd "gaps" "bottom" "all" "set" "0"]])
-(def ^:private gaps-back [[:cmd "gaps" "top" "all" "set" "48"] [:cmd "gaps" "bottom" "all" "set" "68"]])
-
-(deftest solo-enter-cold-runs-and-fills-the-screen
+(deftest solo-enter-cold-runs-and-hides-the-bars
   (setup! [] "1")
   (stubbed #(app/solo-app! :web))
   (is (= [[:switch "web"]] (fx-of :switch)) "switched to P")
   (is (= [[:spawn :web ["chromium"]]] (fx-of :spawn)) "launched P")
-  (is (= gaps0 (fx-of :cmd)) "bar gaps dropped so P fills the screen — no i3 fullscreen")
+  (is (= [] (fx-of :cmd)) "no i3 command: the docks leave and i3 hands P their space")
   (is (= :solo (mode-of)) "projection reports solo")
   (is (true? (:bars-hidden? (snap))) "solo hides the bars"))
 
@@ -382,7 +381,7 @@
   (stubbed #(app/solo-app! :web))
   (is (= [[:switch "web"]] (fx-of :switch)))
   (is (= [] (fx-of :spawn)) "P already up — no re-spawn")
-  (is (= gaps0 (fx-of :cmd)) "still fills the screen"))
+  (is (true? (:bars-hidden? (snap))) "the bars still leave"))
 
 (deftest solo-does-not-i3-fullscreen
   ;; the dialog fix: no fullscreen, so a tiled chooser covers via tabbing instead of hiding
@@ -436,33 +435,35 @@
   (is (= [] (fx-of :kill)) "no close in solo — the chord cannot break a hold")
   (is (= [] (filterv #(= [:switch "1"] %) (fx-of :switch))) "no go-home in solo"))
 
-(deftest release-restores-gaps-and-returns-to-multi
+(deftest release-returns-to-multi-and-the-bars
   (setup! [(win "web" :focused? true :con 7)] "web" :scopes #{:web})
   (stubbed #(do (app/solo-app! :web)
                 (reset! fx* [])
                 (app/release!)))
   (is (= :multi (mode-of)))
-  (is (= gaps-back (fx-of :cmd)) "bar gaps put back"))
+  (is (false? (:bars-hidden? (snap))) "the bars come back")
+  (is (= [] (fx-of :cmd)) "no i3 command: the docks map and i3 takes their space back"))
 
 (deftest solo-current-app-holds-the-focused-app
   (setup! [(win "web" :focused? true)] "web" :scopes #{:web})
   (stubbed #(app/solo-current-app!))                ; no id -> solo the focused app
   (is (= :solo (mode-of)))
-  (is (= gaps0 (fx-of :cmd)) "fills the screen"))
+  (is (true? (:bars-hidden? (snap))) "the bars leave"))
 
 (deftest solo-current-app-at-home-throws
-  (setup! [(win "1" :focused? true :class "ujima-shell")] "1")
+  (setup! [(win "1" :focused? true :class "ujima-shell" :title "Launcher")] "1")
   (stubbed #(is (thrown? clojure.lang.ExceptionInfo (app/solo-current-app!))))  ; nothing to solo
   (is (false? (app/solo?)) "did not enter solo"))
 
 
-(deftest lock-switches-to-the-lock-workspace-and-fills-the-screen
+(deftest lock-switches-to-the-lock-workspace-and-hides-the-bars
   (setup! [] "1")
   (stubbed #(app/lock!))
   (is (= [[:switch "lock"]] (fx-of :switch)) "switched to the shell's lock workspace")
   (is (= [] (fx-of :sh)) "nothing is mapped or torn down — the surface is already there")
   (is (= [] (fx-of :spawn)) "nothing is launched — the lock is a surface, not a process")
-  (is (= gaps0 (fx-of :cmd)) "fills the screen")
+  (is (= [] (fx-of :cmd)) "no i3 command: the docks leave and i3 hands the card their space")
+  (is (true? (:bars-hidden? (snap))) "the bars leave")
   (is (true?  (app/locked?)) "reports locked")
   (is (false? (app/solo?))   "locked is its own mode, not solo")
   (is (= :locked (mode-of))))
@@ -530,13 +531,13 @@
                 (app/release!)
                 (app/close-focused!)))
   (is (= :multi (mode-of)) "the hold is gone")
-  (is (= gaps-back (fx-of :cmd)) "bar gaps put back")
+  (is (false? (:bars-hidden? (snap))) "the bars are back")
   (is (= [[:kill]] (fx-of :kill)) "and the app is closed"))
 
 (deftest release-when-already-multi-does-nothing
   (setup! [(win "web" :focused? true :con 7)] "web" :scopes #{:web})
   (stubbed #(app/release!))            ; never held
-  (is (= [] (fx-of :cmd)) "no gap change — a normal desktop is left alone"))
+  (is (= [] (fx-of :cmd)) "a normal desktop is left alone"))
 
 
 (deftest verbs-resolve-or-throw

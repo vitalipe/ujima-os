@@ -37,7 +37,7 @@
    {:name       "shell"
     :src        "/ujima/desktop/shell"
     :marker     "CMakeLists.txt"
-    :build-deps ["qt6-base-dev" "qt6-declarative-dev" "cmake" "ninja-build" "g++"]
+    :build-deps ["qt6-base-dev" "qt6-declarative-dev" "libxcb1-dev" "cmake" "ninja-build" "g++"]
     :build!     #(build-qt-app! "/ujima/desktop/shell" "/ujima/desktop/shell/bin/ujima-shell")}
    {:name       "chooser module"
     :src        "/ujima/desktop/chooser"
