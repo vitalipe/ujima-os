@@ -30,12 +30,11 @@
       :spec ssh-spec}
 
      "check"
-     {:usage "Usage: shell sim check <ip> [--renderer qt|eww] [--out out/shell-check]"
+     {:usage "Usage: shell sim check <ip> [--out out/shell-check/run] [--clicks-only]"
       :target check/check!
       :args [:ip]
       :spec (merge ssh-spec
-                   {:renderer  {:desc "qt (the shell, + its clicks) or eww (v05's bars, visuals only)" :coerce :string}
-                    :out       {:desc "Where the captures land (<out>/<renderer>/)" :coerce :string}
+                   {:out       {:desc "Where the captures land" :coerce :string}
                     :clicks-only {:desc "Skip the captures, play only the clicks" :coerce :boolean}
                     :http-port {:desc "Port the fake tier listens on" :coerce :long}})}
 
@@ -47,8 +46,8 @@
                              :http-port {:desc "Port the fake tier listens on" :coerce :long}})}
 
      "compare"
-     {:usage "Usage: shell sim compare [--a out/shell-check/eww] [--b out/shell-check/qt]"
+     {:usage "Usage: shell sim compare [--a out/shell-check/approved] [--b out/shell-check/run]"
       :target check/compare!
-      :spec {:a   {:desc "One run's captures" :coerce :string}
-             :b   {:desc "The other's" :coerce :string}
+      :spec {:a   {:desc "An approved run's captures" :coerce :string}
+             :b   {:desc "The run to hold to it" :coerce :string}
              :out {:desc "Where compare.html lands" :coerce :string}}}}}})

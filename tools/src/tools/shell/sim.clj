@@ -93,7 +93,7 @@
 
 ;; ── apps: a fake i3 world through ujimad's own projection ───────────────────
 
-(defn- world [{:keys [open focused titles fullscreen mode]}]
+(defn- world [{:keys [open focused titles mode]}]
   {:focused-ws (cond (= mode :locked) proj/lock-ws
                      focused          (name focused)
                      :else            proj/home-ws)
@@ -101,20 +101,10 @@
    :ws->wins   (into {} (for [id open]
                           [(name id) [{:title       (get titles id (get-in (catalog/current) [:by-id id :label]))
                                        :focused?    (= id focused)
-                                       :fullscreen? (contains? fullscreen id)}]]))})
-
-(defn- on-device
-  "Where an icon lives on the Pi — eww reads the stream's paths straight off its disk; the Qt
-   shell asks for assets/app-icon/<id>, which this tier serves from the repo."
-  [entry]
-  (update entry :icon #(some-> % (str/replace #"^os/apps/" "/ujima/apps/")
-                                 (str/replace #"^desktop/" "/ujima/desktop/"))))
+                                       :fullscreen? false}]]))})
 
 (defn- snapshot [{:keys [mode] :as apps}]
-  (-> (app/snapshot mode (world apps))
-      (update :running #(mapv on-device %))
-      (update :catalog #(mapv on-device %))
-      (update :current #(some-> % on-device))))
+  (app/snapshot mode (world apps)))
 
 (defn- show-lock!
   "The lock card only shows on its workspace: switch the Pi there and back, as ujimad does."
@@ -139,7 +129,6 @@
                    (update :open #(kws %))
                    (update :focused kw)
                    (update :mode kw)
-                   (update :fullscreen #(set (kws %)))
                    (update :titles #(into {} (map (fn [[k v]] [(keyword (name k)) v])) %)))
      :settings (-> settings
                    (update :output kw)

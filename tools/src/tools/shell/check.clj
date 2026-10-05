@@ -1,19 +1,16 @@
 (ns tools.shell.check
   "The shell's state matrix, played back on a Pi: every state in tools/shell/states.edn is set
    through the sim, the bars (and the lock card, and a tooltip under a hover) are captured off the
-   screen, and every :check's click is held to the verbs the sim logs. `compare` diffs two runs —
-   eww against Qt while both exist, a run against an approved one after. Captures are BMPs: maim
-   writes them and a browser shows them, so nothing here decodes an image format."
-  (:require [clojure.edn       :as edn]
-            [clojure.string    :as str]
+   screen, and every :check's click is held to the verbs the sim logs. `compare` diffs a run
+   against an approved one. Captures are BMPs: maim writes them and a browser shows them, so
+   nothing here decodes an image format."
+  (:require [clojure.string    :as str]
             [babashka.fs       :as fs]
             [babashka.process  :as p]
-            [lib.shell         :refer [sh?]]
             [tools.shell.sim   :as sim]))
 
 
 (def ^:private remote-dir "/tmp/shellcheck")
-(def ^:private eww-dir    "/tmp/ewwsim")
 
 
 ;; ── the screen ──────────────────────────────────────────────────────────────
@@ -59,38 +56,6 @@
     (p/shell {:out :string :in nil} "bash" "-c"
              (str "sshpass -p " password " ssh -q -o LogLevel=ERROR " (str/join " " ssh-opts) " " host
                   " 'tar c -C " remote-dir " .' | tar x -C " out))))
-
-
-;; ── eww, as the reference renderer (its clicks would reach the real ujimad — visuals only) ───
-
-(defn- eww! [& args]
-  (sim/on-pi! (str "DISPLAY=:0 eww --config " eww-dir " --no-daemonize " (str/join " " args))))
-
-(defn- eww-up!
-  "v05's eww config, pointed at the sim, in a scratch daemon; the Qt shell stopped meanwhile."
-  [url]
-  (sim/on-pi! "systemctl --user stop ujima-shell.service")
-  (sim/on-pi! (str "rm -rf " eww-dir " && mkdir -p " eww-dir))
-  (doseq [f ["eww.yuck" "eww.scss"]]
-    (let [src (-> (:out (sh? :git "show" (str "v05:desktop/shell/eww/" f)))
-                  (str/replace "http://127.0.0.1:1336/ujima-desktop" url))]
-      (sh? {:in src} :sshpass "-p" (:password (sim/pi)) "ssh" "-q" "-o" "LogLevel=ERROR"
-           (concat (:ssh-opts (sim/pi)) [(:host (sim/pi)) (str "cat > " eww-dir "/" f)]))))
-  ;; -f and every fd redirected: a backgrounded job would hold the ssh channel open for its lifetime
-  (sim/on-pi! (str "setsid -f env DISPLAY=:0 PATH=/ujima/desktop/bin:$PATH eww --config "
-                   eww-dir " daemon --no-daemonize > " eww-dir ".log 2>&1 < /dev/null"))
-  (loop [n 40]
-    (when (and (pos? n) (not (:ok? (sim/on-pi! (str "DISPLAY=:0 eww --config " eww-dir " ping")))))
-      (Thread/sleep 250) (recur (dec n))))
-  (eww! "open-many" "topbar" "dock"))
-
-(defn- eww-show! [{:keys [mode]}]
-  (if (= :multi mode) (eww! "open-many" "topbar" "dock") (eww! "close" "topbar" "dock"))
-  (if (= :locked mode) (eww! "open" "lockscreen") (eww! "close" "lockscreen")))
-
-(defn- eww-down! []
-  (sim/on-pi! (str "DISPLAY=:0 eww --config " eww-dir " kill"))
-  (sim/on-pi! "systemctl --user start ujima-shell.service"))
 
 
 ;; ── the clicks ──────────────────────────────────────────────────────────────
@@ -142,38 +107,31 @@
 ;; ── the run ─────────────────────────────────────────────────────────────────
 
 (defn check!
-  [{:keys [ip renderer out clicks-only] :or {renderer "qt" out "out/shell-check"} :as opts}]
-  (let [{:keys [url stop]} (sim/start! opts)
-        eww?    (= renderer "eww")
-        dir     (str (fs/path out renderer))
+  [{:keys [ip out clicks-only] :or {out "out/shell-check/run"} :as opts}]
+  (let [{:keys [stop]} (sim/start! opts)
         {:keys [states checks]} (sim/matrix)
         done    (atom false)
-        restore (fn [] (when (compare-and-set! done false true)
-                         (when eww? (eww-down!))
-                         (stop)))]
+        restore (fn [] (when (compare-and-set! done false true) (stop)))]
     ;; ctrl-c too must leave the Pi's shell up and dialling ujimad
     (.addShutdownHook (Runtime/getRuntime) (Thread. ^Runnable restore))
     (try
-      (when eww? (eww-up! url))
       (let [scr (screen)]
         (when-not clicks-only
           (sim/on-pi! (str "rm -rf " remote-dir " && mkdir -p " remote-dir))
-          (println (str "capturing " (count states) " states (" renderer ", " (str/join "x" scr) ")"))
+          (println (str "capturing " (count states) " states (" (str/join "x" scr) ")"))
           (doseq [{:keys [name hover]} states
                   :let [st (sim/preset name)]]
             (sim/apply-preset! name)
-            (when eww? (eww-show! (:apps st)))
             (away! scr)
             (Thread/sleep 1200)
             (when hover (pointer! (target scr hover)) (Thread/sleep 1100))
             (capture! name (regions scr st)))
           (away! scr)
-          (pull! dir)
-          (println "captured into" dir))
-        (when-not eww?
-          (println "clicks:")
-          (let [results (mapv #(run-check! scr %) checks)]
-            (println (format "%d of %d clicks ok" (count (filter true? results)) (count results))))))
+          (pull! out)
+          (println "captured into" out))
+        (println "clicks:")
+        (let [results (mapv #(run-check! scr %) checks)]
+          (println (format "%d of %d clicks ok" (count (filter true? results)) (count results)))))
       (finally (restore)))))
 
 
@@ -212,11 +170,9 @@
          (apply min (for [dx (range -8 9)] (differs a b tray clock dx)))))))
 
 (defn compare!
-  [{:keys [a b out] :or {a "out/shell-check/eww" b "out/shell-check/qt" out "out/shell-check"}}]
-  (let [skip  (into #{} (for [{:keys [name skip]} (:states (sim/matrix)) region skip]
-                          (str name "-" region ".bmp")))
-        names (sort (remove skip (filter #(fs/exists? (fs/path b %))
-                                         (map #(str (fs/file-name %)) (fs/glob a "*.bmp")))))
+  [{:keys [a b out] :or {a "out/shell-check/approved" b "out/shell-check/run" out "out/shell-check"}}]
+  (let [names (sort (filter #(fs/exists? (fs/path b %))
+                            (map #(str (fs/file-name %)) (fs/glob a "*.bmp"))))
         rows  (for [n names
                     :let [region (second (re-find #"-(top|dock|lock|below-top|above-dock)\.bmp$" n))
                           ia (bmp (fs/path a n)) ib (bmp (fs/path b n))

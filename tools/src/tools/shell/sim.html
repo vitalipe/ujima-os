@@ -39,7 +39,6 @@
     <fieldset><legend>Mode</legend><div id="mode"></div></fieldset>
     <fieldset><legend>Open apps</legend><div class="apps" id="open"></div></fieldset>
     <fieldset><legend>Focused</legend><select id="focused"></select>
-      <label><input type="checkbox" id="fullscreen"> fullscreen</label>
       <label><input type="checkbox" id="console"> console pinned (token in)</label></fieldset>
     <fieldset><legend>Title of the focused app</legend><input type="text" id="title" placeholder="(its label)"></fieldset>
     <fieldset><legend>Sound</legend>
@@ -71,7 +70,6 @@ function readForm() {
   f.apps.open = [...document.querySelectorAll("#open input:checked")].map(i => i.value);
   f.apps.focused = $("focused").value || null;
   f.apps.console = $("console").checked;
-  f.apps.fullscreen = f.apps.focused && $("fullscreen").checked ? [f.apps.focused] : [];
   if (f.apps.focused) { f.apps.titles = { ...(f.apps.titles || {}) };
                         if ($("title").value) f.apps.titles[f.apps.focused] = $("title").value;
                         else delete f.apps.titles[f.apps.focused]; }
@@ -100,7 +98,6 @@ function renderFacts() {
   $("open").innerHTML = catalog.map(c => check(c.id, a.open.includes(c.id))).join("");
   $("focused").innerHTML = `<option value="">— home —</option>` +
     a.open.map(id => `<option ${a.focused === id ? "selected" : ""}>${id}</option>`).join("");
-  $("fullscreen").checked = !!a.focused && (a.fullscreen || []).includes(a.focused);
   $("console").checked = a.console;
   $("title").value = (a.focused && a.titles && a.titles[a.focused]) || "";
   $("output").value = s.output || "";
