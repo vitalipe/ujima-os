@@ -7,7 +7,7 @@
 #include <QUrl>
 
 // One of ujimad's NDJSON pushes: a snapshot line on connect, then a line per change. A drop (an
-// ujimad restart) reconnects a second later, and the fresh snapshot rehydrates the consumer.
+// ujimad restart) reconnects shortly after, and the fresh snapshot rehydrates the consumer.
 class Stream : public QObject {
     Q_OBJECT
 public:

@@ -4,7 +4,9 @@
 Stream::Stream(QNetworkAccessManager& nam, const QUrl& url, QObject* parent)
     : QObject(parent), m_nam(nam), m_url(url) {
     m_retry.setSingleShot(true);
-    m_retry.setInterval(1000);
+    // the unit starts beside ujimad, not after it: a brisk retry puts the bars up a beat after the
+    // tier first answers (1 s cost up to a second on every session start). Loopback costs nothing.
+    m_retry.setInterval(250);
     connect(&m_retry, &QTimer::timeout, this, &Stream::open);
     open();
 }

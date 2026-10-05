@@ -9,7 +9,7 @@ Desktop::Desktop(const QUrl& base, QObject* parent) : QObject(parent), m_base(ba
     while (m_base.endsWith('/')) m_base.chop(1);
 
     m_catalogRetry.setSingleShot(true);
-    m_catalogRetry.setInterval(1000);
+    m_catalogRetry.setInterval(250);
     connect(&m_catalogRetry, &QTimer::timeout, this, &Desktop::fetchCatalog);
     fetchCatalog();
 
