@@ -1,4 +1,5 @@
 #include <QCommandLineParser>
+#include <QDir>
 #include <QFont>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -14,6 +15,7 @@
 #include "dock.h"
 #include "nam.h"
 #include "notify.h"
+#include "splash.h"
 
 static int quitPipe[2];
 
@@ -35,14 +37,17 @@ int main(int argc, char** argv) {
     cli.addHelpOption();
     cli.addOption({"qml",     "QML directory", "dir", QCoreApplication::applicationDirPath() + "/../qml"});
     cli.addOption({"desktop", "ujimad's desktop tier", "url", "http://127.0.0.1:1336/ujima-desktop"});
+    cli.addOption({"splash",  "the boot splash's frames", "dir", QCoreApplication::applicationDirPath() + "/../../splash/frames"});
     cli.process(app);
 
     Desktop desktop(QUrl(cli.value("desktop")));
+    Splash splash(QDir::cleanPath(cli.value("splash")));
 
     PlainHttpFactory plainHttp;
     QQmlApplicationEngine engine;
     engine.setNetworkAccessManagerFactory(&plainHttp);   // before anything loads: the icons ride it
     engine.rootContext()->setContextProperty("desktop", &desktop);
+    engine.rootContext()->setContextProperty("splash", &splash);
 
     const QString qmlDir = cli.value("qml");
     engine.addImportPath(qmlDir);
@@ -61,7 +66,15 @@ int main(int argc, char** argv) {
     QSocketNotifier quit(quitPipe[1], QSocketNotifier::Read);
     QObject::connect(&quit, &QSocketNotifier::activated, &app, &QCoreApplication::quit);
 
-    sdNotify("READY=1");
+    // ready once the boot cover is on screen: the wallpaper and the compositor start only then
+    // (ujima-session-up), so neither paints over the splash's still mark X is keeping
+    if (auto* cover = qobject_cast<QQuickWindow*>(shell->property("cover").value<QObject*>())) {
+        splash.keepOnTop(cover);
+        QObject::connect(cover, &QQuickWindow::frameSwapped, &app, [] { sdNotify("READY=1"); },
+                         Qt::SingleShotConnection);
+    } else {
+        sdNotify("READY=1");
+    }
     QTimer watchdog;
     QObject::connect(&watchdog, &QTimer::timeout, [] { sdNotify("WATCHDOG=1"); });
     watchdog.start(2000);

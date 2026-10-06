@@ -1,0 +1,6 @@
+#!/bin/sh
+# the session's user units, then the wallpaper and the compositor: the target is reached once the
+# shell's boot cover is up, and either would otherwise paint over the still mark X keeps until then
+systemctl --user restart ujima-session.target
+feh --bg-fill /ujima/desktop/shell/wall.png
+exec picom --config /ujima/desktop/shell/picom.conf

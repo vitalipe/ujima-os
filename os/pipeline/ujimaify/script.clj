@@ -21,11 +21,14 @@
     ;; file), its stop path, the xinitrc startx runs, and the session target with its user units
     (files/install! project "ujimaify/session/ujima.service" "/etc/systemd/system/ujima.service")
     (files/install! project "ujimaify/session/ujima-session-stop" "/usr/local/bin/ujima-session-stop")
+    (files/install! project "ujimaify/session/ujima-splash" "/usr/local/bin/ujima-splash")
     (files/install! project "ujimaify/session/xinitrc" "/etc/X11/xinit/xinitrc")
     (files/install! project "ujimaify/session/ujima-shell.service" "/etc/systemd/user/ujima-shell.service")
     (files/install! project "ujimaify/session/ujima-portal.service" "/etc/systemd/user/ujima-portal.service")
     (files/install! project "ujimaify/session/ujima-session.target" "/etc/systemd/user/ujima-session.target")
     ($! systemctl enable "ujima")
+    (files/install! project "ujimaify/session/plymouth-quit.conf"
+                    "/etc/systemd/system/plymouth-quit.service.d/ujima.conf")
 
     ;; persistent capped journal on storage + the /ujima runtime dirs
     (files/install! project "ujimaify/journal/ujima.conf" "/etc/systemd/journald.conf.d/ujima.conf")

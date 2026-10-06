@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=UjimaOS
+Description=The UjimaOS mark builds itself, then a glint orbits its ring until the desktop takes over.
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/ujima
+ScriptFile=/usr/share/plymouth/themes/ujima/ujima.script

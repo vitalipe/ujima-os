@@ -13,6 +13,7 @@ add_executable(ujima-shell
   src/nam.h
   src/notify.h
   src/stream.h  src/stream.cpp
-  src/desktop.h src/desktop.cpp)
+  src/desktop.h src/desktop.cpp
+  src/splash.h  src/splash.cpp)
 
 target_link_libraries(ujima-shell PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Network xcb)

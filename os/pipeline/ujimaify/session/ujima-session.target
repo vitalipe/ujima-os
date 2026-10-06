@@ -7,3 +7,6 @@
 [Unit]
 Description=ujima session
 Wants=ujima-shell.service ujima-portal.service
+# reached once the shell is ready (its boot cover is on screen): ujima-session-up paints the wallpaper
+# and starts the compositor only after that
+After=ujima-shell.service

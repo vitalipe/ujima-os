@@ -1,0 +1,14 @@
+#!/bin/sh
+# the boot splash's still mark as the X root's background, before i3: X keeps the splash's frame by never
+# repainting the root (-background none), and i3's start-up would leave marks on it. Same set as Plymouth
+# and the shell's cover pick: the one nearest the screen height by ratio.
+d=/ujima/desktop/splash/frames
+h=$(xrandr --current 2>/dev/null | sed -n 's/.* current [0-9]* x \([0-9]*\),.*/\1/p')
+[ -n "$h" ] || exit 0
+best=
+for s in $(ls "$d" 2>/dev/null | grep -E '^[0-9]+$'); do
+    r=$(( s > h ? s * 1000 / h : h * 1000 / s ))
+    if [ -z "$best" ] || [ "$r" -lt "$bestr" ]; then best=$s; bestr=$r; fi
+done
+[ -n "$best" ] && feh --no-fehbg --bg-center "$d/$best/rest.png"
+exit 0

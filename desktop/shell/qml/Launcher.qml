@@ -11,6 +11,7 @@ Window {
     width: 1280; height: 684
     color: Theme.bg
     title: "Launcher"
+    readonly property bool revealed: home.revealed    // the boot cover reveals the desktop after this
 
     // the SAME desktop background as the X root (wall.png), shifted up by the top bar so it lines
     // up exactly with the root behind the transparent top bar and on empty workspaces. Opaque —
@@ -34,7 +35,8 @@ Window {
         Behavior on opacity { NumberAnimation { duration: 300 } }
 
         property int pending: 0          // tiles whose icon is still on its way
-        function reveal() { opacity = 1 }
+        property bool revealed: false
+        function reveal() { revealed = true; opacity = 1 }
         function settle() { if (desktop.hasCatalog && pending === 0) reveal() }
         onPendingChanged: settle()
         Connections { target: desktop; function onCatalogChanged() { Qt.callLater(home.settle) } }

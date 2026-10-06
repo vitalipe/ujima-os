@@ -18,6 +18,18 @@ if [ "$(findmnt -no FSTYPE /)" = overlay ]; then
     exit 1
 fi
 
+# plymouth's hook copies plymouthd, the theme's plugin and the bound displays' DRM driver (vc4) into
+# the pin; a frame-less stand-in script theme keeps the image's theme (appended later) from shipping twice
+command -v plymouth-set-default-theme >/dev/null || { echo "build-initramfs: plymouth is not installed" >&2; exit 1; }
+stand=/usr/share/plymouth/themes/ujima-pin
+theme=$(plymouth-set-default-theme)
+mkdir -p "$stand"
+printf '[Plymouth Theme]\nName=ujima-pin\nModuleName=script\n\n[script]\nImageDir=%s\nScriptFile=%s/ujima-pin.script\n' \
+    "$stand" "$stand" > "$stand/ujima-pin.plymouth"
+: > "$stand/ujima-pin.script"
+plymouth-set-default-theme ujima-pin
+trap 'plymouth-set-default-theme "$theme"; rm -rf "$stand"' EXIT
+
 conf=/etc/initramfs-tools/update-initramfs.conf
 ver=$(ls /lib/modules | grep '+rpt' | sed 's/-rpi-.*//' | sort -u | head -1)
 [ -n "$ver" ] || { echo "build-initramfs: could not derive a kernel version from /lib/modules" >&2; exit 1; }
@@ -33,7 +45,11 @@ mkdir -p "$out"
 for f in initramfs8 initramfs_2712; do
     if [ -f "/boot/firmware/$f" ]; then
         cp "/boot/firmware/$f" "$out/$f"
-        echo "  staged $f ($(lsinitramfs "/boot/firmware/$f" 2>/dev/null | grep -c overlayroot) overlayroot entries)"
+        listing=$(lsinitramfs "/boot/firmware/$f" 2>/dev/null)
+        splash=$(echo "$listing" | grep -c -E 'sbin/plymouthd$|plymouth/script.so$|/vc4\.ko')
+        echo "  staged $f ($(echo "$listing" | grep -c overlayroot) overlayroot entries, $splash of plymouthd/script.so/vc4)"
+        [ "$f" != initramfs_2712 ] || [ "$splash" -ge 3 ] \
+            || { echo "build-initramfs: $f lacks plymouthd, its script plugin or vc4" >&2; exit 1; }
     else
         echo "  WARN: /boot/firmware/$f missing" >&2
     fi

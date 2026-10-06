@@ -1,0 +1,28 @@
+#!/bin/sh
+# managed by the ujima image build — source: os/pipeline/ujimaify/session/ujima-splash
+# The boot splash hands the screen to the session (ujima.service, as root). Never fails, never hangs.
+#   handover  before startx: the glint fades, Plymouth lets go, X keeps the still mark
+#             (no Plymouth — a session restart: clear the console, so X keeps black)
+#   release   after startx: once X answers, Plymouth quits and leaves the frame on screen
+
+case "$1" in
+    handover)
+        if timeout 2 plymouth --ping 2>/dev/null; then
+            timeout 2 plymouth update --status=ujima-handover
+            sleep 0.35
+            timeout 2 plymouth deactivate
+        else
+            timeout 1 sh -c "printf '\033[H\033[2J' > /dev/tty1"
+        fi
+        ;;
+    release)
+        timeout 2 plymouth --ping 2>/dev/null || exit 0
+        i=0
+        while [ $i -lt 100 ] && ! DISPLAY=:0 timeout 1 xset q >/dev/null 2>&1; do
+            sleep 0.1
+            i=$((i + 1))
+        done
+        timeout 2 plymouth quit --retain-splash
+        ;;
+esac
+exit 0

@@ -1,0 +1,104 @@
+# UjimaOS boot splash: intro, then the loop; status `ujima-handover` fades the glint out over the still
+# mark X keeps. Other modes loop. The boot stage prepends the frame table.
+
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
+Plymouth.SetRefreshRate(frame_rate);
+
+# well inside the 0.35 s ujima-splash waits before deactivating: X must keep the still mark
+handover_ticks = Math.Int(frame_rate * 0.2);
+
+
+fun ratio(a, b) {
+  if (a > b) return a / b;
+  return b / a;
+}
+
+# the rendered set nearest the screen height keeps the mark at the same share of the screen
+fun nearest_height(h) {
+  best = frame_heights[0];
+  for (i = 1; i < frame_height_count; i++) {
+    if (ratio(frame_heights[i], h) < ratio(best, h)) best = frame_heights[i];
+  }
+  return best;
+}
+
+fun pad4(n) {
+  if (n < 10) return "000" + n;
+  if (n < 100) return "00" + n;
+  if (n < 1000) return "0" + n;
+  return "" + n;
+}
+
+dir = nearest_height(Window.GetHeight()) + "/";
+
+fun frame(name, n) {
+  return Image(dir + name + "-" + pad4(n) + ".png");
+}
+
+
+# rest sits under every frame: frames are opaque, so it only shows as the top sprite fades
+rest = Sprite(Image(dir + "rest.png"));
+top = Sprite();
+
+fun place(sprite) {
+  image = sprite.GetImage();
+  if (!image) return;
+  sprite.SetX(Window.GetX() + Math.Int((Window.GetWidth() - image.GetWidth()) / 2));
+  sprite.SetY(Window.GetY() + Math.Int((Window.GetHeight() - image.GetHeight()) / 2));
+}
+
+place(rest);
+rest.SetZ(1);
+top.SetZ(2);
+
+if (Plymouth.GetMode() == "boot") phase = "intro";
+else phase = "loop";
+tick = 0;
+fading = 0;
+fade_tick = 0;
+
+# both re-centred every frame: a mode change mid-boot (hotplug, a new output) moves the centre
+fun show(image) {
+  if (!image) return;
+  top.SetImage(image);
+  place(top);
+  place(rest);
+}
+
+fun refresh() {
+  if (phase == "rest") return;
+
+  if (phase == "intro") {
+    if (tick < intro_count) show(frame("intro", tick));
+    else {
+      global.phase = "loop";
+      global.tick = 0;
+    }
+  }
+  if (phase == "loop") show(frame("loop", tick % loop_count));
+  global.tick++;
+
+  if (fading) {
+    global.fade_tick++;
+    if (fade_tick >= handover_ticks) {
+      top.SetOpacity(0);
+      global.phase = "rest";
+    }
+    else top.SetOpacity(1 - fade_tick / handover_ticks);
+  }
+}
+
+fun status(text) {
+  if (text == "ujima-handover") global.fading = 1;
+}
+
+# a quit that beats the fade still leaves the still mark on screen
+fun quit() {
+  top.SetOpacity(0);
+  global.phase = "rest";
+}
+
+Plymouth.SetRefreshFunction(refresh);
+Plymouth.SetUpdateStatusFunction(status);
+Plymouth.SetQuitFunction(quit);

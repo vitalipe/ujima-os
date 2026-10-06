@@ -1,4 +1,5 @@
 #!/bin/sh
 # managed by the ujima image build — source: os/pipeline/ujimaify/session/xinitrc
 # UjimaOS — startx runs this; i3 (with the staged config) execs ujimad and starts the shell's unit.
+ujima-splash-root
 exec i3 -c /ujima/desktop/shell/i3/config

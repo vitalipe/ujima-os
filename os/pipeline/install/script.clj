@@ -34,6 +34,10 @@
     ;; and toggled off on dev with the dev-kit lock-fs.
     ($! apt-get install -y --no-install-recommends "overlayroot")
 
+    ;; the boot splash: plymouthd + its script plugin (the theme is the boot stage's). Its postinst
+    ;; trigger is the same update-initramfs no-op as above; the producer bakes it into the pin.
+    ($! apt-get install -y --no-install-recommends "plymouth")
+
     ;; minimal desktop runtime (cached in the vendor base): i3 + core X + the legacy setuid Xorg.wrap
     ;; (so the systemd session — a non-console user — can open the VT). libgtk-3-0: the GTK apps, the
     ;; Nordic theme and the chooser module (desktop/chooser) that loads into them.

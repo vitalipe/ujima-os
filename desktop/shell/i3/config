@@ -12,6 +12,9 @@ client.focused          #1b2027 #1b2027 #1b2027 #1b2027 #1b2027
 client.focused_inactive #1b2027 #1b2027 #1b2027 #1b2027 #1b2027
 client.unfocused        #1b2027 #1b2027 #1b2027 #1b2027 #1b2027
 client.urgent           #1b2027 #1b2027 #1b2027 #1b2027 #1b2027
+# what a frame shows until its client paints (i3's default is white): black leaves no mark on the
+# boot splash's still frame, which X keeps without repainting
+client.background       #000000
 
 # real dialogs float. Deliberately NO fullscreen keybind — the bars must stay visible, and
 # apps that must not own the screen (Stellarium) launch windowed instead (their app.edn).
@@ -52,17 +55,8 @@ bindsym Mod1+Tab       exec --no-startup-id ujima-desktop POST commands/app/next
 bindsym Mod1+Shift+Tab exec --no-startup-id ujima-desktop POST commands/app/prev >/dev/null
 bindsym Mod1+Escape    exec --no-startup-id ujima-desktop POST commands/app/home >/dev/null
 
-# desktop background: the launcher's gradient (desktop/shell/wall.png) set on the X root. i3 draws
-# over it, so empty workspaces show the gradient instead of the black root — the transparent top bar shows it through, and the launcher paints the
-# same image aligned to it, one continuous background under everything.
-exec_always --no-startup-id feh --bg-fill /ujima/desktop/shell/wall.png
-
-# ujimad reconciles settings and serves the shell's tier; the session's user units (the shell, the
-# portal) are ujima-session.target, restarted here so every session gets fresh ones (the ujimad
-# wrapper stops it on the way out)
+# ujimad serves the shell's tier; ujima-session-up starts the session's user units (fresh each
+# session), then the root background (wall.png, which the launcher paints aligned) and picom
+# (shell/picom.conf) — only once the shell's boot cover is on screen
 exec --no-startup-id ujimad
-exec --no-startup-id systemctl --user restart ujima-session.target
-
-# compositor: picom — transparency for the shell's surfaces, fades, the tooltip card and the dialog
-# treatment (a floating dialog is a card, its app dims behind it). All of it in shell/picom.conf.
-exec_always --no-startup-id picom --config /ujima/desktop/shell/picom.conf
+exec --no-startup-id ujima-session-up
