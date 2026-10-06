@@ -58,7 +58,7 @@
    :task (shell "bb" "--config" "bb.repl.edn" "-e" "(require 'tools.repl) (tools.repl/start!)")}
 
   pin
-  {:doc "Pin world-truth into the repo: bb pin <schema|deps|initramfs> …"
+  {:doc "Pin world-truth into the repo: bb pin <schema|deps|initramfs|splash> …"
    :requires ([tools.cli :as cli])
    :task (apply cli/-main "pin" *command-line-args*)}
 

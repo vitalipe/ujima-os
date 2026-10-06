@@ -6,7 +6,8 @@
   (:require [babashka.process :as p]
             [build.schema  :as schema]
             [build.deps    :as deps]
-            [tools.cmd.dev :as dev]))
+            [tools.cmd.dev :as dev]
+            [tools.splash.render :as splash]))
 
 
 (defn- pin-initramfs!
@@ -25,6 +26,7 @@
 (defn schema!    [{:keys [rootfs]}] (schema/generate! rootfs))
 (defn deps!      [_]               (deps/pin!))
 (defn initramfs! [{:keys [ip]}]    (pin-initramfs! ip))
+(defn splash!    [_]               (splash/render!))
 
 
 ;; ── the CLI ─────────────────────────────────────────────────────────────────
@@ -49,4 +51,10 @@
      :desc  "kernel-matched initramfs -> os/pipeline/boot/initramfs/, built natively on a dev Pi (its overlay must be off: lock-fs disable + reboot first)"
      :target initramfs!
      :args [:ip]
-     :spec {:ip {:desc "Dev Pi address" :require true :coerce :string}}}}})
+     :spec {:ip {:desc "Dev Pi address" :require true :coerce :string}}}
+
+    "splash"
+    {:usage "Usage: pin splash"
+     :desc  "boot animation frames -> desktop/splash/frames/, rendered from the vendored design (tools/src/tools/splash/design) by this host's flatpak Chrome"
+     :target splash!
+     :spec {}}}})

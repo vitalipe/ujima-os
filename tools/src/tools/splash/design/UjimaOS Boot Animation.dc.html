@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>html,body{margin:0;height:100%;background:#0a0a0a;overflow:hidden}a{color:#88c0d0}a:hover{color:#8fbcbb}</style>
+  <script>window.OM_SCENES = '[{"name":"Ignite","dur":1.1,"desc":"A spark pops above the right arm and blooms into the gold ring"},{"name":"Build","dur":1.3,"desc":"Both strokes sweep down and around, passing at the base to form the U"},{"name":"Settle","dur":0.8,"desc":"The mark breathes once as a sheen crosses it and catches in the ring"},{"name":"Loop","dur":2,"desc":"Seamless throbber cycle: a glint orbits the ring (Plymouth loops this)"},{"name":"Outro","dur":1.2,"desc":"Boot complete: the ring fills with light, then the mark fades out"},{"name":"Rest","dur":0.5,"desc":"The finished mark, still: the boot hand-over pose"}]';</script>
+  <script>window.OM_PLAYBACK = '{"mode":"loop"}';</script>
+  <script>window.TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "motionEditor": true,
+    "bg": "#000000",
+    "logoSize": 320,
+    "loopStyle": "Glint"
+  }/*EDITMODE-END*/;</script>
+</helmet>
+<div data-screen-label="UjimaOS boot animation" style="position:fixed;inset:0;background:#0a0a0a">
+  <x-import component-from-global-scope="UjimaBoot" from="./animations-v3.jsx ./tweaks-panel.jsx ./ujima-boot.jsx" hint-size="100%,100%" style="position:absolute;inset:0"></x-import>
+</div>
+</x-dc>
+</body>
+</html>
