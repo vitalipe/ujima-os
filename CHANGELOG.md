@@ -14,6 +14,8 @@ version truth; branch names and build labels may disagree.
   until the desktop is ready and the mark fades into it. Shutdown and reboot show the mark too.
 - Compressed swap in RAM, half the machine's RAM in size (zram, lz4): under memory pressure idle
   app memory is compressed instead of program code being evicted and re-read from the card.
+- Each app runs under a memory cap, half of RAM plus a quarter in swap: an app that outgrows it is
+  closed on its own, the desktop and the other apps are untouched.
 
 ### Changed
 
@@ -25,6 +27,8 @@ version truth; branch names and build labels may disagree.
 - Boot shows no kernel or service text; Esc during boot still shows it.
 - The kernel's memory cgroup controller and pressure-stall accounting are on (the Pi firmware
   default leaves both off).
+- Under machine-wide memory pressure the kernel's OOM killer takes an app, never the session:
+  X, i3, ujimad, the shell and the portal are shielded.
 
 ### Fixed
 

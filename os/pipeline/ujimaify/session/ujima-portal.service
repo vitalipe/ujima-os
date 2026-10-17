@@ -15,6 +15,8 @@ NotifyAccess=main
 # the picker it spawns per dialog is an X client
 Environment=DISPLAY=:0
 ExecStart=/ujima/desktop/bin/ujima-portal
+# with the session tier; the floor that lets a user unit go this low is session/user-manager.conf
+OOMScoreAdjust=-900
 Restart=always
 RestartSec=1
 # SIGKILL: the default SIGABRT waits on a stopped process until the abort timeout

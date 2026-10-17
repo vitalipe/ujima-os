@@ -4,6 +4,7 @@
    launch-unique (<id>-<millis>) so a relaunch never collides with a still-deactivating unit."
   (:require [clojure.core.async :as async]
             [clojure.string     :as str]
+            [lib.io             :as io]
             [lib.shell          :as shell]))
 
 
@@ -18,10 +19,31 @@
   (some->> s (re-find (re-pattern (str prefix "(.+)-\\d+\\.scope"))) second keyword))
 
 
+(def ^:private app-oom-score "800")   ; the session tier runs at -900 (ujima.service + the user units)
+
+
+(defn ram-mib
+  "MemTotal in MiB — the per-app caps are fractions of it."
+  []
+  (-> (re-find #"MemTotal:\s+(\d+) kB" (io/slurp-text "/proc/meminfo" "")) second parse-long (quot 1024)))
+
+
+(defn memory-accounting?
+  "Is the memory controller on? Off (the Pi firmware default), MemoryMax is accepted and ignored."
+  []
+  (str/includes? (io/slurp-text "/sys/fs/cgroup/cgroup.controllers" "") "memory"))
+
+
 (defn spawn-scoped!
   "Launch EXEC (argv vector) into a fresh scope for ID; DIR is the process cwd, nil inherits.
    --no-new-privs: nothing in the scope, or anything it spawns, can regain privilege through
    setuid — so a spawned shell cannot sudo.
+
+   The scope is a memory boundary: MemoryMax = half of RAM (a runaway app OOMs inside its own
+   cgroup), MemorySwapMax = a quarter (swapped pages escape MemoryMax), OOMPolicy=kill (one
+   OOM-killed process takes the whole app, no half-dead window). choom puts the app at +800 — a
+   scope has no exec context for OOMScoreAdjust= — against the session tier's -900. Chromium
+   resets its own to 0, so web apps die last among apps: wanted, a privileged floor would undo it.
 
    --scope blocks, so never deref this. And the flag is set by setpriv in the forked process
    because a scope has no NoNewPrivileges= property — systemd accepts one and ignores it.
@@ -40,15 +62,20 @@
    Keep secrets out of EXEC: systemd-run copies the command line into the scope's
    Description, and systemd logs that to the journal."
   [id exec dir opts]
-  (let [privileged? (:privileged? opts)]
+  (let [privileged? (:privileged? opts)
+        ram         (ram-mib)]
     (apply shell/sh (merge {:out :inherit :err :inherit :dir dir} (dissoc opts :privileged?))
            :systemd-run :--user :--scope :--collect
            (str "--unit=" prefix (name id) "-" (System/currentTimeMillis))
            "--property=TimeoutStopSec=3"
+           "--property=OOMPolicy=kill"
+           (str "--property=MemoryMax=" (quot ram 2) "M")
+           (str "--property=MemorySwapMax=" (quot ram 4) "M")
            "--expand-environment=no"
-           "--" (if privileged? 
-                  (into [] exec) 
-                  (into [:setpriv :--no-new-privs] exec)))))
+           "--" :choom :-n app-oom-score "--"
+           (if privileged?
+             (into [] exec)
+             (into [:setpriv :--no-new-privs] exec)))))
 
 
 (defn- live-units [pattern]

@@ -26,6 +26,7 @@
     (files/install! project "ujimaify/session/ujima-shell.service" "/etc/systemd/user/ujima-shell.service")
     (files/install! project "ujimaify/session/ujima-portal.service" "/etc/systemd/user/ujima-portal.service")
     (files/install! project "ujimaify/session/ujima-session.target" "/etc/systemd/user/ujima-session.target")
+    (files/install! project "ujimaify/session/user-manager.conf" "/etc/systemd/system/user@.service.d/ujima.conf")
     ($! systemctl enable "ujima")
     (files/install! project "ujimaify/session/plymouth-quit.conf"
                     "/etc/systemd/system/plymouth-quit.service.d/ujima.conf")

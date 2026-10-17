@@ -36,6 +36,8 @@ Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/u
 # links an app opens go through ujimad -> the Web app (with mimeapps.list, desktop's links concern)
 Environment=BROWSER=/ujima/desktop/bin/ujima-open-url
 StandardOutput=journal
+# inherited down startx -> Xorg -> i3 -> ujimad -> picom; apps re-raise to +800 at launch (spawn-scoped!)
+OOMScoreAdjust=-900
 Restart=always
 RestartSec=3
 # -background none = X keeps what is on screen (the splash's still mark, or the cleared console on a

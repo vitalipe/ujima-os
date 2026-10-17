@@ -2,7 +2,8 @@
   (:require [lib.shell :as shell]
             [ujima.log :as log]
             [ujima.desktop.app                :as app]
-            [ujima.desktop.app.catalog.loader :as loader]))
+            [ujima.desktop.app.catalog.loader :as loader]
+            [ujima.linux.systemd              :as systemd]))
 
 
 (def ^:private x-tries    60)   ; x 250ms = ~15s for X to accept an authorized connection
@@ -25,5 +26,9 @@
   (log/info "opening the desktop" cfg)
   
   (await-x!)
+  
+  (when-not (systemd/memory-accounting?)
+    (log/error "memory cgroup controller is off — per-app memory caps are NOT enforced" {}))
+
   (app/init! (merge (select-keys app-cfg [:open-web-app-bin :serve-web-app-bin])
                     {:catalog (loader/load-catalog (:catalog app-cfg) (:fallback-icon app-cfg))})))
