@@ -21,6 +21,8 @@ version truth; branch names and build labels may disagree.
 - The file-dialog portal is restarted when it hangs, not only when it exits.
 - A new desktop background.
 - Boot shows no kernel or service text; Esc during boot still shows it.
+- The kernel's memory cgroup controller and pressure-stall accounting are on (the Pi firmware
+  default leaves both off).
 
 ### Fixed
 

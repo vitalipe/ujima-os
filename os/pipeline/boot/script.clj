@@ -29,7 +29,8 @@
 ;; tmpfs upper is the write layer. No fsck.repair — the ro lower can't corrupt. `root` is the one
 ;; token we don't pick: it stays whatever the image points at, and the installer re-points it.
 ;; The splash owns the screen until the session (Esc still shows the log); ignore-serial-consoles keeps
-;; the serial console from pushing Plymouth into text mode.
+;; the serial console from pushing Plymouth into text mode. The firmware prepends `cgroup_disable=memory`;
+;; cgroup_enable + cgroup_memory turn the controller back on (per-app caps), psi=1 the pressure accounting.
 (defn- ujima-cmdline [root]
   [["overlayroot" "tmpfs:recurse=0"]
    ["console"     "serial0,115200"]
@@ -41,7 +42,10 @@
    ["splash"      nil]
    ["plymouth.ignore-serial-consoles" nil]
    ["logo.nologo" nil]
-   ["vt.global_cursor_default" "0"]])
+   ["vt.global_cursor_default" "0"]
+   ["cgroup_enable" "memory"]
+   ["cgroup_memory" "1"]
+   ["psi"           "1"]])
 
 
 (defn- write-cmdline! []
