@@ -29,6 +29,8 @@ version truth; branch names and build labels may disagree.
   default leaves both off).
 - Under machine-wide memory pressure the kernel's OOM killer takes an app, never the session:
   X, i3, ujimad, the shell and the portal are shielded.
+- ujimad holds about 50 MB less memory, and 90 MB less at startup: its heap is capped instead of
+  growing with the machine's RAM.
 
 ### Fixed
 

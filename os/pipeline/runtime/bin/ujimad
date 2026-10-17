@@ -14,6 +14,7 @@ CP="src$(find /ujima/m2 -name '*.jar' -printf ':%p' 2>/dev/null)"
 # systemd's Restart=always rebuilds it cold — no orphaned app zombies, one startup path.
 # The session's user units (ujima-session.target) outlive X unless stopped first: the shell would
 # crash-loop until the next session, the portal would keep its bus name.
-bb -cp "$CP" -m ujima.ujimad
+# -Xmx: bb's default ceiling is 80 % of RAM, so ~95 MB of garbage piles up over a ~10 MB live heap
+bb -Xmx96m -cp "$CP" -m ujima.ujimad
 systemctl --user stop ujima-session.target
 i3-msg exit
