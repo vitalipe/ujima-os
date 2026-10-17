@@ -12,6 +12,8 @@ version truth; branch names and build labels may disagree.
 
 - A boot animation: from early boot the UjimaOS mark builds itself, then a glint orbits its ring
   until the desktop is ready and the mark fades into it. Shutdown and reboot show the mark too.
+- Compressed swap in RAM, half the machine's RAM in size (zram, lz4): under memory pressure idle
+  app memory is compressed instead of program code being evicted and re-read from the card.
 
 ### Changed
 

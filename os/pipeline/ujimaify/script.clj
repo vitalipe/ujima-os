@@ -34,6 +34,11 @@
     (files/install! project "ujimaify/journal/ujima.conf" "/etc/systemd/journald.conf.d/ujima.conf")
     (files/install! project "ujimaify/layout/ujima-layout.conf" "/etc/tmpfiles.d/ujima-layout.conf")
 
+    ;; swap = zram only, lz4, swappiness for RAM-backed swap (the why lives in the files)
+    (files/install! project "ujimaify/swap/rpi-swap.conf" "/etc/rpi/swap.conf.d/ujima.conf")
+    (files/install! project "ujimaify/swap/zram-generator.conf" "/etc/systemd/zram-generator.conf.d/30-ujima.conf")
+    (files/install! project "ujimaify/swap/sysctl.conf" "/etc/sysctl.d/30-ujima-swap.conf")
+
     ;; overlayfs rejects `mount -o remount` via the modern mount API ("No changes allowed in
     ;; reconfigure"), so systemd-remount-fs — which remounts / rw early in boot — fails under the
     ;; overlay root. The overlay already gives us a writable / (the tmpfs upper), so the service is
