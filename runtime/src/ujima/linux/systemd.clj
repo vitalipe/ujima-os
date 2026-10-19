@@ -134,9 +134,13 @@
 
 
 (defn kill-cgroup!
-  "SIGKILL the cgroup at DIR, by the kernel, no fork."
+  "SIGKILL the cgroup at DIR, by the kernel, no fork. A cgroup that is already gone is done;
+   a knob that is there and cannot be written is still an error."
   [dir]
-  (spit (str dir "/cgroup.kill") "1"))
+  (let [knob (str dir "/cgroup.kill")]
+    (try (spit knob "1")
+         (catch java.io.FileNotFoundException e
+           (when (fs/exists? knob) (throw e))))))
 
 
 (defn- strays

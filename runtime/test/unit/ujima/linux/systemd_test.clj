@@ -77,6 +77,18 @@
     (is (= "1" (slurp (str (fs/path d "cgroup.kill")))))))
 
 
+(deftest a-cgroup-that-is-already-gone-is-done
+  (let [d (str (fs/path (fs/create-temp-dir) "ujima-app-web-5.scope"))]
+    (is (nil? (systemd/kill-cgroup! d)) "the app quit between the scan and the kill: nothing to do")
+    (when-not (shell/root?)
+      (let [knob (str (fs/path d "cgroup.kill"))]
+        (fs/create-dirs d)
+        (spit knob "")
+        (fs/set-posix-file-permissions knob "r--------")
+        (is (thrown? java.io.FileNotFoundException (systemd/kill-cgroup! d))
+            "a knob that is there and refuses the write is still an error")))))
+
+
 (deftest stop-takes-the-stray-with-the-scope
   (let [stopped* (atom []) killed* (atom [])
         cgroups  [{:unit "ujima-app-web-5.scope" :app-id :web :dir "/s/ujima-app-web-5.scope"}
