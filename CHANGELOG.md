@@ -18,6 +18,8 @@ version truth; branch names and build labels may disagree.
   closed on its own, the desktop and the other apps are untouched.
 - When the machine starts thrashing, the app holding the most memory is closed, the one on screen
   spared unless it is alone. The kernel's own killer never acts on a gradual pile-up.
+- Closing or killing a browser-based app (Web, TurboWarp) takes the process the browser keeps
+  outside its scope; before, it was left behind.
 
 ### Changed
 

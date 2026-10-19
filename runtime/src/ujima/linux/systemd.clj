@@ -1,14 +1,21 @@
 (ns ujima.linux.systemd
   "Per-app systemd --user scopes: the process-liveness + kill handle. The i3 tree owns identity
    and display; a scope only answers 'is this app's family alive?' and 'kill it.' Unit names are
-   launch-unique (<id>-<millis>) so a relaunch never collides with a still-deactivating unit."
-  (:require [clojure.core.async :as async]
+   launch-unique (<id>-<millis>) so a relaunch never collides with a still-deactivating unit.
+   A browser (chromium, Electron) moves its main process into a scope of its own,
+   app-<name>-<pid>.scope, for the xdg portal; that pid is the one we spawned, so the stray
+   scope is still the app's."
+  (:require [babashka.fs        :as fs]
+            [clojure.core.async :as async]
             [clojure.string     :as str]
             [lib.io             :as io]
             [lib.shell          :as shell]))
 
 
-(def ^:private prefix "ujima-app-")
+(def ^:private prefix      "ujima-app-")
+(def ^:private cgroup-root "/sys/fs/cgroup")
+
+(defonce ^:private spawned* (atom {}))   ; main pid -> the unit it was launched into
 
 (defn- glob [id] (str prefix (name id) "-*.scope"))
 
@@ -32,6 +39,12 @@
   "Is the memory controller on? Off (the Pi firmware default), MemoryMax is accepted and ignored."
   []
   (str/includes? (io/slurp-text "/sys/fs/cgroup/cgroup.controllers" "") "memory"))
+
+
+(defn pid-of
+  "The main pid of a spawned process (systemd-run, choom and setpriv exec in place); nil for none."
+  [p]
+  (some-> p :proc .pid str))
 
 
 (defn spawn-scoped!
@@ -63,10 +76,10 @@
    Description, and systemd logs that to the journal."
   [id exec dir opts]
   (let [privileged? (:privileged? opts)
-        ram         (ram-mib)]
-    (apply shell/sh (merge {:out :inherit :err :inherit :dir dir} (dissoc opts :privileged?))
-           :systemd-run :--user :--scope :--collect
-           (str "--unit=" prefix (name id) "-" (System/currentTimeMillis))
+        ram         (ram-mib)
+        unit        (str prefix (name id) "-" (System/currentTimeMillis) ".scope")
+        p           (apply shell/sh (merge {:out :inherit :err :inherit :dir dir} (dissoc opts :privileged?))
+           :systemd-run :--user :--scope :--collect (str "--unit=" unit)
            "--property=TimeoutStopSec=3"
            "--property=OOMPolicy=kill"
            (str "--property=MemoryMax=" (quot ram 2) "M")
@@ -75,7 +88,9 @@
            "--" :choom :-n app-oom-score "--"
            (if privileged?
              (into [] exec)
-             (into [:setpriv :--no-new-privs] exec)))))
+             (into [:setpriv :--no-new-privs] exec)))]
+    (when-let [pid (pid-of p)] (swap! spawned* assoc pid unit))
+    p))
 
 
 (defn- live-units [pattern]
@@ -92,10 +107,75 @@
   (boolean (seq (live-units (glob id)))))
 
 
+(defn- app-slice-dir
+  "The user manager's app.slice, from our own cgroup."
+  []
+  (when-let [uid (second (re-find #"/user-(\d+)\.slice" (io/slurp-text "/proc/self/cgroup" "")))]
+    (str cgroup-root "/user.slice/user-" uid ".slice/user@" uid ".service/app.slice")))
+
+
+(defn- unit-of-dir
+  "DIR's ujima scope: its own name, or the one the pid in a browser's app-*-<pid>.scope was spawned into."
+  [dir]
+  (let [n (fs/file-name dir)]
+    (if (id-of-unit n)
+      n
+      (when-let [[_ pid] (re-find #"^app-.+-(\d+)\.scope$" n)]
+        (get @spawned* pid)))))
+
+
+(defn app-cgroups
+  "Every cgroup under the app slice that is an app's: {:unit :app-id :dir}."
+  ([] (some-> (app-slice-dir) app-cgroups))
+  ([slice]
+   (when (fs/directory? slice)
+     (vec (for [d (fs/list-dir slice) :when (fs/directory? d) :let [u (unit-of-dir d)] :when u]
+            {:unit u :app-id (id-of-unit u) :dir (str d)})))))
+
+
+(defn kill-cgroup!
+  "SIGKILL the cgroup at DIR, by the kernel, no fork."
+  [dir]
+  (spit (str dir "/cgroup.kill") "1"))
+
+
+(defn- strays
+  "[unit dir] of the scopes browsers made out of ID's; ORPHANS-ONLY? = those whose own scope is gone."
+  [id orphans-only?]
+  (let [live (set (live-units (glob id)))]
+    (for [{:keys [unit dir]} (app-cgroups)
+          :when (= id (id-of-unit unit))
+          :when (not= (fs/file-name dir) unit)
+          :when (or (not orphans-only?) (not (live unit)))]
+      [unit dir])))
+
+
+(defn- forget! [units]
+  (let [gone? (set units)]
+    (swap! spawned* (fn [m] (into {} (remove #(gone? (val %)) m))))))
+
+
+(defn- kill-strays!
+  "SIGKILL: the browser's scope has the 90 s default stop timeout, and an Electron main with no
+   family ignores SIGTERM."
+  [pairs]
+  (doseq [[_ dir] pairs] (kill-cgroup! dir))
+  (forget! (map first pairs)))
+
+
 (defn stop!
-  "Force-kill ID's scope — reaps the whole cgroup. Missing is fine."
+  "Force-kill ID's scope and whatever a browser moved out of it. Missing is fine."
   [id]
-  (doseq [u (live-units (glob id))] (shell/sh? :systemctl :--user "stop" u)))
+  (let [units (live-units (glob id))]
+    (doseq [u units] (shell/sh? :systemctl :--user "stop" u))
+    (kill-strays! (strays id false))
+    (forget! units)))
+
+
+(defn reap!
+  "ID's scope died: finish a browser main process living on in its own scope."
+  [id]
+  (kill-strays! (strays id true)))
 
 
 (defn- live-app-ids [] (into #{} (keep id-of-unit) (live-units (str prefix "*.scope"))))

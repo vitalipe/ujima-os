@@ -107,7 +107,7 @@
    :app/home      (fn [_]  (i3/switch-workspace! home-ws))
    :app/cycle     (fn [ev] (act/cycle! (observe!) (:step ev)))
    :window/closed (fn [ev] (act/window-closed! (observe!) (:con-id ev)))
-   :scope/died    (fn [ev] (act/go-home-if-empty! (observe!) (:app-id ev)))})
+   :scope/died    (fn [ev] (act/scope-died! (observe!) (:app-id ev)))})
 
 
 (defn- keep-alive-handlers

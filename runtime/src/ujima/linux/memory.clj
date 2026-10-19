@@ -1,7 +1,6 @@
 (ns ujima.linux.memory
   "Memory pressure and what a kill gives back. PSI (psi=1 on the cmdline) says how long every
-   task stalled on memory; the app scopes say what a kill frees; cgroup.kill is the kill handle,
-   one write and no fork, so it works while the machine thrashes."
+   task stalled on memory; the app cgroups say what a kill frees."
   (:require [babashka.fs         :as fs]
             [clojure.core.async  :as async]
             [clojure.string      :as str]
@@ -9,8 +8,7 @@
             [ujima.linux.systemd :as systemd]))
 
 
-(def ^:private psi-path    "/proc/pressure/memory")
-(def ^:private cgroup-root "/sys/fs/cgroup")
+(def ^:private psi-path "/proc/pressure/memory")
 
 
 (defn psi? [] (fs/exists? psi-path))
@@ -22,35 +20,24 @@
   (some-> (re-find #"full avg10=([\d.]+)" text) second parse-double))
 
 
-(defn- app-slice
-  "The user manager's app.slice, from our own cgroup."
-  []
-  (when-let [uid (second (re-find #"/user-(\d+)\.slice" (io/slurp-text "/proc/self/cgroup" "")))]
-    (str cgroup-root "/user.slice/user-" uid ".slice/user@" uid ".service/app.slice")))
-
-
 (defn- counter [path] (or (some-> (io/slurp-text path nil) str/trim parse-long) 0))
 
 (defn- anon [dir]
   (or (some-> (re-find #"(?m)^anon (\d+)" (io/slurp-text (str dir "/memory.stat") "")) second parse-long) 0))
 
+(defn- reclaimable [dir] (+ (anon dir) (counter (str dir "/memory.swap.current"))))
+
 
 (defn app-scopes
-  "Live app scopes under DIR with what a kill gives back: anon + swapped bytes. File cache is
-   nobody's."
-  ([] (some-> (app-slice) app-scopes))
-  ([dir]
-   (when (fs/directory? dir)
-     (vec (for [d    (fs/list-dir dir)
-                :let [id (systemd/id-of-unit (fs/file-name d))]
-                :when id]
-            {:app-id id :dir (str d) :bytes (+ (anon d) (counter (str d "/memory.swap.current")))})))))
-
-
-(defn kill-scope!
-  "SIGKILL the scope at DIR, by the kernel, no fork."
-  [dir]
-  (spit (str dir "/cgroup.kill") "1"))
+  "Live apps with what a kill gives back: anon + swapped bytes over every cgroup of the app
+   (CGROUPS as systemd/app-cgroups lists them). File cache is nobody's."
+  ([] (app-scopes (systemd/app-cgroups)))
+  ([cgroups]
+   (vec (for [[unit gs] (group-by :unit cgroups)
+              :let [dirs (mapv :dir gs)]]
+          {:app-id (systemd/id-of-unit unit)
+           :dirs   dirs
+           :bytes  (reduce + (map reclaimable dirs))}))))
 
 
 (defn watch-pressure!

@@ -24,16 +24,15 @@
 
 (deftest app-scopes-report-what-a-kill-gives-back
   (let [root  (str (fs/create-temp-dir))
-        godot (fake-scope! root "ujima-app-godot-11.scope" 600 50)]
-    (fake-scope! root "ujima-shell.service" 70 0)
-    (spit (str (fs/path root "memory.stat")) "anon 1\n")
-    (is (= [{:app-id :godot :dir godot :bytes 650}] (memory/app-scopes root))
-        "anon + swap, our scopes only")
-    (is (nil? (memory/app-scopes (str (fs/path root "nope")))) "no slice, no scopes")))
-
-
-(deftest kill-scope-writes-the-cgroup-kill-knob
-  (let [d (str (fs/create-temp-dir))]
-    (memory/kill-scope! d)
-    (is (= "1" (slurp (str (fs/path d "cgroup.kill")))))))
+        godot (fake-scope! root "ujima-app-godot-11.scope" 600 50)
+        web   (fake-scope! root "ujima-app-web-12.scope" 200 0)
+        stray (fake-scope! root "app-org.chromium.Chromium-70.scope" 40 2)
+        unit  (fn [u d] {:unit u :app-id (keyword (second (re-find #"ujima-app-(\w+)-" u))) :dir d})]
+    (is (= #{{:app-id :godot :dirs [godot] :bytes 650}
+             {:app-id :web :dirs [web stray] :bytes 242}}
+           (set (memory/app-scopes [(unit "ujima-app-godot-11.scope" godot)
+                                    (unit "ujima-app-web-12.scope" web)
+                                    (unit "ujima-app-web-12.scope" stray)])))
+        "anon + swap over every cgroup of the app")
+    (is (= [] (memory/app-scopes nil)) "no slice, no apps")))
 

@@ -124,6 +124,13 @@
     (i3/switch-workspace! home-ws)))
 
 
+(defn scope-died!
+  "APP-ID's scope is gone: reap what a browser moved out of it, then home if that was the screen."
+  [world app-id]
+  (systemd/reap! app-id)
+  (go-home-if-empty! world app-id))
+
+
 (defn window-closed!
   "CON-ID closed. Only the window close! asked for matters: its workspace now empty means the
    close took — stop the scope (a still-launching process would re-map a window), then home."
@@ -202,7 +209,7 @@
    is the app on screen."
   [visible {:keys [full]}]
   (when (>= (- (System/currentTimeMillis) @killed*) kill-hold-ms)
-    (when-let [{:keys [app-id dir bytes]} (victim (memory/app-scopes) visible)]
+    (when-let [{:keys [app-id dirs bytes]} (victim (memory/app-scopes) visible)]
       (reset! killed* (System/currentTimeMillis))
       (log/warn "memory pressure — killing an app" {:app app-id :mb (quot bytes 1048576) :full full})
-      (memory/kill-scope! dir))))
+      (doseq [d dirs] (systemd/kill-cgroup! d)))))
