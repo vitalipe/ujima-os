@@ -17,7 +17,8 @@ version truth; branch names and build labels may disagree.
 - Each app runs under a memory cap, half of RAM plus a quarter in swap: an app that outgrows it is
   closed on its own, the desktop and the other apps are untouched.
 - When the machine starts thrashing, the app holding the most memory is closed, the one on screen
-  spared unless it is alone. The kernel's own killer never acts on a gradual pile-up.
+  spared unless it is alone, and a second app only if the first kill did not help. The kernel's
+  own killer never acts on a gradual pile-up.
 - Closing or killing a browser-based app (Web, TurboWarp) takes the process the browser keeps
   outside its scope; before, it was left behind.
 - The desktop itself (X, i3, ujimad, the shell, the file-dialog portal) keeps its memory under

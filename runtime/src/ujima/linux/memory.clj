@@ -14,18 +14,28 @@
 (defn psi? [] (fs/exists? psi-path))
 
 
-(defn full-avg10
-  "Share (%) of the last 10 s in which every task stalled on memory; nil without PSI."
+(defn parse-full
+  "PSI TEXT's full line: {:avg10 share (%) of the last 10 s with every task stalled on memory,
+   :total such microseconds since boot}; nil without PSI."
   [text]
-  (some-> (re-find #"full avg10=([\d.]+)" text) second parse-double))
+  (when-let [[_ avg total] (re-find #"full avg10=([\d.]+).*total=(\d+)" text)]
+    {:avg10 (parse-double avg) :total (parse-long total)}))
 
 
-(defn- counter [path] (or (some-> (io/slurp-text path nil) str/trim parse-long) 0))
+(defn reading []
+  (parse-full (io/slurp-text psi-path "")))
+
+
+(defn- counter [path]
+  (or (some-> (io/slurp-text path nil) str/trim parse-long) 0))
+
 
 (defn- anon [dir]
   (or (some-> (re-find #"(?m)^anon (\d+)" (io/slurp-text (str dir "/memory.stat") "")) second parse-long) 0))
 
-(defn- reclaimable [dir] (+ (anon dir) (counter (str dir "/memory.swap.current"))))
+
+(defn- reclaimable [dir]
+  (+ (anon dir) (counter (str dir "/memory.swap.current"))))
 
 
 (defn app-scopes
@@ -41,15 +51,15 @@
 
 
 (defn watch-pressure!
-  "Emit {:type :memory/pressure :full x} every INTERVAL-MS while full avg10 is at or over
-   LIMIT. Sliding buffer: only the latest reading matters."
+  "Emit {:type :memory/pressure :full x :limit LIMIT} every INTERVAL-MS while full avg10 is at
+   or over LIMIT. Sliding buffer: only the latest reading matters."
   [{:keys [interval-ms limit] :or {interval-ms 1000 limit 15.0}}]
   (let [ch (async/chan (async/sliding-buffer 1))]
     (async/thread
       (loop []
-        (let [full (full-avg10 (io/slurp-text psi-path ""))]
-          (when (and full (>= full limit))
-            (async/>!! ch {:type :memory/pressure :full full})))
+        (let [{:keys [avg10]} (reading)]
+          (when (and avg10 (>= avg10 limit))
+            (async/>!! ch {:type :memory/pressure :full avg10 :limit limit})))
         (Thread/sleep (long interval-ms))
         (recur)))
     ch))

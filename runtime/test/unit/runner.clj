@@ -43,6 +43,7 @@
             [ujima.desktop.app.catalog-test]
             [ujima.desktop.app.catalog.loader-test]
             [ujima.desktop.app.act-test]
+            [ujima.desktop.guard-test]
             [ujima.desktop.app-test]
             [ujima.storage-test]
             [ujima.events.audio-test]
@@ -93,6 +94,7 @@
     ujima.desktop.app.catalog-test
     ujima.desktop.app.catalog.loader-test
     ujima.desktop.app.act-test
+    ujima.desktop.guard-test
     ujima.desktop.app-test
     ujima.storage-test
     ujima.events.audio-test

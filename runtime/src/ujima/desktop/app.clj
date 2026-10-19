@@ -251,12 +251,6 @@
   (handle-event! {:type :app/close}))
 
 
-(defn relieve-pressure!
-  "Not under the lock: a pass stalled in a fork must not delay this. The kill lands as :scope/died."
-  [ev]
-  (act/relieve-pressure! (:id (:current @prev*)) ev))
-
-
 (defn- under? [root path]
   (let [r (str (fs/canonicalize root))
         p (str (fs/canonicalize path))]

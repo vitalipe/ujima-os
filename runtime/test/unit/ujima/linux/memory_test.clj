@@ -8,9 +8,9 @@
   "some avg10=1.50 avg60=0.40 avg300=0.10 total=4535\nfull avg10=17.25 avg60=3.00 avg300=0.70 total=4138\n")
 
 
-(deftest full-avg10-reads-the-full-line
-  (is (= 17.25 (memory/full-avg10 psi)))
-  (is (nil? (memory/full-avg10 "")) "no PSI, no reading"))
+(deftest the-reading-is-the-full-line
+  (is (= {:avg10 17.25 :total 4138} (memory/parse-full psi)))
+  (is (nil? (memory/parse-full "")) "no PSI, no reading"))
 
 
 

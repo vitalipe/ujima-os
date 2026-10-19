@@ -2,6 +2,7 @@
   (:require [lib.shell :as shell]
             [ujima.log :as log]
             [ujima.desktop.app                :as app]
+            [ujima.desktop.guard              :as guard]
             [ujima.desktop.app.catalog.loader :as loader]
             [ujima.linux.memory               :as memory]
             [ujima.linux.systemd              :as systemd]))
@@ -34,5 +35,6 @@
   (when-not (memory/psi?)
     (log/error "PSI is off — the memory-pressure guard is blind" {}))
 
+  (guard/init!)
   (app/init! (merge (select-keys app-cfg [:open-web-app-bin :serve-web-app-bin])
                     {:catalog (loader/load-catalog (:catalog app-cfg) (:fallback-icon app-cfg))})))

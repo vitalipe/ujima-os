@@ -14,6 +14,7 @@
             [ujima.control               :as control]
             [ujima.storage               :as storage]
             [ujima.desktop.app           :as app]
+            [ujima.desktop.guard         :as guard]
             [ujima.desktop.places        :as places]
             [ujima.desktop.http.converge :as shell-http-converge]
 
@@ -98,7 +99,7 @@
   ;; thrashing -> one app killed
   (listen! :memory
            (memory/watch-pressure! {:interval-ms pressure-poll-ms :limit pressure-limit})
-           app/relieve-pressure!)
+           guard/relieve!)
 
   ;; witnessed time -> the clock floor
   (listen! :clock
