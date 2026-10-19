@@ -5,6 +5,7 @@
             [lib.shell :as shell]
             [ujima.log :as log]
             [ujima.linux.i3      :as i3]
+            [ujima.linux.memory  :as memory]
             [ujima.linux.systemd :as systemd]
             [ujima.desktop.app.catalog    :as catalog]
             [ujima.desktop.app.projection :as proj :refer [home-ws lock-ws]]))
@@ -12,6 +13,7 @@
 
 (defonce ^:private bins*  (atom {}))    ; :open-web-app-bin :serve-web-app-bin
 (defonce ^:private close* (atom nil))   ; last close: {:con :app :at}
+(defonce ^:private killed* (atom 0))    ; last pressure kill, ms
 
 
 ;; Scopes that may reach `sudo` — they drive `ujimactl upgrade`. Named here and never in an
@@ -36,11 +38,13 @@
 
 (def force-lo-ms 1000)                     ; a 2nd close sooner is a double-click
 (def force-hi-ms 3000)                     ; a 2nd close later is a fresh close
+(def kill-hold-ms 10000)                   ; full avg10 takes ~10 s to settle after a kill
 
 
 (defn init! [bins]
   (reset! bins*  bins)
-  (reset! close* nil))
+  (reset! close* nil)
+  (reset! killed* 0))
 
 
 (defn app->runnable
@@ -181,3 +185,24 @@
                           :else (some-> (catalog/app-of-window catalog win) name))]
           :when (and target (not= ws target))]
     (i3/try-command! (format "[con_id=%d]" con-id) "move" "container" "to" "workspace" target)))
+
+
+(defn victim
+  "The app giving back the most memory, sparing VISIBLE unless it is alone."
+  [apps visible]
+  (let [others     (remove #(= visible (:app-id %)) apps)
+        candidates (if (seq others) others apps)]
+    (when (seq candidates)
+      (apply max-key :bytes candidates))))
+
+
+(defn relieve-pressure!
+  "Thrashing, and the kernel will not help. One kill, then nothing for kill-hold-ms from the
+   kill: the scan below takes seconds under thrash, a stale reading can follow a kill. VISIBLE
+   is the app on screen."
+  [visible {:keys [full]}]
+  (when (>= (- (System/currentTimeMillis) @killed*) kill-hold-ms)
+    (when-let [{:keys [app-id dir bytes]} (victim (memory/app-scopes) visible)]
+      (reset! killed* (System/currentTimeMillis))
+      (log/warn "memory pressure — killing an app" {:app app-id :mb (quot bytes 1048576) :full full})
+      (memory/kill-scope! dir))))

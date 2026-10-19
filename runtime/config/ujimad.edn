@@ -11,7 +11,8 @@
                          :provides {:storage "/"}}]}
 
  :events  {:audio-poll-ms 1000
-           :clock-save-ms 600000}
+           :clock-save-ms 600000
+           :pressure-limit 15.0}   ; % of the last 10 s with every task stalled on memory
 
  :api     {:http {:host "0.0.0.0" :port 1337}
            :auth {:window-ms 60000}}

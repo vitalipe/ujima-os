@@ -3,6 +3,7 @@
             [ujima.log :as log]
             [ujima.desktop.app                :as app]
             [ujima.desktop.app.catalog.loader :as loader]
+            [ujima.linux.memory               :as memory]
             [ujima.linux.systemd              :as systemd]))
 
 
@@ -29,6 +30,9 @@
   
   (when-not (systemd/memory-accounting?)
     (log/error "memory cgroup controller is off — per-app memory caps are NOT enforced" {}))
+
+  (when-not (memory/psi?)
+    (log/error "PSI is off — the memory-pressure guard is blind" {}))
 
   (app/init! (merge (select-keys app-cfg [:open-web-app-bin :serve-web-app-bin])
                     {:catalog (loader/load-catalog (:catalog app-cfg) (:fallback-icon app-cfg))})))

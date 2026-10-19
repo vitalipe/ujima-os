@@ -33,6 +33,7 @@
             [ujima.linux.net.mdns-test]
             [ujima.linux.net.wifi-test]
             [ujima.linux.systemd-test]
+            [ujima.linux.memory-test]
             [ujima.linux.disk.block-test]
             [ujima.linux.disk.mount-test]
             [lib.http-test]
@@ -41,6 +42,7 @@
             [ujima.desktop.places-test]
             [ujima.desktop.app.catalog-test]
             [ujima.desktop.app.catalog.loader-test]
+            [ujima.desktop.app.act-test]
             [ujima.desktop.app-test]
             [ujima.storage-test]
             [ujima.events.audio-test]
@@ -81,6 +83,7 @@
     ujima.linux.net.mdns-test
     ujima.linux.net.wifi-test
     ujima.linux.systemd-test
+    ujima.linux.memory-test
     ujima.linux.disk.block-test
     ujima.linux.disk.mount-test
     lib.http-test
@@ -89,6 +92,7 @@
     ujima.desktop.places-test
     ujima.desktop.app.catalog-test
     ujima.desktop.app.catalog.loader-test
+    ujima.desktop.app.act-test
     ujima.desktop.app-test
     ujima.storage-test
     ujima.events.audio-test

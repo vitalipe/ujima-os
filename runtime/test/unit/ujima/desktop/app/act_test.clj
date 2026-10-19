@@ -3,6 +3,7 @@
   (:require [clojure.test :refer [deftest is]]
             [lib.shell           :as shell]
             [ujima.linux.i3      :as i3]
+            [ujima.linux.memory  :as memory]
             [ujima.linux.systemd :as systemd]
             [ujima.desktop.app.act :as act]))
 
@@ -47,8 +48,8 @@
 
 
 (deftest a-plain-scope-carries-the-no-new-privs-prefix
-  (is (= ["setpriv" "--no-new-privs" "sh" "run.sh"]
-         (mapv str (take-last 4 (argv {}))))))
+  (is (= [:setpriv :--no-new-privs "sh" "run.sh"]
+         (vec (take-last 4 (argv {}))))))
 
 
 (deftest a-privileged-scope-drops-it-and-the-flag-never-reaches-the-process
@@ -59,3 +60,26 @@
       (systemd/spawn-scoped! :console ["sh"] "/d" {:privileged? true :extra-env {"K" "v"}}))
     (is (nil? (:privileged? @seen*)) "ours, stripped")
     (is (= {"K" "v"} (:extra-env @seen*)) "theirs, kept")))
+
+
+(deftest the-victim-is-the-biggest-app-not-on-screen
+  (let [scopes [{:app-id :write :dir "/w" :bytes 100}
+                {:app-id :godot :dir "/g" :bytes 600}
+                {:app-id :web   :dir "/b" :bytes 200}]]
+    (is (= :web   (:app-id (act/victim scopes :godot))) "the app on screen is spared")
+    (is (= :godot (:app-id (act/victim scopes :write))))
+    (is (= :godot (:app-id (act/victim scopes nil))) "nothing on screen: the biggest")
+    (is (= :godot (:app-id (act/victim [{:app-id :godot :dir "/g" :bytes 600}] :godot)))
+        "alone on screen, it is what holds the machine down")
+    (is (nil? (act/victim [] :godot)) "no app, nothing to do")))
+
+
+(deftest one-kill-then-the-reading-settles
+  (let [killed* (atom [])]
+    (with-redefs [memory/app-scopes  (constantly [{:app-id :godot :dir "/g" :bytes 600}
+                                                  {:app-id :web   :dir "/b" :bytes 200}])
+                  memory/kill-scope! (fn [dir] (swap! killed* conj dir))]
+      (act/init! {})
+      (act/relieve-pressure! :web {:full 18.0})
+      (act/relieve-pressure! :web {:full 18.0})
+      (is (= ["/g"] @killed*) "a second reading inside the hold kills nothing"))))

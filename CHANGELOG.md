@@ -16,6 +16,8 @@ version truth; branch names and build labels may disagree.
   app memory is compressed instead of program code being evicted and re-read from the card.
 - Each app runs under a memory cap, half of RAM plus a quarter in swap: an app that outgrows it is
   closed on its own, the desktop and the other apps are untouched.
+- When the machine starts thrashing, the app holding the most memory is closed, the one on screen
+  spared unless it is alone. The kernel's own killer never acts on a gradual pile-up.
 
 ### Changed
 

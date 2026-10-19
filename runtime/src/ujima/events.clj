@@ -7,6 +7,7 @@
             [ujima.linux.audio      :as audio]
             [ujima.linux.disk.block :as block]
             [ujima.linux.i3         :as i3]
+            [ujima.linux.memory     :as memory]
             [ujima.linux.systemd    :as systemd]
             [ujima.linux.converge   :as linux]
 
@@ -50,8 +51,9 @@
 
 (defn init!
   "Ports and policies first — a tap's first event may converge — then the taps."
-  [{:keys [audio-poll-ms scope-poll-ms clock-save-ms]
-    :or   {audio-poll-ms 1000 scope-poll-ms 1000 clock-save-ms 600000}}]
+  [{:keys [audio-poll-ms scope-poll-ms clock-save-ms pressure-poll-ms pressure-limit]
+    :or   {audio-poll-ms 1000 scope-poll-ms 1000 clock-save-ms 600000
+           pressure-poll-ms 1000 pressure-limit 15.0}}]
 
   
   (log/info "starting event listeners")
@@ -92,6 +94,11 @@
   (listen! :scopes
            (systemd/watch-scopes! {:interval-ms scope-poll-ms})
            app/handle-event!)
+
+  ;; thrashing -> one app killed
+  (listen! :memory
+           (memory/watch-pressure! {:interval-ms pressure-poll-ms :limit pressure-limit})
+           app/relieve-pressure!)
 
   ;; witnessed time -> the clock floor
   (listen! :clock
