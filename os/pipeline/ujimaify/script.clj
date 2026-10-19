@@ -27,6 +27,11 @@
     (files/install! project "ujimaify/session/ujima-portal.service" "/etc/systemd/user/ujima-portal.service")
     (files/install! project "ujimaify/session/ujima-session.target" "/etc/systemd/user/ujima-session.target")
     (files/install! project "ujimaify/session/user-manager.conf" "/etc/systemd/system/user@.service.d/ujima.conf")
+    ;; the session tier stays resident: MemoryMin on every ancestor down to the session scope
+    (files/install! project "ujimaify/session/memory-user-slice.conf" "/etc/systemd/system/user.slice.d/ujima.conf")
+    (files/install! project "ujimaify/session/memory-user-slice.conf" "/etc/systemd/system/user-.slice.d/ujima.conf")
+    (files/install! project "ujimaify/session/memory-session-scope.conf" "/etc/systemd/system/session-.scope.d/ujima.conf")
+    (files/install! project "ujimaify/session/memory-app-slice.conf" "/etc/systemd/user/app.slice.d/ujima.conf")
     ($! systemctl enable "ujima")
     (files/install! project "ujimaify/session/plymouth-quit.conf"
                     "/etc/systemd/system/plymouth-quit.service.d/ujima.conf")

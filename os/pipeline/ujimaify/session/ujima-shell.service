@@ -17,6 +17,8 @@ EnvironmentFile=-%t/ujima-shell.env
 ExecStart=/ujima/desktop/shell/bin/ujima-shell --desktop ${UJIMA_DESKTOP}
 # with the session tier; the floor that lets a user unit go this low is session/user-manager.conf
 OOMScoreAdjust=-900
+# never reclaimed; idle use ~60M
+MemoryMin=96M
 Restart=always
 RestartSec=1
 # SIGKILL: the default SIGABRT waits on a stopped process until the abort timeout

@@ -20,6 +20,8 @@ version truth; branch names and build labels may disagree.
   spared unless it is alone. The kernel's own killer never acts on a gradual pile-up.
 - Closing or killing a browser-based app (Web, TurboWarp) takes the process the browser keeps
   outside its scope; before, it was left behind.
+- The desktop itself (X, i3, ujimad, the shell, the file-dialog portal) keeps its memory under
+  pressure: apps are pushed into swap, the desktop stays responsive.
 
 ### Changed
 
