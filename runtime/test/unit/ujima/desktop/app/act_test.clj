@@ -37,6 +37,19 @@
       "deliberate for now — a console built outside the image can be dropped in and elevate"))
 
 
+(deftest a-warm-open-is-a-scoped-launch-too
+  (let [spawned* (atom nil) direct* (atom nil)]
+    (with-redefs [i3/switch-workspace!  (fn [_] nil)
+                  systemd/active?       (constantly true)
+                  systemd/spawn-scoped! (fn [id exec _dir _opts] (reset! spawned* [id exec]))
+                  shell/sh              (fn [& args] (reset! direct* args))]
+      (act/init! {})
+      (act/open-with! (an-app :write "/ujima/apps/write") "/ujima/storage/files/a.odt")
+      (is (= [:write ["sh" "run.sh" "/ujima/storage/files/a.odt"]] @spawned*)
+          "the hand-over enters a scope like any launch: capped, visible, killable")
+      (is (nil? @direct*) "nothing runs as a bare child of ujimad"))))
+
+
 ;; --- what the flag actually does to the command line ------------------------
 
 (defn- argv [opts]

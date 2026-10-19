@@ -2,7 +2,6 @@
   "The effects on i3, the scopes and the shell's own surfaces; listener thread only. Each
    takes the observed world."
   (:require [babashka.fs :as fs]
-            [lib.shell :as shell]
             [ujima.log :as log]
             [ujima.linux.i3      :as i3]
             [ujima.linux.systemd :as systemd]
@@ -54,36 +53,38 @@
     :link    [open-web-app-bin (str url) (:class window)]))
 
 
+(defn- launch!
+  "APP's exec plus EXTRA into a fresh scope; a failed launch logs and goes home."
+  [{:keys [id dir] :as app} extra]
+  (try
+    ;; nothing to say = no opts at all, never an empty :extra-env
+    (let [elevated? (privileged? app)]
+      (systemd/spawn-scoped! id (into (app->runnable @bins* app) extra) dir
+                             (not-empty (cond-> {}
+                                          (:env app) (assoc :extra-env (:env app))
+                                          elevated?  (assoc :privileged? true))))
+      (log/info "app launched" (cond-> {:app id} elevated? (assoc :privileged true))))
+    (catch Throwable e
+      (log/error "app launch failed" {:app id :error (ex-message e)})
+      (i3/switch-workspace! home-ws))))
+
+
 (defn run!
   "Switch to the app's workspace, then launch into a scope unless one is up — a cold-starting
    app counts as up, so a re-run never double-spawns."
-  [{:keys [id dir] :as app} extra]
+  [{:keys [id] :as app} extra]
   (i3/switch-workspace! (name id))
   (when-not (systemd/active? id)
-    (try
-      ;; nothing to say = no opts at all, never an empty :extra-env
-      (let [elevated? (privileged? app)]
-        (systemd/spawn-scoped! id (into (app->runnable @bins* app) extra) dir
-                               (not-empty (cond-> {}
-                                            (:env app) (assoc :extra-env (:env app))
-                                            elevated?  (assoc :privileged? true))))
-        (log/info "app launched" (cond-> {:app id} elevated? (assoc :privileged true))))
-      (catch Throwable e
-        (log/error "app launch failed" {:app id :error (ex-message e)})
-        (i3/switch-workspace! home-ws)))))
+    (launch! app extra)))
 
 
 (defn open-with!
-  "ARG (a url for the Web app, a path for an editor) -> APP: warm hands it to the running
-   instance by re-running the exec with it (the apps routed here are single-instance and
-   forward a second invocation's argument), cold is a scoped launch with it. Either way,
-   switch there."
-  [{:keys [id dir env] :as app} arg]
-  (if (systemd/active? id)
-    (do (apply shell/sh (cond-> {:out :inherit :err :inherit :dir dir} env (assoc :extra-env env))
-               (conj (app->runnable @bins* app) arg))
-        (i3/switch-workspace! (name id)))
-    (run! app [arg])))
+  "ARG (a url for the Web app, a path for an editor) -> APP, by a scoped launch either way:
+   cold it is the app, warm it hands ARG to the running single instance and exits — or takes
+   over from a hung one, still capped and visible."
+  [{:keys [id] :as app} arg]
+  (i3/switch-workspace! (name id))
+  (launch! app [arg]))
 
 
 (defn open-url! [app url] (open-with! app url))

@@ -234,7 +234,7 @@
   (is (= [] (fx-of :switch)) "a background app dying doesn't move you"))
 
 
-;; --- open-url: cold scoped / warm messenger ---
+;; --- open-url: cold scoped / warm hand-over, scoped too ---
 
 (deftest open-url-cold-scopes-with-the-url
   (setup! [] "1")
@@ -242,11 +242,12 @@
   (is (= [[:spawn :web ["chromium" "https://x.org"]]] (fx-of :spawn)))
   (is (= [[:switch "web"]] (fx-of :switch))))
 
-(deftest open-url-warm-joins-via-messenger
+(deftest open-url-warm-hands-over-in-a-scope
   (setup! [(win "web" :focused? true)] "paint" :scopes #{:web})
   (stubbed #(app/open-url! "https://x.org"))
-  (is (= [[:sh ["chromium" "https://x.org"]]] (fx-of :sh)) "plain messenger, no new scope")
-  (is (= [] (fx-of :spawn)))
+  (is (= [[:spawn :web ["chromium" "https://x.org"]]] (fx-of :spawn))
+      "the hand-over is a scoped launch: if it outlives the instance it is capped and visible")
+  (is (= [] (fx-of :sh)) "never a bare child of ujimad")
   (is (= [[:switch "web"]] (fx-of :switch))))
 
 (deftest open-url-rejects-non-http
