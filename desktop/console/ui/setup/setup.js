@@ -82,6 +82,7 @@ const ic = k => `<span class="ic"><svg viewBox="0 0 24 24">${I[k]}</svg></span>`
 const $  = id => document.getElementById(id);
 const byId = id => S && S.peers.find(p => p.id === id);
 const self = () => byId(S.self);
+const openId = () => byId(S.self) ? S.self : (S.peers[0] ? S.peers[0].id : null);
 const layName = k => { const l = LAYCAT.find(x => x.k === k); return l ? l.n : k; };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -126,7 +127,7 @@ async function poll(){
   if (!s || !s.peers) return;                 // error payload — same discipline
   const first = S === null;
   S = s;
-  if (!byId(cur)) { cur = S.self; detailKey = ''; }
+  if (!byId(cur)) { cur = openId(); detailKey = ''; }
   if (first) reveal();
   render();
 }
@@ -166,6 +167,7 @@ function render(){
   refreshRescan();
   renderRail();
   const m = byId(cur);
+  if (!m){ $('detail').innerHTML = ''; detailKey = ''; return; }
   const key = [cur, tab, m.online].join('|');
   if (key !== detailKey){ detailKey = key; renderDetail(); }
   else patchDetail(m);
@@ -293,7 +295,7 @@ function settingsHtml(m){
         oninput="refreshSave('clock')">
     </div>
     <div class="frow">
-      ${isSelf ? '' : `<button class="btn quiet" onclick="copyClock()">${ic('clock')}Use ${esc(self().label)}’s time</button>`}
+      ${isSelf || !self() ? '' : `<button class="btn quiet" onclick="copyClock()">${ic('clock')}Use ${esc(self().label)}’s time</button>`}
       <span class="grow"></span>
       ${isSelf ? saveBtn('b-all-clock','Send to all machines','cast','quiet',"sendAll('clock')") : ''}
       ${saveBtn('b-clock','Save','','primary',"saveSec('clock')")}
@@ -649,7 +651,7 @@ async function doRemove(id){
   try { await fetch('/setup/remove', {method: 'POST',
     headers: {'content-type': 'application/json'}, body: JSON.stringify({id})}); }
   catch (e) {}
-  if (cur === id) cur = S.self;
+  if (cur === id) cur = openId();
   poll();
 }
 
@@ -672,7 +674,7 @@ async function rescanNow(){
     const done = s && s.scan && !s.scan.running && (mine == null || s.scan.id >= mine);
     if (Date.now() > until || !(s && s.scan) || done) break;
   }
-  if (!byId(cur)) { cur = S.self; detailKey = ''; }
+  if (!byId(cur)) { cur = openId(); detailKey = ''; }
   scanning = false;
   $('rescan').classList.remove('scanning');
   reveal();
