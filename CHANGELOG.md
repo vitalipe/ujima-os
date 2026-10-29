@@ -43,6 +43,8 @@ version truth; branch names and build labels may disagree.
 
 - A session rebuilt after ujimad crashes gets a working file-dialog portal, instead of one
   restarting every 2 s behind the previous session's.
+- A web app (Excalidraw, the Console, the trial-boot page) no longer downloads Chromium's
+  components into its profile: a closed one keeps about 10 MB of RAM instead of about 130 MB.
 
 ### Removed
 
