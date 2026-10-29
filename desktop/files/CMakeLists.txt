@@ -13,6 +13,7 @@ add_executable(ujima-files
   src/places.h   src/places.cpp
   src/dirmodel.h src/dirmodel.cpp
   src/files.h    src/files.cpp
+  src/transfer.h src/transfer.cpp
   src/picker.h   src/picker.cpp
   src/prefs.h)
 

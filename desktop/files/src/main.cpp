@@ -10,6 +10,7 @@
 #include "places.h"
 #include "picker.h"
 #include "prefs.h"
+#include "transfer.h"
 
 int main(int argc, char** argv) {
     // the session points Qt apps at the GTK theme (Marble, Stellarium); this one paints itself
@@ -36,6 +37,7 @@ int main(int argc, char** argv) {
     PlacesModel places(QUrl(cli.value("places")));
     DirModel    dir;
     Files       files;
+    Transfer    transfer;
 
     QQmlApplicationEngine engine;
     engine.addImageProvider("glyph", new Glyphs);
@@ -43,6 +45,7 @@ int main(int argc, char** argv) {
     engine.rootContext()->setContextProperty("places",  &places);
     engine.rootContext()->setContextProperty("listing", &dir);
     engine.rootContext()->setContextProperty("files",   &files);
+    engine.rootContext()->setContextProperty("transfer", &transfer);
 
     const QString qmlDir = cli.value("qml");
     engine.addImportPath(qmlDir);

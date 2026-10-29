@@ -28,6 +28,14 @@ void DirModel::setFilter(const QStringList& globs) {
     refresh();
 }
 
+void DirModel::setLead(int n) {
+    n = std::max(0, n);
+    if (n == m_lead) return;
+    if (n > m_lead) { beginInsertRows({}, m_lead, n - 1); m_lead = n; endInsertRows(); }
+    else            { beginRemoveRows({}, n, m_lead - 1); m_lead = n; endRemoveRows(); }
+    emit leadChanged();
+}
+
 void DirModel::setHideTokenDir(bool v) {
     if (v == m_hideToken) return;
     m_hideToken = v;
@@ -100,8 +108,14 @@ void DirModel::refresh() {
 }
 
 QVariant DirModel::data(const QModelIndex& idx, int role) const {
-    if (!idx.isValid() || idx.row() >= m_rows.size()) return {};
-    const Row& r = m_rows[idx.row()];
+    if (!idx.isValid() || idx.row() >= rowCount()) return {};
+    if (idx.row() < m_lead) {   // the lead: the first cell is the pocket, the rest pad the span
+        if (role == TypeRole) return idx.row() == 0 ? "pocket" : "pad";
+        if (role == NameRole || role == MetaRole || role == PathRole) return "";
+        if (role == IsDirRole) return false;
+        return 0.0;
+    }
+    const Row& r = m_rows[idx.row() - m_lead];
     switch (role) {
     case NameRole:  return r.name;
     case TypeRole:  return r.type;
@@ -120,12 +134,13 @@ QHash<int, QByteArray> DirModel::roleNames() const {
 }
 
 int DirModel::indexOf(const QString& name) const {
-    for (int i = 0; i < m_rows.size(); ++i) if (m_rows[i].name == name) return i;
+    for (int i = 0; i < m_rows.size(); ++i) if (m_rows[i].name == name) return m_lead + i;
     return -1;
 }
 
 QVariantMap DirModel::get(int row) const {
     QVariantMap m;
+    row -= m_lead;
     if (row < 0 || row >= m_rows.size()) return m;
     const Row& r = m_rows[row];
     m["name"] = r.name; m["type"] = r.type; m["meta"] = r.meta; m["isDir"] = r.isDir; m["path"] = r.path;

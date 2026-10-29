@@ -23,6 +23,8 @@ version truth; branch names and build labels may disagree.
   outside its scope; before, it was left behind.
 - The desktop itself (X, i3, ujimad, the shell, the file-dialog portal) keeps its memory under
   pressure: apps are pushed into swap, the desktop stays responsive.
+- Files: an item can be taken and put down in another folder or place, as a copy or a move; a
+  right-click menu on an item and on the folder offers the toolbar's actions.
 
 ### Changed
 

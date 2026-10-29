@@ -12,11 +12,12 @@ class DirModel : public QAbstractListModel {
     Q_PROPERTY(bool hideTokenDir READ hideTokenDir WRITE setHideTokenDir NOTIFY hideTokenDirChanged)
     Q_PROPERTY(int count READ count NOTIFY countChanged)
     Q_PROPERTY(QStringList filter READ filter WRITE setFilter NOTIFY filterChanged)   // globs; empty = every file
+    Q_PROPERTY(int lead READ lead WRITE setLead NOTIFY leadChanged)   // cells kept free at the front for the view's own tile
 public:
     enum Roles { NameRole = Qt::UserRole + 1, TypeRole, MetaRole, IsDirRole, PathRole, SizeRole, MtimeRole };
     explicit DirModel(QObject* parent = nullptr);
 
-    int rowCount(const QModelIndex& = {}) const override { return m_rows.size(); }
+    int rowCount(const QModelIndex& = {}) const override { return m_lead + m_rows.size(); }
     QVariant data(const QModelIndex& idx, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
 
@@ -27,6 +28,8 @@ public:
     int count() const { return m_rows.size(); }
     QStringList filter() const { return m_filter; }
     void setFilter(const QStringList& globs);
+    int lead() const { return m_lead; }
+    void setLead(int n);
 
     Q_INVOKABLE void refresh();
     Q_INVOKABLE int indexOf(const QString& name) const;
@@ -37,6 +40,7 @@ signals:
     void hideTokenDirChanged();
     void countChanged();
     void filterChanged();
+    void leadChanged();
 
 private:
     struct Row { QString name, type, meta, path; bool isDir; qint64 size; qint64 mtime; };
@@ -45,6 +49,7 @@ private:
 
     QString m_path;
     bool m_hideToken = false;
+    int m_lead = 0;
     QStringList m_filter;
     QList<Row> m_rows;
     QFileSystemWatcher m_watch;

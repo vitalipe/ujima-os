@@ -4,6 +4,7 @@ import "."
 Rectangle {
     id: toast
     property string text: ""
+    property string glyph: "open"
     readonly property bool shown: text !== ""
     anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 30 }
     height: 50; width: row.implicitWidth + 40; radius: 14
@@ -14,7 +15,7 @@ Rectangle {
     Behavior on opacity { NumberAnimation { duration: 200 } }
     Row {
         id: row; anchors.centerIn: parent; spacing: 10
-        Glyph { name: "open"; color: Theme.frost; size: 20; stroke: 1.9; anchors.verticalCenter: parent.verticalCenter }
+        Glyph { name: toast.glyph; color: Theme.frost; size: 20; stroke: 1.9; anchors.verticalCenter: parent.verticalCenter }
         Text { text: toast.text; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.DemiBold; font.family: Theme.font }
     }
 }

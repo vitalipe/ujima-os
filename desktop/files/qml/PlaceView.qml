@@ -8,6 +8,7 @@ Item {
     // PlaceView stays instantiated at home, so bindings need a meta even with no place
     readonly property var m: nav.meta ? nav.meta : ({ glyph: "folder", color: "transparent", rgb: [0, 0, 0], notice: "", emptyHint: "" })
     readonly property bool hasSel: nav.selected !== ""
+    readonly property bool holding: !!nav.held
 
     Column {
         anchors.fill: parent
@@ -47,6 +48,9 @@ Item {
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: 26 }
                 spacing: 9
                 ActionButton { label: "Open";       glyph: "open";      tone: "primary"; enabled: view.hasSel; onClicked: nav.openSelected() }
+                ActionButton { label: transfer.busy ? (transfer.moving ? "Moving…" : "Copying…") : view.holding ? "Holding 1" : "Take"
+                               glyph: "hand"; tone: view.holding ? "held" : "plain"
+                               enabled: !transfer.busy && (view.holding || view.hasSel); onClicked: view.holding ? nav.putBack() : nav.take() }
                 ActionButton { label: "New folder"; glyph: "newfolder"; tone: "plain";   onClicked: nav.ask("mkdir") }
                 ActionButton { label: "Rename";     glyph: "rename";    tone: "plain";   enabled: view.hasSel; onClicked: nav.ask("rename") }
                 ActionButton { label: "Delete";     glyph: "delete";    tone: "danger";  enabled: view.hasSel; onClicked: nav.ask("delete") }
@@ -73,7 +77,7 @@ Item {
             height: parent.height - 80 - (m.notice !== "" ? 46 : 0)
 
             Column {
-                visible: listing.count === 0
+                visible: listing.count === 0 && !nav.pocket
                 anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 94 }
                 spacing: 0
                 Rectangle {
@@ -99,21 +103,55 @@ Item {
                 cellHeight: 196
                 model: listing
                 delegate: Item {
+                    id: cell
                     required property int index
                     required property string name
                     required property string type
                     required property string meta
+                    readonly property bool pocket: type === "pocket"
                     width: grid.cellWidth; height: grid.cellHeight
-                    Tile {
-                        anchors { fill: parent; rightMargin: grid.gap; bottomMargin: grid.gap }
-                        name: parent.name; type: parent.type; meta: parent.meta
-                        selected: nav.selected === parent.name
-                        onSelect: nav.selected = parent.name
-                        onOpen: nav.open(parent.index)
+                    Loader {
+                        width: (cell.pocket ? grid.cellWidth * 2 : grid.cellWidth) - grid.gap
+                        height: grid.cellHeight - grid.gap
+                        sourceComponent: cell.pocket ? pocketC : cell.type === "pad" ? null : tileC
+                    }
+                    Component {
+                        id: tileC
+                        Tile {
+                            name: cell.name; type: cell.type; meta: cell.meta
+                            selected: nav.selected === cell.name
+                            onSelect: nav.selected = cell.name
+                            onOpen: nav.open(cell.index)
+                        }
+                    }
+                    Component {
+                        id: pocketC
+                        PocketTile {
+                            held: nav.held
+                            busy: transfer.busy; moving: transfer.moving
+                            progress: transfer.total > 0 ? transfer.done / transfer.total : (transfer.busy ? 1 : 0)
+                            onCopy: nav.copyHere(); onMove: nav.moveHere(); onPutBack: nav.putBack()
+                        }
                     }
                 }
             }
             ScrollLane { flick: grid; anchors { right: parent.right; rightMargin: 9; top: grid.top; bottom: grid.bottom } }
+
+            // right-click: on a tile = that item's menu (selecting it first), elsewhere = the folder's
+            TapHandler {
+                acceptedButtons: Qt.RightButton
+                onTapped: (ep) => {
+                    const g = parent.mapToItem(grid, ep.position.x, ep.position.y)
+                    const i = grid.indexAt(g.x + grid.contentX, g.y + grid.contentY)
+                    const d = i >= 0 ? grid.itemAtIndex(i) : null
+                    let onTile = false
+                    if (d && d.type !== "pocket" && d.type !== "pad") { const q = grid.mapToItem(d, g.x, g.y); onTile = q.x < d.width - grid.gap && q.y < d.height - grid.gap }
+                    if (onTile) nav.selected = d.name
+                    nav.openMenu(view.mapFromItem(null, ep.scenePosition.x, ep.scenePosition.y), onTile)
+                }
+            }
         }
     }
+
+    ContextMenu { nav: view.nav }
 }

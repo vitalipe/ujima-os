@@ -12,6 +12,7 @@ QtObject {
     readonly property color faint:  "#697180"
     readonly property color hair:   Qt.rgba(1, 1, 1, .06)
     readonly property color frost:  "#88c0d0"
+    readonly property color frostText: "#a6d3de"
     readonly property color ink:    "#0d0f12"
     readonly property color dangerText: "#e2a6a6"
     readonly property color full:   "#d68383"
