@@ -29,7 +29,7 @@ Item {
         color: Theme.panel
         border.width: 1; border.color: Theme.brd
         NumberAnimation on opacity { id: fade; from: 0; to: 1; duration: 120; running: false }
-        TapHandler { acceptedButtons: Qt.AllButtons }   // swallow
+        TapHandler { acceptedButtons: Qt.AllButtons; gesturePolicy: TapHandler.ReleaseWithinBounds }   // takes the grab, so the scrim never sees a tap on the card
 
         Column {
             id: col

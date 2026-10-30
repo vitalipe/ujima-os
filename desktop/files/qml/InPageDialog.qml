@@ -31,7 +31,7 @@ Rectangle {
         radius: 18
         color: Theme.panel
         border.width: 1; border.color: Qt.rgba(1, 1, 1, .06)
-        TapHandler { }   // swallow
+        TapHandler { gesturePolicy: TapHandler.ReleaseWithinBounds }   // takes the grab, so the scrim never sees a tap on the card
 
         Row {
             id: head

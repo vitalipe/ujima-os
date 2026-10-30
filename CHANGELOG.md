@@ -47,6 +47,7 @@ version truth; branch names and build labels may disagree.
   restarting every 2 s behind the previous session's.
 - A web app (Excalidraw, the Console, the trial-boot page) no longer downloads Chromium's
   components into its profile: a closed one keeps about 10 MB of RAM instead of about 130 MB.
+- Files: saving a name that already exists shows the error instead of closing the dialog.
 
 ### Removed
 
