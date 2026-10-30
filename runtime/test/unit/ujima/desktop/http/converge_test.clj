@@ -67,7 +67,7 @@
 
 
 (deftest pinned-is-the-system-apps-that-are-not-hidden
-  (is (= [{:id :files :label "Files" :icon "files.svg"}]
+  (is (= [{:id :files :label "Files" :icon "files.svg" :category :system}]
          (:pinned (converge/apps->ui {:running [] :catalog catalog :current nil})))
       "files pins though nothing runs; console ships hidden; an ordinary app never pins"))
 

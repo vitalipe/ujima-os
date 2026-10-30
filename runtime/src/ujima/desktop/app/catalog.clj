@@ -31,12 +31,12 @@
 
 
 (defn listing
-  "[{:id :label :icon :category :hidden}] in catalog order."
+  "[{:id :label :icon :category :description :hidden}] in catalog order."
   [catalog]
   (mapv (fn [id]
           (let [a (get-in catalog [:by-id id])]
             {:id id :label (:label a) :icon (:icon a) :category (:category a)
-             :hidden (boolean (:hidden a))}))
+             :description (:description a) :hidden (boolean (:hidden a))}))
         (:order catalog)))
 
 

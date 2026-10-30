@@ -1,3 +1,4 @@
 {:kind :exec :label "Files" :category :system   ; system = pinned in the dock, no launcher tile
+ :description "Open, move and sort your files."
  :exec ["sh" "app/run.sh"]                      ; the Qt Quick app under /ujima/desktop/files
  :window {:class "ujima-files"}}                ; = QGuiApplication::applicationName (WM_CLASS class)

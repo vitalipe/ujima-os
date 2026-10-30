@@ -2,9 +2,10 @@ import QtQuick
 import QtQuick.Window
 import "."
 
-// UjimaOS launcher (design turn 47a): the identity line + the category grid. JUST the launcher —
-// the top bar and dock are their own windows, this one fills the band i3 keeps between them. The grid is
-// built ONCE from the catalog; the identity line and the open-state come live from ujimad's streams.
+// UjimaOS launcher (design turns 47a + 53a): the identity line, the description band, the category
+// grid. JUST the launcher — the top bar and dock are their own windows, this one fills the band i3 keeps
+// between them. The grid is built ONCE from the catalog; the identity line and the open-state come live
+// from ujimad's streams; the band follows the pointer (Hover.app), over the launcher and the dock alike.
 Window {
     id: win
     visible: true
@@ -63,10 +64,46 @@ Window {
                    font.pixelSize: 15; font.weight: Font.DemiBold; font.letterSpacing: .5; font.family: Theme.font }
         }
 
-        // the category grid, centred in the free space
+        // the app under the pointer, named in its group colour with its one line beside, or the hint
+        // while there is none. The last app stays while the band fades, so a leave never flashes empty.
         Item {
-            anchors { top: ident.bottom; left: parent.left; right: parent.right; bottom: parent.bottom
-                      topMargin: 16 + 14; bottomMargin: 16; leftMargin: 40; rightMargin: 40 }
+            id: band
+            anchors { top: ident.bottom; left: parent.left; right: parent.right; topMargin: home.small ? 24 : 42 }
+            height: 40
+            readonly property bool on: !!Hover.app
+            property var last: null
+            Connections { target: Hover; function onAppChanged() { if (Hover.app) band.last = Hover.app } }
+            Text {
+                anchors.centerIn: parent
+                text: "Pick an app to begin"; color: Theme.faint
+                font.pixelSize: home.small ? 16 : 18; font.family: Theme.font
+                opacity: band.on ? 0 : 1
+                Behavior on opacity { NumberAnimation { duration: 180 } }
+            }
+            Row {
+                anchors.centerIn: parent
+                spacing: 14
+                opacity: band.on ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 180 } }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: band.last ? band.last.label : ""
+                    color: Theme.tint(Theme.categoryRgb[band.last ? band.last.category : ""] || Theme.categoryRgb.system, 1)
+                    font.pixelSize: home.small ? 20 : 22; font.weight: Font.Bold; font.letterSpacing: -.2; font.family: Theme.font
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: band.last && band.last.description ? band.last.description : ""
+                    color: Theme.dim
+                    font.pixelSize: home.small ? 17 : 19; font.family: Theme.font
+                }
+            }
+        }
+
+        // the category grid, centred in the free space under the band
+        Item {
+            anchors { top: band.bottom; left: parent.left; right: parent.right; bottom: parent.bottom
+                      topMargin: 10; bottomMargin: 16; leftMargin: 40; rightMargin: 40 }
             Grid {
                 anchors.centerIn: parent
                 columns: win.width <= 700 ? 1 : win.width <= 1040 ? 2 : 3

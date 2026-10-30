@@ -2,5 +2,6 @@
 ;; --guest: ephemeral session, no history/cookies kept — kiosk web apps deliberately
 ;; keep their profiles (excalidraw's drawings live in browser storage).
 {:kind :exec :label "Web" :category :explore
+ :description "Browse the web; nothing is kept when you close it."
  :exec ["chromium" "--guest" "--class=ujima-web" "--user-data-dir=/tmp/ujima-web" "--no-first-run"]
  :window {:class "ujima-web"}}

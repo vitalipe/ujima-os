@@ -7,6 +7,7 @@
 ;; runs already uses it. The rootfs seeds use_native_file_dialogs: Godot takes its Open/Save
 ;; dialogs to the portal (the ujima picker) only when sandboxed or so told.
 {:kind :exec :label "Godot" :category :code
+ :description "Make games — opens on a demo you can play and change."
  :exec ["./godot" "--editor" "--path" "../godot-demo"
         "--rendering-driver" "opengl3"]
  :window {:class "Godot"}}  ; res_class, xprop-verified

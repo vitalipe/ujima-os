@@ -25,6 +25,8 @@ version truth; branch names and build labels may disagree.
   pressure: apps are pushed into swap, the desktop stays responsive.
 - Files: an item can be taken and put down in another folder or place, as a copy or a move; a
   right-click menu on an item and on the folder offers the toolbar's actions.
+- The launcher names the app under the pointer and shows its one-line description under the machine
+  name, for launcher and dock tiles alike; an app declares it in app.edn as `:description`.
 
 ### Changed
 

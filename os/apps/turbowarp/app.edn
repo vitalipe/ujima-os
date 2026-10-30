@@ -1,3 +1,4 @@
 {:kind :exec :label "TurboWarp" :category :code
+ :description "Build with Scratch blocks, offline."
  :exec ["./turbowarp-desktop" "--no-sandbox"]   ; cwd = this app dir, any root
  :window {:class "turbowarp-desktop"}}  ; StartupWMClass (package.json)

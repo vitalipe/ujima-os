@@ -12,9 +12,10 @@
 
 
 (def ^:private common
-  [[:label    [:string {:min 1}]]
-   [:category {:optional true} category]
-   [:hidden   {:optional true} :boolean]])
+  [[:label       [:string {:min 1}]]
+   [:description {:optional true} [:string {:min 1}]]   ; one line, shown while the pointer rests on the app
+   [:category    {:optional true} category]
+   [:hidden      {:optional true} :boolean]])
 
 (defn- kind [& entries]
   (into [:map {:closed true}] (concat common entries)))

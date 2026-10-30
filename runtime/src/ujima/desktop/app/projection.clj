@@ -22,7 +22,7 @@
 (defn entry [{:keys [catalog ws->wins]} id]
   (let [a    (get-in catalog [:by-id id])
         wins (get ws->wins (name id))]
-    {:id id :label (:label a) :icon (:icon a) :category (:category a)
+    {:id id :label (:label a) :icon (:icon a) :category (:category a) :description (:description a)
      :title (:title (or (first (filter :focused? wins)) (first wins)))
      :fullscreen (boolean (some :fullscreen? wins))}))
 

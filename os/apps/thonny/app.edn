@@ -1,3 +1,4 @@
 {:kind :exec :label "Thonny" :category :code
+ :description "Learn Python in a simple editor with a debugger."
  :exec ["python3" "app/run.py"]   ; UjimaOS launcher: simple-mode pin + patches (app/run.py)
  :window {:class "Thonny"}}  ; xprop-verified

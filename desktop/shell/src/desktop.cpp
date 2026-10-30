@@ -69,6 +69,7 @@ void Desktop::fetchCatalog() {
             apps << QVariantMap{{"id",       id},
                                 {"label",    a.value("label").toString(id)},
                                 {"category", a.value("category").toString()},
+                                {"description", a.value("description").toString()},
                                 {"icon",     url("assets/app-icon/" + id)}};
         }
         m_catalog = apps;

@@ -13,6 +13,7 @@ Rectangle {
     property bool active: false
     property bool app: false              // a running app, not an action
     property string category: ""
+    property var entry: null              // the app it stands for, named by the launcher's band; an action has none
     signal clicked()
 
     readonly property var rgb: Theme.categoryRgb[category]
@@ -36,5 +37,6 @@ Rectangle {
         source: t.icon
     }
     Tip { id: hover; tip: t.tip; text: t.label }
+    HoverHandler { enabled: !!t.entry; onHoveredChanged: hovered ? Hover.enter(t.entry) : Hover.leave(t.entry) }
     TapHandler { onTapped: t.clicked() }
 }

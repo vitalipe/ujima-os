@@ -1,4 +1,5 @@
 ;; vendored static SPA build in app/ (dark-default baked into its index.html). Collab reaches
 ;; Excalidraw's public servers (no offline) — a ujima fork will self-host the LAN relay.
 {:kind :web-app :label "Excalidraw" :category :create
+ :description "A whiteboard for sketches and diagrams."
  :entry "index.html" :port 8090}

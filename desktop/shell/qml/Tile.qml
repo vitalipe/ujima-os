@@ -33,6 +33,6 @@ Rectangle {
     Component.onCompleted: if (loading) home.pending++
     onLoadingChanged: home.pending += loading ? 1 : -1
 
-    HoverHandler { id: hh; cursorShape: Qt.PointingHandCursor }
+    HoverHandler { id: hh; cursorShape: Qt.PointingHandCursor; onHoveredChanged: hovered ? Hover.enter(tile.app) : Hover.leave(tile.app) }
     TapHandler { id: th; onTapped: desktop.openApp(app.id) }
 }

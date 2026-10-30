@@ -1,3 +1,4 @@
 {:kind :exec :label "GIMP" :category :create
+ :description "Edit photos and images."
  :exec ["python3" "app/run.py"]   ; UjimaOS launcher: first-run sessionrc seed (app/run.py)
  :window {:class "Gimp"}}  ; xprop-verified (res_class)

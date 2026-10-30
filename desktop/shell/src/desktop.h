@@ -13,16 +13,16 @@
 // layout, only where ujimad is (its own glyphs ship beside its QML).
 class Desktop : public QObject {
     Q_OBJECT
-    Q_PROPERTY(QVariantList catalog    READ catalog    NOTIFY catalogChanged)    // {id, label, category, icon}
+    Q_PROPERTY(QVariantList catalog    READ catalog    NOTIFY catalogChanged)    // {id, label, category, description, icon}
     Q_PROPERTY(bool         hasCatalog READ hasCatalog NOTIFY catalogChanged)
     Q_PROPERTY(QString      name       READ name       NOTIFY identityChanged)
     Q_PROPERTY(QString      serialTail READ serialTail NOTIFY identityChanged)
     Q_PROPERTY(QVariantMap  audio      READ audio      NOTIFY stateChanged)      // {volume, muted, output}: {value, locked}
     Q_PROPERTY(QVariantMap  keyboard   READ keyboard   NOTIFY stateChanged)      // {layout: {value, locked}, layouts, next}
     Q_PROPERTY(QStringList  open       READ open       NOTIFY openChanged)       // ids with a window
-    Q_PROPERTY(QVariantList running    READ running    NOTIFY appsChanged)       // {id, label, category, icon, title}
+    Q_PROPERTY(QVariantList running    READ running    NOTIFY appsChanged)       // {id, label, category, description, icon, title}
     Q_PROPERTY(QVariantMap  current    READ current    NOTIFY appsChanged)       // the focused app; empty at home
-    Q_PROPERTY(QVariantList pinned     READ pinned     NOTIFY appsChanged)       // {id, label, icon}
+    Q_PROPERTY(QVariantList pinned     READ pinned     NOTIFY appsChanged)       // {id, label, category, description, icon}
     Q_PROPERTY(bool         barsHidden READ barsHidden NOTIFY appsChanged)
     Q_PROPERTY(bool         hasApps    READ hasApps    NOTIFY appsChanged)       // the first snapshot arrived
     Q_PROPERTY(QString      wall       READ wall       CONSTANT)

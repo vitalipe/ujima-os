@@ -1,3 +1,4 @@
 {:kind :exec :label "XaoS" :category :explore
+ :description "Zoom into fractals, endlessly."
  :exec ["xaos"]
  :window {:class "XaoS"}}  ; res_class xprop-verified

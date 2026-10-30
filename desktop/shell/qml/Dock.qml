@@ -35,7 +35,7 @@ Window {
             model: desktop.pinned
             delegate: DockTile {
                 required property var modelData
-                tip: dock.tip; label: modelData.label
+                tip: dock.tip; label: modelData.label; entry: modelData
                 icon: modelData.icon; iconSize: 26
                 active: modelData.id === dock.currentId
                 onClicked: desktop.openApp(modelData.id)
@@ -51,7 +51,7 @@ Window {
             model: desktop.running.filter(a => a.category !== "system")
             delegate: DockTile {
                 required property var modelData
-                tip: dock.tip; label: modelData.label
+                tip: dock.tip; label: modelData.label; entry: modelData
                 icon: modelData.icon; iconSize: 32
                 app: true; category: modelData.category || ""
                 active: modelData.id === dock.currentId

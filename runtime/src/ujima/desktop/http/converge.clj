@@ -45,7 +45,7 @@
    :pinned      (->> catalog
                      (remove :hidden)
                      (filter (fn [{category :category}] (= category :system)))
-                     (map #(select-keys % [:id :label :icon]))
+                     (map #(select-keys % [:id :label :icon :category :description]))
                      (sort-by #(pinned-app-order (:id %) 99)))})
 
 

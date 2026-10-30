@@ -1,3 +1,4 @@
 {:kind :exec :label "TuxTyping" :category :learn
+ :description "Practise typing by catching falling letters."
  :exec ["tuxtype"]   ; /usr/games rides the session PATH (ujima.service)
  :window {:class "tuxtype"}}  ; xprop-verified

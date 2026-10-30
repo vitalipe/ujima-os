@@ -1,3 +1,4 @@
 {:kind :exec :label "Calc" :category :office
+ :description "Spreadsheets: tables, sums and charts."
  :exec ["libreoffice" "-env:UserInstallation=file:///home/ujima/.config/ujima-lo-calc" "--calc"]
  :window {:class "libreoffice-calc"}}  ; xprop-verified

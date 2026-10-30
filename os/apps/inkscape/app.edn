@@ -1,3 +1,4 @@
 {:kind :exec :label "Inkscape" :category :create
+ :description "Draw vector art, logos and posters."
  :exec ["inkscape"]
  :window {:class "Inkscape"}}  ; xprop-verified (res_class)
