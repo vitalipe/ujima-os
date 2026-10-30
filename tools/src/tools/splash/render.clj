@@ -1,19 +1,23 @@
 (ns tools.splash.render
-  "bb pin splash — the boot animation's frames from the vendored design, rendered by the host's
-   flatpak Chrome over CDP: the engine's export seek per frame, a crop around the stage centre, one
-   set per screen height."
+  "bb pin splash — the boot animation's frames from the vendored design, rendered by a Chrome on the
+   host over CDP: the engine's export seek per frame, a crop around the stage centre, one set per
+   screen height."
   (:require [babashka.fs :as fs]
             [babashka.http-client :as http]
             [babashka.http-client.websocket :as ws]
             [babashka.process :as p]
             [cheshire.core :as json]
+            [clojure.string :as str]
             [org.httpkit.server :as server]))
 
 
 (def ^:private design-dir "tools/src/tools/splash/design")
 (def ^:private page       "UjimaOS Boot Animation.dc.html")
 (def ^:private out-dir    "desktop/splash/frames")
-(def ^:private chrome-app "com.google.Chrome")
+
+;; any Chromium will do: UJIMA_CHROME overrides, then a binary on PATH, then a flatpak
+(def ^:private chrome-bins ["google-chrome" "google-chrome-stable" "chromium" "chromium-browser"])
+(def ^:private chrome-apps ["com.google.Chrome" "org.chromium.Chromium"])
 
 (def fps 25)
 (def heights [720 1080 1440 2160])
@@ -49,18 +53,28 @@
 (defn- free-port []
   (with-open [s (java.net.ServerSocket. 0)] (.getLocalPort s)))
 
-(defn- launch-chrome!
-  "A headless Chrome on a fresh port. The sandboxed browser outlives `flatpak run`, so it is closed
-   over CDP (Browser.close), never by killing the launcher."
+(defn- chrome-command
+  "The argv prefix that starts a Chrome on this host."
   []
-  (when-not (zero? (:exit (p/sh "flatpak" "info" chrome-app)))
-    (throw (ex-info (str "needs the flatpak " chrome-app " on this host") {})))
-  ;; the sandbox's /tmp is its own: the profile lives there and nothing comes back through files
+  (or (some-> (System/getenv "UJIMA_CHROME") not-empty (str/split #"\\s+"))
+      (some #(when (fs/which %) [%]) chrome-bins)
+      (when (fs/which "flatpak")
+        (some #(when (zero? (:exit (p/sh "flatpak" "info" %))) ["flatpak" "run" %]) chrome-apps))
+      (throw (ex-info "no Chrome on this host: set UJIMA_CHROME, or install one of these"
+                      {:bins chrome-bins :flatpaks chrome-apps}))))
+
+(defn- profile-dir [port] (str "/tmp/ujima-splash-chrome-" port))
+
+(defn- launch-chrome!
+  "A headless Chrome on a fresh port. A sandboxed browser (flatpak, snap) outlives its launcher, so
+   it is closed over CDP (Browser.close), never by killing the launcher. The profile path is one the
+   sandboxes resolve inside their own /tmp; a native Chrome gets it on the host."
+  []
   (let [port (free-port)
-        proc (p/process ["flatpak" "run" chrome-app "--headless=new"
-                         (str "--remote-debugging-port=" port)
-                         (str "--user-data-dir=/tmp/ujima-splash-chrome-" port) "--no-first-run"
-                         "--no-default-browser-check" "--hide-scrollbars" "--mute-audio" "about:blank"])]
+        proc (p/process (into (chrome-command)
+                              ["--headless=new" (str "--remote-debugging-port=" port)
+                               (str "--user-data-dir=" (profile-dir port)) "--no-first-run"
+                               "--no-default-browser-check" "--hide-scrollbars" "--mute-audio" "about:blank"]))]
     (await! "chrome's debug port"
             #(try (http/get (str "http://127.0.0.1:" port "/json/version")) (catch Exception _ nil)))
     {:proc proc :port port}))
@@ -204,4 +218,5 @@
       (finally
         (close-chrome! chrome)
         (p/destroy-tree (:proc chrome))
+        (fs/delete-tree (profile-dir (:port chrome)))
         (stop)))))
