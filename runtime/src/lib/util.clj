@@ -1,12 +1,25 @@
 (ns lib.util
-  "
-  it's `medley.core`, great lib, horrible name 
-  https://github.com/weavejester/medley/releases/tag/1.10.0
+  "A small collection of useful, mostly pure functions that might not look out
+  of place in the clojure.core namespace.
 
-  A small collection of useful, mostly pure functions that might not look out
-  of place in the clojure.core namespace."
+  Our own additions come first, before medley's."
   (:refer-clojure :exclude [abs boolean? ex-cause ex-message random-uuid regexp?
                             uuid uuid?]))
+
+(defn memoize-ttl
+  "F, a thunk, called at most once per TTL-MS; callers arriving mid-call wait for it."
+  [ttl-ms f]
+  (let [slot (atom nil)]
+    (fn []
+      (let [now (System/currentTimeMillis)]
+        @(:value (swap! slot (fn [{:keys [at] :as entry}]
+                               (if (and entry (< (- now at) ttl-ms))
+                                 entry
+                                 {:at now :value (delay (f))}))))))))
+
+
+;; from here it's `medley.core`
+;; https://github.com/weavejester/medley/releases/tag/1.10.0
 
 (defn find-first
   "Finds the first item in a collection that matches a predicate. Returns a

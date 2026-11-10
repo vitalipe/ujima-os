@@ -210,3 +210,20 @@
   (doseq [[path {:keys [doc handler]}] api/commands]
     (is (string? doc)  (str path " has no :doc"))
     (is (fn? handler)  (str path " has no :handler"))))
+
+
+(deftest a-node-renders-once-per-window-and-the-clock-never-waits
+  (fresh!)
+  (let [renders (atom 0)
+        app     (with-redefs [system/uptime-minutes (fn [] (swap! renders inc))]
+                  (http/app {:endpoints {"api" (api/endpoints {:gate identity})}
+                             :log (fn [& _])}))
+        get     (fn [uri] (read-string (:body (app {:request-method :get :uri uri
+                                                    :query-string "format=edn"}))))]
+    (get "/api/query/machine/health/uptime-minutes")
+    (get "/api/query/machine")
+    (is (= 1 @renders) "two requests inside the window, one render of the node")
+    (let [a (:clock-ms (get "/api/query/machine/system/clock-ms"))]
+      (Thread/sleep 5)
+      (is (< a (:clock-ms (get "/api/query/machine/system/clock-ms")))
+          "the clock a caller stamps with is live, never the cached one"))))

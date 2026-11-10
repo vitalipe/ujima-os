@@ -3,6 +3,7 @@
    records, commands the verbs. The contract — docs, params, errors, reply shapes — is pure
    data in schema.ujima.api.*; this ns binds an effect to each verb."
   (:require [schema.ujima.api.commands :as defs]
+            [lib.util               :refer [map-kv-vals memoize-ttl]]
             [ujima.api.routes       :as routes]
             [ujima.control          :as control]
             [ujima.control.queries  :as queries]
@@ -73,6 +74,9 @@
 
 ;; ── the routes ──────────────────────────────────────────────────────────────
 
+(def ^:private node-ttl-ms 500)
+(def ^:private live-nodes #{"system/clock-ms"})
+
 (defn machine-nodes
   "The open machine tier, one node per source. A var, not a literal inside endpoints, so
    the sim can hold its fake tier to this one's shape."
@@ -82,7 +86,7 @@
    "device"   (fn [] {:serial (devicetree/serial)
                       :model  (devicetree/model)})
    "image"    (constantly {:version version})
-   
+
    "disk"     (fn [] {:type     (:type system-disk)
                       :slot     slot
                       :storage  (disk/device->space (:storage system-disk))
@@ -141,4 +145,6 @@
      ;; open
      (routes/queries
       {:base  "query/machine"
-       :nodes (machine-nodes opts)}))})
+       :nodes (->> (machine-nodes opts)
+                (map-kv-vals (fn [path f]
+                               (if (live-nodes path) f (memoize-ttl node-ttl-ms f)))))}))})

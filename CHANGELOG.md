@@ -42,6 +42,8 @@ version truth; branch names and build labels may disagree.
   X, i3, ujimad, the shell and the portal are shielded.
 - ujimad holds about 50 MB less memory, and 90 MB less at startup: its heap is capped instead of
   growing with the machine's RAM.
+- The machine query answers each node from a half-second cache, so a room of consoles polling
+  one machine costs it one render per node, not one per request; the clock it serves stays live.
 
 ### Fixed
 
