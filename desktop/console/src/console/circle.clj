@@ -1,34 +1,38 @@
 (ns console.circle
   "Who is out there, what each machine is doing, and where a verb becomes a request.
 
-   Discovery is two passes — what announced itself over mDNS, then the subnet sweep —
-   at startup, on a cadence while the console is open, and when a person asks. It only
-   ever adds: a machine that stops answering keeps its last tree and reads offline, so a
-   class list never thins out mid-lesson. Only a person removes one. Nothing persists."
-  (:require [clojure.string :as str]
-            [console.api    :as api]
-            [lib.task       :as task]
+   Presence is the word of the machine we administer: its roster — who it hears — is
+   read on every poll, and each peer's tree is pulled from the address it names. A
+   machine that falls silent keeps its last tree and reads off, so a class list never
+   thins out mid-lesson; only a person removes one. The sweep — mDNS, then the
+   subnet — feeds nothing: it is the diagnostic for a machine that answers but is not
+   heard. Nothing persists."
+  (:require [clojure.string  :as str]
+            [ujima.circle.client :as client]
+            [lib.task        :as task]
             [ujima.linux.net.mdns :as mdns])
   (:import  [java.time LocalDateTime ZoneId]))
 
 
 (def ^:private poll-ms   2000)
 (def ^:private in-flight 256)   ;; a /24 in one wave — measured 3s on a classroom AP, 8s at 64
-(def ^:private background-scan-ms 45000)   ;; an unasked-for machine appears within the minute, unasked
 
 (def ^:private mdns-service "_ujima._tcp")   ;; what a ujima machine publishes about itself
 
 
 (defonce ^:private cfg*    (atom {}))    ;; :key, :self-addr
-(defonce ^:private roster* (atom {}))    ;; machine id -> {:addr :tree :online :seen-ms}
-(defonce ^:private self*   (atom nil))   ;; this machine's id
-(defonce ^:private scan*   (atom nil))   ;; {:current {:task :found :foreign}, :next {:task}} — the one sweep + at most one queued
+(defonce ^:private self*   (atom nil))   ;; the machine we administer: {:id :address :tree}
+(defonce ^:private roster* (atom {}))    ;; peer id -> {:address :state :tree}, as the machine lists them
+(defonce ^:private scan*   (atom nil))   ;; {:current {:task :found :foreign :unheard}, :next {:task}} — the one sweep + at most one queued
 (defonce ^:private lock    (Object.))
 
 
+(defn- self-peer []
+  (let [{:keys [key self-addr]} @cfg*] {:key key :address {:host self-addr}}))
+
 (defn- peer-of [id]
-  (when-let [{:keys [addr]} (@roster* id)]
-    {:key (:key @cfg*) :id id :addr addr}))
+  (when-let [{:keys [address]} (if (= id (:id @self*)) @self* (@roster* id))]
+    {:key (:key @cfg*) :id id :address address}))
 
 ;; bb futures, never a raw executor — SCI on one stops silently
 (defn- in-waves [f xs]
@@ -36,18 +40,48 @@
           (partition-all in-flight xs)))
 
 
-(defn- store! [id result]
-  (swap! roster* update id
-         (fn [known]
-           (if (= :ok (:status result))
-             (assoc known :tree (:data result) :online true :seen-ms (System/currentTimeMillis))
-             (assoc known :online false)))))
+;; ── the poll ────────────────────────────────────────────────────────────────
 
 (defn- refresh! [id]
   (when-let [peer (peer-of id)]
-    (store! id (api/machine peer))))
+    (let [{:keys [status data]} (client/machine peer)]
+      (when (= :ok status)
+        (if (= id (:id @self*))
+          (swap! self* assoc :tree data)
+          (swap! roster* update id assoc :tree data))))))
 
-;; ── the sweep ───────────────────────────────────────────────────────────────
+(defn- adopt!
+  "The machine's roster over ours: presence is its word, a peer it no longer lists is
+   off, and the trees stay ours to keep."
+  [peers]
+  (let [heard (into {} (map (fn [{:keys [id] :as entry}] [id (dissoc entry :id)])) peers)]
+    (swap! roster* (fn [roster]
+                     (merge-with merge
+                                 (into {} (map (fn [[id entry]] [id (assoc entry :state :offline)])) roster)
+                                 heard)))))
+
+(defn- poll-self!
+  "The machine we administer: its id and tree, then who it hears."
+  []
+  (let [{:keys [status data]} (client/machine (self-peer))]
+    (when (and (= :ok status) (:id data))
+      (reset! self* {:id (:id data) :address (:address (self-peer)) :tree data})
+      (let [{:keys [status data]} (client/peers (peer-of (:id data)))]
+        (when (= :ok status) (adopt! data))))))
+
+(defn- poll-once! []
+  (poll-self!)
+  (doall (in-waves refresh! (for [[id {:keys [state]}] @roster* :when (not= :offline state)] id))))
+
+(defn- poll-loop! []
+  (future
+    (loop []
+      (try (poll-once!) (catch Throwable _ nil))
+      (Thread/sleep poll-ms)
+      (recur))))
+
+
+;; ── the sweep: a diagnostic ─────────────────────────────────────────────────
 
 (defn- ip->long [ip]
   (reduce (fn [acc octet] (+ (* acc 256) (parse-long octet))) 0 (str/split ip #"\.")))
@@ -66,61 +100,46 @@
 
 (defn- our-network
   "Asked of the machine we administer — babashka has no NetworkInterface."
-  [key self-addr]
-  (let [{:keys [status data]} (api/machine {:key key :addr self-addr})
+  []
+  (let [{:keys [status data]} (client/machine (self-peer))
         ip                    (get-in data [:net :ip])]
     (when (and (= :ok status) ip)
-      {:id     (:id data)
-       :ip     ip
+      {:ip     ip
        :prefix (some (fn [[_ i]] (when (= ip (:ip i)) (:prefix i)))
                      (get-in data [:net :interfaces]))})))
-
-;; it verified, so it holds our key
-(defn- adopt! [id addr]
-  (swap! roster* update id merge {:addr addr :online true}))
 
 (defn- probe-all
   "Probe ADDRS, twice for the silent — a dropped probe is a missing machine."
   [key addrs]
-  (let [probe  (fn [addr] [addr (api/probe key addr)])
+  (let [probe  (fn [addr] [addr (client/probe key addr)])
         once   (in-waves probe addrs)
         silent (for [[addr r] once :when (= :noreply (:status r))] addr)]
     (concat (remove (fn [[_ r]] (= :noreply (:status r))) once)
             (in-waves probe silent))))
 
-(defn- adopt-answers!
-  "Take what verified, and pull its tree — found is drawable. Keyed by id, not address:
-   one machine can answer on several of them (mDNS lists every interface it publishes
-   on), and it is still one machine. First address wins."
+(defn- tally
+  "What the probes say against what the machine hears. FOUND verified as ours — by id,
+   since one machine answers on every address it has; FOREIGN hold another key; UNHEARD
+   are ours and answering, yet on nobody's roster: the broadcast is not getting through."
   [answers]
-  (let [ours    (reduce (fn [acc [addr r]]
-                          (let [id (:id (:data r))]
-                            (if (or (not= :ok (:status r)) (contains? acc id))
-                              acc
-                              (assoc acc id addr))))
-                        {} answers)
+  (let [ours    (into #{} (keep (fn [[_ r]] (when (= :ok (:status r)) (:id (:data r))))) answers)
+        heard   (into #{(:id @self*)} (for [[id {:keys [state]}] @roster* :when (not= :offline state)] id))
         foreign (count (filter (fn [[_ r]] (= :auth/bad-response (:reason (:data r)))) answers))]
-    (locking lock
-      (doseq [[id addr] ours] (adopt! id addr)))
-    (doall (in-waves refresh! (keys ours)))
-    {:found (count ours) :foreign foreign}))
+    {:found   (count ours)
+     :foreign foreign
+     :unheard (count (remove heard ours))}))
 
 (defn- sweep!
-  "The announced first, then the subnet. mDNS costs one multicast query and answers in
-   about a second, so a machine reaches the roster while an AP that throttles the wave
-   below — 256 connections walking sequential addresses looks like a port scan — is still
-   chewing on it. The sweep is not redundant: it is what finds a machine on a network that
-   drops multicast, and it reaches addresses nothing announced."
+  "The announced first, then the subnet. mDNS costs one multicast query; the sweep is
+   what reaches a machine on a network that drops multicast, and addresses nothing
+   announced."
   []
-  (let [{:keys [key self-addr]} @cfg*
-        {:keys [id ip prefix]}  (our-network key self-addr)
-        heard                   (mdns/browse mdns-service)]
-    (when id (reset! self* id))
-    (cond-> (merge-with +
-              (adopt-answers! (probe-all key heard))
-              (if ip
-                (adopt-answers! (probe-all key (remove (set heard) (hosts ip prefix))))
-                {:found 0 :foreign 0}))
+  (let [{:keys [key]}       @cfg*
+        {:keys [ip prefix]} (our-network)
+        heard               (mdns/browse mdns-service)
+        answers             (concat (probe-all key heard)
+                                    (when ip (probe-all key (remove (set heard) (hosts ip prefix)))))]
+    (cond-> (tally answers)
       (nil? ip) (assoc :reason :no-network))))
 
 
@@ -156,11 +175,12 @@
 (defn scan
   "What the current or last sweep is doing — the panels' :scan field."
   []
-  (when-let [{:keys [task found foreign]} (:current @scan*)]
+  (when-let [{:keys [task found foreign unheard]} (:current @scan*)]
     {:id      (:id task)
      :running (not (task/finished? task))
      :found   found
-     :foreign foreign}))
+     :foreign foreign
+     :unheard unheard}))
 
 (defn rescan!
   "A person asks: their sweep must start no earlier than the ask. Idle = run one
@@ -175,33 +195,6 @@
                           (swap! scan* assoc :next {:task t})
                           (chain! (current-task) t)
                           {:id (:id t) :running true}))))
-
-(defn- background-rescan!
-  ;; the cadence tick fills idle air only — never stacks on a sweep, never queues
-  []
-  (locking lock
-    (when (and (not (sweeping?)) (nil? (queued-task)))
-      (run-scan! (->scan-task)))))
-
-(defn- scan-loop! []
-  (future
-    (loop []
-      (Thread/sleep background-scan-ms)
-      (try (background-rescan!) (catch Throwable _ nil))
-      (recur))))
-
-
-;; ── the poll ────────────────────────────────────────────────────────────────
-
-(defn- poll-once! []
-  (doall (in-waves refresh! (keys @roster*))))
-
-(defn- poll-loop! []
-  (future
-    (loop []
-      (try (poll-once!) (catch Throwable _ nil))
-      (Thread/sleep poll-ms)
-      (recur))))
 
 
 ;; ── verbs ───────────────────────────────────────────────────────────────────
@@ -246,7 +239,7 @@
 
 (defn- write-settings! [peer writes]
   (fold (for [[path value] writes]
-          (api/command! peer (str "settings/" (str/join "/" (map name path)))
+          (client/command! peer (str "settings/" (str/join "/" (map name path)))
                         {:scope "device" :value value}))))
 
 (defn send!
@@ -258,7 +251,7 @@
                   :settings/write (write-settings! peer (:writes args))
                   (if-let [[path body] (try (->request verb args)
                                             (catch Exception _ nil))]
-                    (api/command! peer path body)
+                    (client/command! peer path body)
                     {:status :fail :data {:reason :unknown-verb}}))]
       (when (= :ok (:status reply)) (refresh! id))
       reply)
@@ -267,7 +260,7 @@
 
 ;; ── what the panels read ────────────────────────────────────────────────────
 
-(defn self [] @self*)
+(defn self [] (:id @self*))
 
 (defn- tail [id] (subs id (max 0 (- (count id) 4))))
 
@@ -290,24 +283,27 @@
 (defn peers
   "Each tree as it last answered, plus what a machine cannot say about itself."
   []
-  (->> @roster*
-       (keep (fn [[id {:keys [tree addr online]}]]
-               (when tree (assoc tree :id id :addr addr :online (boolean online)))))
-       (sort-by :id)
-       vec
-       labelled))
+  (let [{:keys [id address tree]} @self*]
+    (->> (cond-> @roster* tree (assoc id {:address address :state :online :tree tree}))
+         (keep (fn [[id {:keys [tree address state]}]]
+                 (when tree (assoc tree :id id :address address :online (not= :offline state)))))
+         (sort-by :id)
+         vec
+         labelled)))
 
 (defn forget!
-  "Drop it. It returns if it boots and someone sweeps."
+  "Drop it — here, and on the machine that hears for us. It returns when heard again."
   [id]
-  (swap! roster* dissoc id)
-  {:removed id})
+  (let [reply (client/command! (peer-of (self)) "peers/forget" {:id id})]
+    (if (= :ok (:status reply))
+      (do (swap! roster* dissoc id)
+          {:removed id})
+      reply)))
 
 (defn init!
-  "Poll, and sweep once — before any panel exists, so a window opens onto
-   machines — then keep sweeping on the cadence for the ones that boot later."
+  "Poll — the roster is a poll away, so a window opens onto machines — and sweep
+   once, so the diagnostic has an answer before anyone asks for one."
   [{:keys [key self-addr] :or {self-addr "127.0.0.1"}}]
   (reset! cfg* {:key key :self-addr self-addr})
   (poll-loop!)
-  (rescan!)
-  (scan-loop!))
+  (rescan!))
