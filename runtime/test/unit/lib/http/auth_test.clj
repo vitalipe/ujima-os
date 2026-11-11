@@ -6,7 +6,7 @@
             [lib.hmac           :as hmac]
             [lib.http.signature :as sig]
             [lib.http.auth      :as auth]
-            [ujima.api          :as api]))
+            [ujima.circle.api   :as api]))
 
 
 (def ^:private self-id "node-a-3f9c1a")

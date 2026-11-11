@@ -1,7 +1,9 @@
-(ns ujima.api
-  "The /api tier: query/machine a node per source, query/settings one node over control's
-   records, commands the verbs. The contract — docs, params, errors, reply shapes — is pure
-   data in schema.ujima.api.*; this ns binds an effect to each verb."
+(ns ujima.circle.api
+  "What this machine serves the circle on /api: query/machine a node per source,
+   query/settings one node over control's records, commands the verbs. The contract — docs,
+   params, errors, reply shapes — is pure data in schema.ujima.api.*; this ns binds an effect
+   to each verb. The gated tier answers the circle key; the open tier answers anyone on the
+   LAN, so a member can find a machine and read its clock before it speaks."
   (:require [schema.ujima.api.commands :as defs]
             [lib.util               :refer [map-kv-vals memoize-ttl]]
             [lib.http.routes        :as routes]

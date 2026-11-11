@@ -9,7 +9,7 @@
 
             [lib.http       :as http]
             [lib.http.auth  :as auth]
-            [ujima.api      :as api]
+            [ujima.circle.api :as api]
 
             [ujima.desktop          :as desktop]
             [ujima.desktop.http     :as shell-http]

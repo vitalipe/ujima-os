@@ -1,4 +1,4 @@
-(ns ujima.api-test
+(ns ujima.circle.api-test
   "The frozen v1 shapes against what the tier answers."
   (:require [clojure.test :refer [deftest is]]
             [clojure.string :as str]
@@ -12,7 +12,7 @@
             [ujima.linux.system :as system]
             [ujima.linux.disk   :as disk]
             [ujima.desktop.app  :as desktop]
-            [ujima.api          :as api]
+            [ujima.circle.api   :as api]
             [schema.ujima.settings  :as defs]
             [schema.ujima.api.query :as query]))
 

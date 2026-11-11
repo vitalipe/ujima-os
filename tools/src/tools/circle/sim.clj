@@ -14,7 +14,7 @@
             [lib.http         :as lib-http]
             [lib.http.auth    :as auth]
             [lib.http.routes  :as routes]
-            [ujima.api        :as ujimad]
+            [ujima.circle.api :as ujimad]
             [ujima.linux.sudo :refer [sudo! sudo?]]
             [tools.circle.state :as state]
             [schema.ujima.api.commands :as api]))
@@ -290,7 +290,8 @@
    "desktop/unlock"  (fn [_] (update-machine! addr assoc :locked false :solo nil))
 
    "system/restart"  (fn [_] (reboot! addr))
-   "system/poweroff" (fn [_] (power! addr true))})
+   "system/poweroff" (fn [_] (power! addr true))
+})
 
 (defn- with-handlers [specs hs]
   (assert (= (set (keys specs)) (set (keys hs)))
