@@ -1,8 +1,8 @@
-(ns ujima.api.routes-test
+(ns lib.http.routes-test
   "Both route builders, driven through the real router."
   (:require [clojure.test :refer [deftest is]]
             [clj-simple-router.core :as router]
-            [ujima.api.routes :as routes]))
+            [lib.http.routes :as routes]))
 
 
 (defn- built [seen]

@@ -8,8 +8,8 @@
             [lib.shell :as shell]
 
             [lib.http       :as http]
+            [lib.http.auth  :as auth]
             [ujima.api      :as api]
-            [ujima.api.auth :as auth]
 
             [ujima.desktop          :as desktop]
             [ujima.desktop.http     :as shell-http]

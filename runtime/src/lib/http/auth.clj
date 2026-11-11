@@ -1,9 +1,9 @@
-(ns ujima.api.auth
-  "The signed-request gate for /api, and the signer for everything it answers.
+(ns lib.http.auth
+  "The signed-request gate for a route table, and the signer for everything the edge answers.
 
    Two independent rules, on purpose: a signature is REQUIRED only on the routes
    this gates, but every response is SIGNED — including the open ones, because
-   query/machine carries the clock a caller stamps its next request with.
+   an open route carries the clock a caller stamps its next request with.
 
    Freshness is measured against THIS machine's clock. A caller stamps with the
    clock it last read from us, so the gap is a round trip however wrong we are
@@ -16,15 +16,11 @@
 ;; a caller stamps from OUR clock, so this bounds a round trip, not clock drift
 (def ^:private default-window-ms 60000)
 
-;; nonce -> when we saw it. Bounded by the window: entries older than it are
-;; already refused as stale, so they can never be replayed.
-(defonce ^:private seen* (atom {}))
-
 
 (defn- fresh-nonce!
   "false when NONCE was already used inside the window. Records it either way in
    one swap, so two racing copies of a request cannot both be the first."
-  [nonce now window-ms]
+  [seen* nonce now window-ms]
   (let [cutoff (- now window-ms)]
     (:fresh? (swap! seen*
                (fn [{:keys [cache]}]
@@ -36,13 +32,13 @@
 
 (defn- refuse [status reason message & [extra]]
   {:status  status
-   :headers (when (= 401 status) {"WWW-Authenticate" "HMAC1"})
+   :headers (when (= 401 status) {"WWW-Authenticate" sig/scheme})
    :body    (merge {:error message :reason reason} extra)})
 
 
 (defn- refusal
   "The response that turns this request away, or nil when it may pass."
-  [req {:keys [key self-id window-ms]}]
+  [req {:keys [key self-id window-ms seen*]}]
   (let [{:keys [ts nonce sig]} (sig/parse-header (get-in req [:headers sig/request-header]))
         now   (System/currentTimeMillis)
         stamp (some-> ts parse-long)]
@@ -65,16 +61,19 @@
       (or (nil? stamp) (> (abs (- now stamp)) window-ms))
       (refuse 409 "auth/stale" "timestamp is outside the window" {:clock-ms now})
 
-      (not (fresh-nonce! nonce now window-ms))
+      (not (fresh-nonce! seen* nonce now window-ms))
       (refuse 409 "auth/replay" "nonce has already been used"))))
 
 
 (defn ->gate
   "A fn wrapping a route table so every handler in it answers only to a valid
    signature. KEY is read once, at startup — nothing writes it at runtime, so a
-   change to it takes a restart."
+   change to it takes a restart. The nonces seen are this gate's own: bounded by
+   the window, since anything older is already refused as stale."
   [cfg]
-  (let [cfg (update cfg :window-ms #(or % default-window-ms))]
+  (let [cfg (-> cfg
+                (update :window-ms #(or % default-window-ms))
+                (assoc  :seen* (atom {})))]
     (fn [routes]
       (map-vals (fn [handler]
                   (fn [req]

@@ -11,7 +11,7 @@
             [babashka.process  :as p]
             [lib.http          :as lib-http]
             [lib.shell         :refer [sh?]]
-            [ujima.api.routes  :as routes]
+            [lib.http.routes   :as routes]
             [ujima.control     :as control]
             [ujima.desktop.app                :as app]
             [ujima.desktop.app.catalog        :as catalog]

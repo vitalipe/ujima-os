@@ -12,9 +12,9 @@
             [babashka.fs      :as fs]
             [org.httpkit.server :as http]
             [lib.http         :as lib-http]
+            [lib.http.auth    :as auth]
+            [lib.http.routes  :as routes]
             [ujima.api        :as ujimad]
-            [ujima.api.auth   :as auth]
-            [ujima.api.routes :as routes]
             [ujima.linux.sudo :refer [sudo! sudo?]]
             [tools.circle.state :as state]
             [schema.ujima.api.commands :as api]))

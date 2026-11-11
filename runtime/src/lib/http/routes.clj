@@ -1,4 +1,4 @@
-(ns ujima.api.routes
+(ns lib.http.routes
   "Route builders. COMMANDS: keyed by path with :slug holes or a trailing **, params are body,
    query and slug merged; a rejected slug is nil (404), anything else a humanized 400; :reply
    absent -> 202. QUERIES: one ** route over nodes keyed by path — deepest prefix answers and

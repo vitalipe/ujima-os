@@ -1,12 +1,12 @@
-(ns ujima.api.auth-test
+(ns lib.http.auth-test
   "The gate, through the real edge: what a caller must present, what it is told
    when it doesn't, and what comes back signed."
   (:require [clojure.test :refer [deftest is]]
             [lib.http           :as http]
             [lib.hmac           :as hmac]
             [lib.http.signature :as sig]
-            [ujima.api          :as api]
-            [ujima.api.auth     :as auth]))
+            [lib.http.auth      :as auth]
+            [ujima.api          :as api]))
 
 
 (def ^:private self-id "node-a-3f9c1a")
@@ -45,7 +45,9 @@
                   {:ts ts :nonce nonce :sig signature})))))
 
 
-(defn- answer [req] (let [r ((app) req)] (assoc r :body (read-string (:body r)))))
+(defn- answer
+  ([req] (answer (app) req))
+  ([app req] (let [r (app req)] (assoc r :body (read-string (:body r))))))
 
 
 (deftest an-unsigned-request-is-refused-and-told-how
@@ -81,8 +83,10 @@
 
 
 (deftest a-reused-nonce-is-refused
-  (let [nonce (hmac/nonce)
-        once  #(answer (request :post "/api/commands/app/home" :nonce nonce))]
+  ;; one gate for both: the nonces seen are the gate's own
+  (let [gate  (app)
+        nonce (hmac/nonce)
+        once  #(answer gate (request :post "/api/commands/app/home" :nonce nonce))]
     (is (not= 409 (:status (once))) "the first is fine")
     (is (= "auth/replay" (:reason (:body (once)))) "the second is not")))
 

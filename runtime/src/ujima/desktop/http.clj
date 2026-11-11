@@ -3,7 +3,7 @@
    per concern: pushed projections, verbs, the widget-shaped reads and gestures that
    are not domain state, the catalog, and files. The verbs mirror /api's for this
    machine only — no :scope, because this tier IS the session."
-  (:require [ujima.api.routes            :as routes]
+  (:require [lib.http.routes             :as routes]
             [ujima.control.commands      :as effects]
             [ujima.desktop.app           :as app]
             [ujima.desktop.http.converge :as converge]

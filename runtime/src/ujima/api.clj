@@ -4,7 +4,7 @@
    data in schema.ujima.api.*; this ns binds an effect to each verb."
   (:require [schema.ujima.api.commands :as defs]
             [lib.util               :refer [map-kv-vals memoize-ttl]]
-            [ujima.api.routes       :as routes]
+            [lib.http.routes        :as routes]
             [ujima.control          :as control]
             [ujima.control.queries  :as queries]
             [ujima.control.commands :as effects]

@@ -13,6 +13,8 @@
             [lib.io-test]
             [lib.hmac-test]
             [lib.http.signature-test]
+            [lib.http.routes-test]
+            [lib.http.auth-test]
 
             [schema.ujima.app-test]
             [schema.ujima.storage-test]
@@ -25,8 +27,6 @@
             [ujima.control.commands-test]
             [ujima.control.queries-test]
             [ujima.api-test]
-            [ujima.api.routes-test]
-            [ujima.api.auth-test]
 
             [ujima.linux.audio-test]
             [ujima.linux.i3-test]
@@ -65,6 +65,8 @@
     lib.io-test
     lib.hmac-test
     lib.http.signature-test
+    lib.http.routes-test
+    lib.http.auth-test
 
     schema.ujima.app-test
     schema.ujima.storage-test
@@ -77,8 +79,6 @@
     ujima.control.commands-test
     ujima.control.queries-test
     ujima.api-test
-    ujima.api.routes-test
-    ujima.api.auth-test
 
     ujima.linux.audio-test
     ujima.linux.i3-test

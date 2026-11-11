@@ -16,7 +16,7 @@
 ;; one scheme token both directions: one thing to bump, one thing to compare.
 ;; It also names the scheme on `authorization`, which is shared with every other
 ;; auth scheme, so it stays distinctive rather than becoming a bare "v1".
-(def ^:private scheme "HMAC1")
+(def scheme "HMAC1")
 
 ;; ── the two shapes ──────────────────────────────────────────────────────────
 
