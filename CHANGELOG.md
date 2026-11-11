@@ -46,8 +46,8 @@ version truth; branch names and build labels may disagree.
   one machine costs it one render per node, not one per request; the clock it serves stays live.
 - Machines find each other by a signed heartbeat each broadcasts every two seconds: a machine that
   joins is on every other's roster within seconds, one that goes quiet reads off within seven, and
-  the Console reads its own machine's roster instead of sweeping the subnet; the sweep stays as a
-  diagnostic behind Rescan. A machine can be removed from the roster; it returns when heard again.
+  the Console reads its own machine's roster. A machine can be removed from the roster; it
+  returns when heard again.
 
 ### Fixed
 
@@ -61,6 +61,8 @@ version truth; branch names and build labels may disagree.
 
 - eww: its bars and lock are the shell's now; its binary and `libdbusmenu-gtk3-4` leave the image.
 - xdotool leaves release images; dev images keep it for the desktop relay.
+- The Console's Rescan and its subnet sweep are gone, and with them the machine's mDNS advert
+  and `avahi-utils`: the heartbeat is the one way machines find each other.
 
 ## [0.5.2] - 2026-09-17
 

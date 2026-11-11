@@ -34,22 +34,11 @@ let M    = [];            // render models of S.peers
 let sel  = new Set();
 let run  = null;          // computed from lastAction on each render
 
-/* discovery lifecycle: startup opens in scanning; rescan re-enters it; the
-   reveal staggers machines in as they are "found" (mock fakes the delay) */
+/* opening: the ring stays empty until the machine we administer has answered;
+   then the reveal staggers the machines it hears in */
 let scanning  = true;
 let revealing = false;
 
-/* the server owns the sweep; setting `scanning` after the POST lands means a
-   poll can never catch a stale not-running */
-async function rescanNow(){
-  if (scanning || busyNow()) return;
-  hint = '';
-  clearSettled();
-  sel.clear();
-  try { await fetch('/console/rescan', {method: 'POST'}); } catch (e) {}
-  scanning = true;
-  render();
-}
 function finishScan(){
   scanning  = false;
   revealing = true;
@@ -101,7 +90,7 @@ async function poll(){
     const m = byId(id);
     if (!m || !m.online) sel.delete(id);
   }
-  if (scanning && !(s.scan && s.scan.running)) return finishScan();
+  if (scanning && s.self) return finishScan();
   render();
 }
 
@@ -235,9 +224,6 @@ function render(){
   run = runView();
   $('counts').textContent =
     `${M.length} machines · ${M.filter(m => m.online).length} on`;
-  $('rescan').classList.toggle('on', scanning);
-  $('rescan').classList.toggle('off', busyNow());
-  $('rescan-label').textContent = scanning ? 'Scanning…' : 'Rescan';
 
   renderRing();
 
@@ -642,8 +628,6 @@ function toggle(m){
 }
 function clearSel(){ clearSettled(); sel.clear(); render(); }
 window.addEventListener('resize', render);
-$('rescan').addEventListener('mouseover', () => setHint('Rescan the circle'));
-$('rescan').addEventListener('mouseout', () => setHint(''));
 
 /* ── sheets ──────────────────────────────────────────────────────────────── */
 function openSheet(html){ $('sheet').innerHTML = html; $('ovl').classList.add('show'); }

@@ -32,7 +32,6 @@
             [ujima.linux.audio-test]
             [ujima.linux.i3-test]
             [ujima.linux.net-test]
-            [ujima.linux.net.mdns-test]
             [ujima.linux.net.wifi-test]
             [ujima.linux.systemd-test]
             [ujima.linux.memory-test]
@@ -85,7 +84,6 @@
     ujima.linux.audio-test
     ujima.linux.i3-test
     ujima.linux.net-test
-    ujima.linux.net.mdns-test
     ujima.linux.net.wifi-test
     ujima.linux.systemd-test
     ujima.linux.memory-test

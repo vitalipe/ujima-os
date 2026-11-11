@@ -4,7 +4,6 @@
      POST /setup/<op>          setup's commands (jobs) + panel ops (sync)
      POST /update/<op>         update's jobs — this computer only
      POST /trial-boot/<op>     the trial-boot page's decision — this computer only
-     POST /console/rescan      sweep the subnet — console-plane, either panel
      GET  /ui/<panel>          the composed views the panels poll
      GET  /console/job[/<id>]  the shared job inspection tier
    plus statics: / the chooser, /<panel>/* the panels."
@@ -118,9 +117,6 @@
 
         (and (= :get method) (= ["ui" "trial-boot"] parts))
         (json 200 (tryboot-panel/view))
-
-        (and (= :post method) (= ["console" "rescan"] parts))
-        (json 200 (circle/rescan!))
 
         (and (= :get method) (= ["console" "job"] parts))
         (json 200 {:jobs (jobs/jobs)})

@@ -4,8 +4,7 @@
    writes are settings-path pairs validated against the whitelist below —
    a new writable setting is one entry here, not a new route. Clock stays a
    named verb (timezone is a setting, wall time is an edge action) and power is a
-   true action. Remove/rescan are panel-plane: they touch the roster this console
-   holds, never a machine."
+   true action. Remove is panel-plane: it touches the roster, never a machine."
   (:require [clojure.string :as str]
             [console.circle :as circle]
             [console.jobs   :as jobs])
@@ -119,5 +118,4 @@
 (defn view []
   {:schema 1
    :self   (circle/self)
-   :peers  (mapv wire-peer (circle/peers))
-   :scan   (circle/scan)})
+   :peers  (mapv wire-peer (circle/peers))})

@@ -51,8 +51,6 @@ let layQ = '';
 let inflight = 0;        // jobs in flight on the CURRENT machine (drives the head glyph)
 let headRes  = null;     // 'ok' | 'noreply' — the head glyph's settled state
 let detailKey = '';      // cur|tab|online — the pane rebuilds only when this moves
-let scanning  = false;   // a sweep is running: rail shows the hint, the page locks
-const SCAN_LIMIT = 30000;   // never hold the page on a server that stopped answering
 let revealing = false;   // the render right after a sweep staggers the rows in
 let fanout    = null;    // a running/settled send-to-all, shown on the rail:
                          // {key url body total peers:{id:status} live} — greens
@@ -118,8 +116,7 @@ function glyphCls(m, extra){
 
 /* ── server state ────────────────────────────────────────────────────────── */
 /* S is always null or a valid world — error payloads (degraded server) and
-   dead fetches both keep the last good frame, so render is always safe and
-   the rescan button (shipped disabled) unlocks only once machines exist */
+   dead fetches both keep the last good frame, so render is always safe */
 async function poll(){
   let s;
   try { s = await (await fetch('/ui/setup')).json(); }
@@ -163,8 +160,6 @@ async function pollJob(id, onTick){
 function render(){
   $('counts').textContent =
     `${S.peers.length} machines · ${S.peers.filter(m => m.online).length} on`;
-  document.querySelector('.wrap').classList.toggle('scanning', scanning);
-  refreshRescan();
   renderRail();
   const m = byId(cur);
   if (!m){ $('detail').innerHTML = ''; detailKey = ''; return; }
@@ -175,12 +170,6 @@ function render(){
 const railOrder = () =>
   [...S.peers.filter(m => m.id === S.self), ...S.peers.filter(m => m.id !== S.self)];
 function renderRail(){
-  if (scanning){
-    $('rail').innerHTML =
-      `<div class="scanhint"><span class="spin"></span>looking for machines…</div>`;
-    revealDrawn = false;
-    return;
-  }
   if (revealing){
     if (revealDrawn) return;   // mid-reveal poll: leave the animation alone
     revealDrawn = true;
@@ -254,13 +243,6 @@ function patchDetail(m){
 function refreshHead(){
   const el = $('dhead');
   if (el) el.setAttribute('class', 'dhead ' + headGlyphCls(byId(cur)));
-  refreshRescan();
-}
-/* rescan yields to any running network command — a sweep mid-save would hide
-   the very state the user is watching */
-const netBusy = () => inflight > 0 || !!(fanout && fanout.live);
-function refreshRescan(){
-  $('rescan').disabled = scanning || revealing || netBusy();
 }
 
 /* ── settings tab ────────────────────────────────────────────────────────── */
@@ -444,7 +426,6 @@ function readVals(key){
 
 function jobDone(machine){
   inflight = Math.max(0, inflight - 1);
-  refreshRescan();
   if (cur !== machine) return false;
   refreshHead();
   return true;
@@ -505,7 +486,6 @@ function scheduleFanoutClear(){
    settled job (null = the server itself never answered) */
 async function runFanout(targets){
   fanout.live = true;
-  refreshRescan();
   targets.forEach(id => { fanout.peers[id] = 'pending'; });
   renderRail();
   const sent = await postJob(fanout.url, Object.assign({targets}, fanout.body));
@@ -515,7 +495,6 @@ async function runFanout(targets){
   if (job) Object.assign(fanout.peers, job.peers);
   else targets.forEach(id => { fanout.peers[id] = 'noreply'; });
   fanout.live = false;
-  refreshRescan();
   renderRail();
   scheduleFanoutClear();
   return job ? job : {err: sent.err};
@@ -640,7 +619,7 @@ function confirmRemove(id){
   openSheet(`
     <h2>Remove ${esc(m.label)} from the list?</h2>
     <p>Only the list changes — nothing happens to the machine. If it’s on the
-    network again, it comes back after a rescan.</p>
+    network again, it comes back by itself.</p>
     <div class="sfoot">
       <button class="btn quiet" onclick="closeSheet()">Cancel</button>
       <button class="btn dangerf" onclick="doRemove('${id}')">Remove</button>
@@ -655,32 +634,8 @@ async function doRemove(id){
   poll();
 }
 
-/* ── rescan: the server runs the sweep; the page locks and the rail shows
-   the scan, then the found machines stagger back in ─────────────────────── */
-async function rescanNow(){
-  if (!S || scanning || revealing || netBusy()) return;
-  scanning = true;
-  $('rescan').classList.add('scanning');   // held until the reveal settles
-  render();
-  let mine = null;   // a background sweep may be mid-flight — ours is queued behind it
-  try { mine = (await (await fetch('/console/rescan', {method: 'POST'})).json()).id; } catch (e) {}
-  // the server owns the sweep: watch until OURS (ids only grow) says it is done
-  const until = Date.now() + SCAN_LIMIT;
-  for (;;){
-    await new Promise(r => setTimeout(r, 300));
-    let s = null;
-    try { s = await (await fetch('/ui/setup')).json(); } catch (e) {}
-    if (s && s.peers) S = s;               // degraded reply — keep last frame
-    const done = s && s.scan && !s.scan.running && (mine == null || s.scan.id >= mine);
-    if (Date.now() > until || !(s && s.scan) || done) break;
-  }
-  if (!byId(cur)) { cur = openId(); detailKey = ''; }
-  scanning = false;
-  $('rescan').classList.remove('scanning');
-  reveal();
-}
 
-/* ── boot: scanning until the first world arrives ────────────────────────── */
+/* ── boot: the hint stays up until the first world arrives ──────────────── */
 $('rail').innerHTML = `<div class="scanhint"><span class="spin"></span>looking for machines…</div>`;
 setInterval(poll, POLL_MS);
 poll();

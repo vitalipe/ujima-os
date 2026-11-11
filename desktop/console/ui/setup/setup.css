@@ -67,8 +67,6 @@ button:focus-visible{outline:2px solid rgba(var(--sel),.7);outline-offset:2px;bo
 .title .ic{width:24px;height:24px;color:rgb(var(--frost))}
 .counts{font-size:13px;color:var(--dim);margin-left:2px}
 .head .grow{flex:1}
-#rescan.scanning{pointer-events:none}
-#rescan.scanning .ic{animation:spin .9s linear infinite}
 
 /* ── layout ─────────────────────────────────────────────────────────────── */
 .wrap{display:flex;gap:18px;align-items:flex-start;padding:4px 28px 44px;
@@ -77,8 +75,6 @@ button:focus-visible{outline:2px solid rgba(var(--sel),.7);outline-offset:2px;bo
 .scanhint{display:flex;align-items:center;gap:10px;padding:12px 13px;
   font-size:13px;color:var(--dim)}
 /* a running sweep locks the page; found machines stagger back in */
-.wrap.scanning{pointer-events:none}
-.wrap.scanning .detail{opacity:.35;transition:opacity .25s ease}
 .mrow.appear{animation:appear .3s ease backwards;animation-delay:calc(var(--i)*60ms)}
 @keyframes appear{from{opacity:0;transform:translateX(-10px)}}
 .mrow{display:flex;align-items:center;gap:11px;padding:9px 13px;border-radius:13px;

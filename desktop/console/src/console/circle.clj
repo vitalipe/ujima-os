@@ -4,27 +4,19 @@
    Presence is the word of the machine we administer: its roster — who it hears — is
    read on every poll, and each peer's tree is pulled from the address it names. A
    machine that falls silent keeps its last tree and reads off, so a class list never
-   thins out mid-lesson; only a person removes one. The sweep — mDNS, then the
-   subnet — feeds nothing: it is the diagnostic for a machine that answers but is not
-   heard. Nothing persists."
+   thins out mid-lesson; only a person removes one. Nothing persists."
   (:require [clojure.string  :as str]
-            [ujima.circle.client :as client]
-            [lib.task        :as task]
-            [ujima.linux.net.mdns :as mdns])
+            [ujima.circle.client :as client])
   (:import  [java.time LocalDateTime ZoneId]))
 
 
 (def ^:private poll-ms   2000)
-(def ^:private in-flight 256)   ;; a /24 in one wave — measured 3s on a classroom AP, 8s at 64
-
-(def ^:private mdns-service "_ujima._tcp")   ;; what a ujima machine publishes about itself
+(def ^:private in-flight 256)   ;; trees fetched in one wave
 
 
 (defonce ^:private cfg*    (atom {}))    ;; :key, :self-addr
 (defonce ^:private self*   (atom nil))   ;; the machine we administer: {:id :address :tree}
 (defonce ^:private roster* (atom {}))    ;; peer id -> {:address :state :tree}, as the machine lists them
-(defonce ^:private scan*   (atom nil))   ;; {:current {:task :found :foreign :unheard}, :next {:task}} — the one sweep + at most one queued
-(defonce ^:private lock    (Object.))
 
 
 (defn- self-peer []
@@ -79,122 +71,6 @@
       (try (poll-once!) (catch Throwable _ nil))
       (Thread/sleep poll-ms)
       (recur))))
-
-
-;; ── the sweep: a diagnostic ─────────────────────────────────────────────────
-
-(defn- ip->long [ip]
-  (reduce (fn [acc octet] (+ (* acc 256) (parse-long octet))) 0 (str/split ip #"\.")))
-
-(defn- long->ip [n]
-  (str/join "." (for [shift [24 16 8 0]] (bit-and (bit-shift-right n shift) 255))))
-
-(defn- hosts
-  "Every host address on this network. Never wider than a /24 — a class is one
-   subnet, and sweeping a /16 is 65k probes nobody asked for."
-  [ip prefix]
-  (let [bits (- 32 (max (or prefix 24) 24))
-        span (bit-shift-left 1 bits)
-        base (bit-and (ip->long ip) (bit-not (dec span)))]
-    (map #(long->ip (+ base %)) (range 1 (dec span)))))
-
-(defn- our-network
-  "Asked of the machine we administer — babashka has no NetworkInterface."
-  []
-  (let [{:keys [status data]} (client/machine (self-peer))
-        ip                    (get-in data [:net :ip])]
-    (when (and (= :ok status) ip)
-      {:ip     ip
-       :prefix (some (fn [[_ i]] (when (= ip (:ip i)) (:prefix i)))
-                     (get-in data [:net :interfaces]))})))
-
-(defn- probe-all
-  "Probe ADDRS, twice for the silent — a dropped probe is a missing machine."
-  [key addrs]
-  (let [probe  (fn [addr] [addr (client/probe key addr)])
-        once   (in-waves probe addrs)
-        silent (for [[addr r] once :when (= :noreply (:status r))] addr)]
-    (concat (remove (fn [[_ r]] (= :noreply (:status r))) once)
-            (in-waves probe silent))))
-
-(defn- tally
-  "What the probes say against what the machine hears. FOUND verified as ours — by id,
-   since one machine answers on every address it has; FOREIGN hold another key; UNHEARD
-   are ours and answering, yet on nobody's roster: the broadcast is not getting through."
-  [answers]
-  (let [ours    (into #{} (keep (fn [[_ r]] (when (= :ok (:status r)) (:id (:data r))))) answers)
-        heard   (into #{(:id @self*)} (for [[id {:keys [state]}] @roster* :when (not= :offline state)] id))
-        foreign (count (filter (fn [[_ r]] (= :auth/bad-response (:reason (:data r)))) answers))]
-    {:found   (count ours)
-     :foreign foreign
-     :unheard (count (remove heard ours))}))
-
-(defn- sweep!
-  "The announced first, then the subnet. mDNS costs one multicast query; the sweep is
-   what reaches a machine on a network that drops multicast, and addresses nothing
-   announced."
-  []
-  (let [{:keys [key]}       @cfg*
-        {:keys [ip prefix]} (our-network)
-        heard               (mdns/browse mdns-service)
-        answers             (concat (probe-all key heard)
-                                    (when ip (probe-all key (remove (set heard) (hosts ip prefix)))))]
-    (cond-> (tally answers)
-      (nil? ip) (assoc :reason :no-network))))
-
-
-(defn- ->scan-task []
-  (task/->task :discover
-               (fn [_] (let [r (sweep!)]
-                         (swap! scan* update :current merge r)
-                         r))))
-
-(defn- current-task [] (get-in @scan* [:current :task]))
-(defn- queued-task  [] (get-in @scan* [:next :task]))
-
-(defn- sweeping? []
-  (when-let [t (current-task)] (not (task/finished? t))))
-
-(defn- run-scan!
-  ;; caller holds the lock: t becomes THE sweep and starts
-  [t]
-  (reset! scan* {:current {:task t}})
-  (task/run! t)
-  t)
-
-(defn- chain!
-  ;; when the running sweep ends, the queued one takes its place — unless a
-  ;; rescan! promoted it first (run-scan! clears :next, so the check fails)
-  [running queued]
-  (future
-    (while (not (task/finished? running)) (Thread/sleep 100))
-    (locking lock
-      (when (= queued (queued-task))
-        (run-scan! queued)))))
-
-(defn scan
-  "What the current or last sweep is doing — the panels' :scan field."
-  []
-  (when-let [{:keys [task found foreign unheard]} (:current @scan*)]
-    {:id      (:id task)
-     :running (not (task/finished? task))
-     :found   found
-     :foreign foreign
-     :unheard unheard}))
-
-(defn rescan!
-  "A person asks: their sweep must start no earlier than the ask. Idle = run one
-   now; running = queue ONE next (every asker shares it) and answer its id — the
-   caller watches for that id to finish. Never two sweeps in flight."
-  []
-  (locking lock
-    (cond
-      (not (sweeping?)) (do (run-scan! (or (queued-task) (->scan-task))) (scan))
-      (queued-task)     {:id (:id (queued-task)) :running true}
-      :else             (let [t (->scan-task)]
-                          (swap! scan* assoc :next {:task t})
-                          (chain! (current-task) t)
-                          {:id (:id t) :running true}))))
 
 
 ;; ── verbs ───────────────────────────────────────────────────────────────────
@@ -301,9 +177,7 @@
       reply)))
 
 (defn init!
-  "Poll — the roster is a poll away, so a window opens onto machines — and sweep
-   once, so the diagnostic has an answer before anyone asks for one."
+  "Poll: the roster is a poll away, so a window opens onto machines."
   [{:keys [key self-addr] :or {self-addr "127.0.0.1"}}]
   (reset! cfg* {:key key :self-addr self-addr})
-  (poll-loop!)
-  (rescan!))
+  (poll-loop!))

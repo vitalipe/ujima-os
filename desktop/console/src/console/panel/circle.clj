@@ -54,5 +54,4 @@
   {:schema 1
    :self   (circle/self)
    :peers  (circle/peers)
-   :scan   (circle/scan)
    :panel  {:action (jobs/active-action :circle)}})

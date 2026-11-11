@@ -3,7 +3,6 @@
    signed, gated or not — one client rule, nothing to drift. An open route never
    checks the stamp, so a read stamps with our clock; a command reads the target's
    clock first and stamps with that, which is the clock its gate measures against.
-   A first-contact probe names no target, which an open route never checks.
    A PEER is a roster entry as ujima.circle hands it out, with the circle key on it."
   (:require [babashka.http-client :as http]
             [clojure.edn          :as edn]
@@ -15,7 +14,7 @@
 (def ^:private default-port 1337)
 
 ;; a command must resolve inside the jobs deadline (5s)
-(def timeouts {:probe 1500 :poll 1500 :command 8000})
+(def timeouts {:clock 1500 :poll 1500 :command 8000})
 
 
 (defn- one-shot
@@ -71,17 +70,12 @@
   [peer]
   (call peer :get "/api/query/peers" nil (:poll timeouts) nil))
 
-(defn probe
-  "First contact: an id, and — the answer must verify — proof of our key."
-  [key addr]
-  (call {:key key :address {:host addr}} :get "/api/query/machine/id" nil (:probe timeouts) nil))
-
 (defn command!
   "PATH is command-relative. A clear is its whole URL, so it carries no body."
   ([peer path] (command! peer path nil))
   ([peer path body]
    (let [{:keys [status data] :as clock}
-         (call peer :get "/api/query/machine/system/clock-ms" nil (:probe timeouts) nil)]
+         (call peer :get "/api/query/machine/system/clock-ms" nil (:clock timeouts) nil)]
      (if (= :ok status)
        (call peer :post (str "/api/commands/" path) (some-> body edn->json) (:command timeouts) (:clock-ms data))
        clock))))
