@@ -4,14 +4,16 @@
    is exactly the change that stops half-upgraded parties from talking. If a
    field moves or a tag changes, these fail — deliberately.
 
-   The signed text is private, so the string assertions reach it through its var."
+   The tags and field lists are private, so the string assertions reach them through
+   their vars and rebuild the text the way sign-request and sign-response do."
   (:require [clojure.test   :refer [deftest is testing]]
             [clojure.string :as str]
+            [lib.hmac           :as hmac]
             [lib.http.signature :as sig]))
 
 
-(def ^:private request-text  #'sig/request-text)
-(def ^:private response-text #'sig/response-text)
+(defn- request-text  [parts] (hmac/text @#'sig/request-tag  (#'sig/request-fields  parts)))
+(defn- response-text [parts] (hmac/text @#'sig/response-tag (#'sig/response-fields parts)))
 
 
 (def ^:private signing-key
@@ -134,9 +136,3 @@
   (is (nil? (sig/parse-header "Bearer abc")))
   (is (nil? (sig/parse-header "")))
   (is (nil? (sig/parse-header nil))))
-
-
-(deftest nonces-are-hex-and-distinct
-  (let [nonces (repeatedly 50 sig/nonce)]
-    (is (every? #(re-matches #"^[0-9a-f]{32}$" %) nonces))
-    (is (= 50 (count (set nonces))))))

@@ -11,6 +11,7 @@
 
             [lib.edn-test]
             [lib.io-test]
+            [lib.hmac-test]
             [lib.http.signature-test]
 
             [schema.ujima.app-test]
@@ -62,6 +63,7 @@
 
     lib.edn-test
     lib.io-test
+    lib.hmac-test
     lib.http.signature-test
 
     schema.ujima.app-test

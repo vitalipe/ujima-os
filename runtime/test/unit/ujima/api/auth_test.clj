@@ -3,6 +3,7 @@
    when it doesn't, and what comes back signed."
   (:require [clojure.test :refer [deftest is]]
             [lib.http           :as http]
+            [lib.hmac           :as hmac]
             [lib.http.signature :as sig]
             [ujima.api          :as api]
             [ujima.api.auth     :as auth]))
@@ -28,7 +29,7 @@
   (let [raw       (or body "")
         target    (or target self-id)
         ts        (str (or ts (System/currentTimeMillis)))
-        nonce     (or nonce (sig/nonce))
+        nonce     (or nonce (hmac/nonce))
         signature (sig/sign-request circle-key
                                     {:method method :path uri :target target
                                      :ts ts :nonce nonce :body raw})
@@ -80,7 +81,7 @@
 
 
 (deftest a-reused-nonce-is-refused
-  (let [nonce (sig/nonce)
+  (let [nonce (hmac/nonce)
         once  #(answer (request :post "/api/commands/app/home" :nonce nonce))]
     (is (not= 409 (:status (once))) "the first is fine")
     (is (= "auth/replay" (:reason (:body (once)))) "the second is not")))
