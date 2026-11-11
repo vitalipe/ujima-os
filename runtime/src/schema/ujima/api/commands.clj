@@ -69,4 +69,7 @@
 
    "system/restart"  {:doc "Reboot this machine."}
 
-   "system/poweroff" {:doc "Power this machine off."}})
+   "system/poweroff" {:doc "Power this machine off."}
+
+   "peers/forget"    {:doc    "Drop a machine from this machine's roster. It returns with its next heartbeat."
+                      :params [:map [:id [:string {:min 1}]]]}})

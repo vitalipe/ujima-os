@@ -12,6 +12,7 @@
             [ujima.control.commands :as effects]
             [ujima.desktop.app      :as desktop]
             [ujima.desktop.places   :as places]
+            [ujima.circle           :as circle]
             [ujima.storage          :as storage]
             [ujima.linux.devicetree :as devicetree]
             [ujima.linux.disk       :as disk]
@@ -71,7 +72,9 @@
      "desktop/unlock"  (fn [_] (desktop/unlock!))
 
      "system/restart"  (fn [_] (system/reboot!))
-     "system/poweroff" (fn [_] (system/shutdown!))}))
+     "system/poweroff" (fn [_] (system/shutdown!))
+
+     "peers/forget"    (fn [{:keys [id]}] (circle/forget! id))}))
 
 
 ;; ── the routes ──────────────────────────────────────────────────────────────
@@ -149,4 +152,8 @@
       {:base  "query/machine"
        :nodes (->> (machine-nodes opts)
                 (map-kv-vals (fn [path f]
-                               (if (live-nodes path) f (memoize-ttl node-ttl-ms f)))))}))})
+                               (if (live-nodes path) f (memoize-ttl node-ttl-ms f)))))})
+
+     (routes/queries
+      {:base  "query/peers"
+       :nodes {"" circle/snapshot}}))})

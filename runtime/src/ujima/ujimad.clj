@@ -15,6 +15,7 @@
             [ujima.desktop.http     :as shell-http]
             [ujima.desktop.http.converge :as shell-http-converge]
             [ujima.desktop.places   :as places]
+            [ujima.circle           :as circle]
             [ujima.storage          :as storage]
             [ujima.events           :as events]
             [ujima.events.tryboot   :as tryboot]))
@@ -57,6 +58,9 @@
           auth-cfg     (merge (get-in env [:api :auth] {})
                               {:key     (:effective (control/setting [:circle :token]))
                                :self-id system-disk-id})]
+
+      ;; the heartbeat rides the api's port, over UDP
+      (circle/init! {:key (:key auth-cfg) :id system-disk-id :port (:port api-http)})
 
       (http/listen! (merge api-http
                            {:endpoints {"api" (api/endpoints {:version      (:version deploy)

@@ -44,6 +44,9 @@ version truth; branch names and build labels may disagree.
   growing with the machine's RAM.
 - The machine query answers each node from a half-second cache, so a room of consoles polling
   one machine costs it one render per node, not one per request; the clock it serves stays live.
+- Machines find each other by a signed heartbeat each broadcasts every two seconds: a machine that
+  joins is on every other's roster within seconds, and one that goes quiet reads off within seven.
+  A machine can be removed from the roster; it returns when heard again.
 
 ### Fixed
 

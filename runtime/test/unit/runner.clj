@@ -26,6 +26,7 @@
             [ujima.migration.import-test]
             [ujima.control.commands-test]
             [ujima.control.queries-test]
+            [ujima.circle-test]
             [ujima.circle.api-test]
 
             [ujima.linux.audio-test]
@@ -78,6 +79,7 @@
     ujima.migration.import-test
     ujima.control.commands-test
     ujima.control.queries-test
+    ujima.circle-test
     ujima.circle.api-test
 
     ujima.linux.audio-test

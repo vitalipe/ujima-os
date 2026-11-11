@@ -12,6 +12,7 @@
             [ujima.linux.system :as system]
             [ujima.linux.disk   :as disk]
             [ujima.desktop.app  :as desktop]
+            [ujima.circle       :as circle]
             [ujima.circle.api   :as api]
             [schema.ujima.settings  :as defs]
             [schema.ujima.api.query :as query]))
@@ -63,6 +64,17 @@
              (select-keys (first places) [:mount :tokens]))
           "the root and the token types ride the wire")
       (is (not (str/includes? (pr-str places) "s3cret")) "a token's value never does"))))
+
+
+(deftest the-roster-answers-its-contract-and-forget-is-a-verb
+  (fresh!)
+  (#'circle/heard! {:key "k" :id "me"} "10.0.0.5" (circle/encode "k" {:id "x" :host "10.0.0.5" :port 1337 :boot "b" :seq 0}))
+  (let [roster (GET "/api/query/peers")]
+    (is (nil? (drift query/peers roster)))
+    (is (= ["x"] (map :id roster))))
+  (is (= 400 (:status (POST "/api/commands/peers/forget" {}))) "an id is required")
+  (is (= 202 (:status (POST "/api/commands/peers/forget" {:id "x"}))))
+  (is (= [] (GET "/api/query/peers")) "gone until it is heard again"))
 
 
 (deftest every-settings-leaf-is-a-record-and-secrets-are-not-served

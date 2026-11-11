@@ -1,5 +1,7 @@
 (ns ujima.linux.net
-  (:require [cheshire.core :as json]
+  (:require [cheshire.core  :as json]
+            [clojure.string :as str]
+            [lib.util       :refer [distinct-by]]
             [lib.shell :refer [$?]]))
 
 
@@ -49,3 +51,22 @@
   (let [ranked (keep facts (map keyword interfaces))]
     (or (:ip (first (filter :gateway ranked)))
         (:ip (first (filter (fn [f] (and (:up f) (:ip f))) ranked))))))
+
+
+(defn broadcast-of
+  "The directed broadcast address of IP's /PREFIX network."
+  [ip prefix]
+  (let [n    (reduce (fn [acc octet] (+ (* acc 256) (parse-long octet))) 0 (str/split ip #"\."))
+        hosts (dec (bit-shift-left 1 (- 32 prefix)))]
+    (str/join "." (for [shift [24 16 8 0]] (bit-and (bit-shift-right (bit-or n hosts) shift) 255)))))
+
+
+(defn networks
+  "Each network we are up on: our address there, and the address a datagram reaches every
+   machine there at. Two interfaces on one network count once."
+  [facts]
+  (->> (vals facts)
+       (filter (fn [{:keys [up ip prefix]}] (and up ip prefix)))
+       (map (fn [{:keys [ip prefix]}] {:host ip :broadcast (broadcast-of ip prefix)}))
+       (distinct-by :broadcast)
+       vec))

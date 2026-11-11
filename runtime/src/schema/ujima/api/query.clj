@@ -20,6 +20,14 @@
    [:scopes    [:map-of [:enum :circle :device :session :activity] :any]]])
 
 
+;; presence only — a peer's facts are its own machine tree, at this address
+(def peers
+  [:vector [:map
+            [:id      :string]
+            [:address [:map [:host :string] [:port :int]]]
+            [:state   [:enum :online :unsure :offline]]]])
+
+
 (def machine
   (let [desktop-entry   [:map [:id :keyword] [:label [:maybe :string]] [:category [:maybe :keyword]]]
         partition-space [:map [:total-mb :int] [:free-mb :int]]

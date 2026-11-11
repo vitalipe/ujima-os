@@ -213,6 +213,19 @@
      "health/uptime-minutes" #(quot (- (System/currentTimeMillis) (:booted (m))) 60000)
      "health/messages"       (constantly [])}))
 
+(defn- peers
+  "What this fake hears: every other machine in the fleet, the off ones as offline. A
+   forgotten one stays out while it is off, and is heard again when it comes back."
+  [addr]
+  (let [forgotten (:forgotten (get @fleet* addr) #{})]
+    (->> (vals @fleet*)
+         (remove #(or (= addr (:addr %)) (and (:off? %) (forgotten (:id %)))))
+         (map (fn [m] {:id      (:id m)
+                       :address {:host (:addr m) :port port}
+                       :state   (if (:off? m) :offline :online)}))
+         (sort-by :id)
+         vec)))
+
 
 (defn- update-machine! [addr f & args]
   (apply swap! fleet* update addr f args))
@@ -291,7 +304,8 @@
 
    "system/restart"  (fn [_] (reboot! addr))
    "system/poweroff" (fn [_] (power! addr true))
-})
+
+   "peers/forget"    (fn [{:keys [id]}] (update-machine! addr update :forgotten (fnil conj #{}) id))})
 
 (defn- with-handlers [specs hs]
   (assert (= (set (keys specs)) (set (keys hs)))
@@ -343,7 +357,9 @@
                          (merge (gate (routes/commands {:base "commands"
                                                         :commands (with-handlers api/commands (handlers addr apps))}))
                                 (routes/queries {:base "query/machine"
-                                                 :nodes (with-nodes (nodes addr apps))})))}}})))
+                                                 :nodes (with-nodes (nodes addr apps))})
+                                (routes/queries {:base "query/peers"
+                                                 :nodes {"" #(peers addr)}})))}}})))
 
 
 ;; ── the one listener ────────────────────────────────────────────────────────
