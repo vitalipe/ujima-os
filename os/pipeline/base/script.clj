@@ -3,7 +3,7 @@
    strips the first-boot machinery, disables cloud-init, and provisions the login user
    (passwordless console autologin + passwordless sudo) — a clean, bootable, logged-in machine
    that the ujimad/desktop layers build on. Static files live in os/pipeline/base/<concern>/ (login,
-   identity, x11, network); this script is the pulls + the actions. (fstab + boot units → the ujimaify stage.)
+   identity, x11, network, smb); this script is the pulls + the actions. (fstab + boot units → the ujimaify stage.)
 
    Pipeline: install -> boot -> base -> runtime -> desktop -> ujimaify -> [dev] -> [cleanup].
 
@@ -91,4 +91,12 @@
     ;;    named children.
     (doseq [dir ["/ujima/settings" "/ujima/logs" "/ujima/storage"
                  "/var/log/journal"]]
-      (fs/create-dirs dir))))
+      (fs/create-dirs dir))
+
+    ;; 8. file sharing: the one static Samba config (the shares are two symlink roots ujimad
+    ;;    fills at runtime), with smbd left for ujimad to start, and only while something is
+    ;;    shared; the NetBIOS and winbind daemons never run
+    (files/install! project "base/smb/smb.conf" "/etc/samba/smb.conf")
+    ($! systemctl disable "smbd")
+    (doseq [unit ["nmbd.service" "winbind.service"]]
+      (mask! unit))))

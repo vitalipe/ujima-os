@@ -78,6 +78,15 @@
     ($! apt-get install -y --no-install-recommends
         "pipewire" "pipewire-pulse" "pipewire-alsa" "wireplumber")
 
+    ;; file sharing: smbd serves this machine's shared folders to the circle; the client side
+    ;; (cifs-utils, the cifs module) rides the raspios base. The policy-rc.d keeps the postinst's
+    ;; init script from starting a default smbd inside the chroot; base disables the unit, and
+    ;; ujimad starts it when there is something to share.
+    (spit "/usr/sbin/policy-rc.d" "#!/bin/sh\nexit 101\n")
+    ($! chmod "0755" "/usr/sbin/policy-rc.d")
+    (try ($! apt-get install -y --no-install-recommends "samba")
+         (finally ($! rm -f "/usr/sbin/policy-rc.d")))
+
     ;; classroom apps the launcher opens: install recipes live in each app's os/apps/<id>/install.edn —
     ;; scanned by build.apps. Runs HERE so the app packages — libreoffice,
     ;; chromium, inkscape, the fetched TurboWarp, … — bake into the cached vendor base instead of

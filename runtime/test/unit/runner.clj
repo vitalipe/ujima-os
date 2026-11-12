@@ -33,6 +33,7 @@
             [ujima.linux.i3-test]
             [ujima.linux.net-test]
             [ujima.linux.net.wifi-test]
+            [ujima.linux.smb-test]
             [ujima.linux.systemd-test]
             [ujima.linux.memory-test]
             [ujima.linux.disk.block-test]
@@ -85,6 +86,7 @@
     ujima.linux.i3-test
     ujima.linux.net-test
     ujima.linux.net.wifi-test
+    ujima.linux.smb-test
     ujima.linux.systemd-test
     ujima.linux.memory-test
     ujima.linux.disk.block-test
