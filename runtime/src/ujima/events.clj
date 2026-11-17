@@ -18,9 +18,9 @@
             [ujima.desktop.places        :as places]
             [ujima.desktop.http.converge :as shell-http-converge]
 
-            [ujima.events.audio :as audio-events]
-            [ujima.events.clock :as clock-events]
-            [ujima.events.token :as token-events]))
+            [ujima.events.audio  :as audio-events]
+            [ujima.events.clock  :as clock-events]
+            [ujima.events.token  :as token-events]))
 
 
 (defn listen!
@@ -60,8 +60,9 @@
   (log/info "starting event listeners")
 
 
-  ;; settings -> OS, UI
+  ;; settings -> OS, the share roots, UI
   (control/on-converge! linux/converge!)
+  (control/on-converge! places/converge-shares!)
   (control/on-converge! shell-http-converge/converge-ui!)
 
   ;; apps -> UI (the shell reads the bars' visibility off it too)

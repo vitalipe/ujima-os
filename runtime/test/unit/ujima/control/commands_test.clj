@@ -98,3 +98,85 @@
       (is (= [:device {}] @cleared) "the whole scope map empties")
       (is (= :request/malformed
              (try (commands/clear-scope! :banana) (catch Exception e (:error (ex-data e)))))))))
+
+
+;; ── shares ────────────────────────────────────────────────────────────────────
+
+(defn- with-shares
+  "F over a record holding SCOPES' lists, the write captured."
+  [scopes f]
+  (let [written (atom nil)]
+    (with-redefs [control/setting   (constantly {:scopes scopes})
+                  control/settings! (fn [scope k v] (reset! written [scope k v]) {})]
+      (try {:ack (f) :wrote @written}
+           (catch clojure.lang.ExceptionInfo e
+             {:error (:error (ex-data e)) :message (ex-message e)})))))
+
+(def ^:private stick [:usb "6962-5E15"])
+(def ^:private math  {:place stick :path "Grade 5/math" :name "math" :access :ro})
+
+
+(deftest add-share-stores-the-folder-canonically-under-its-own-name
+  (is (= {:ack   math
+          :wrote [:session [:storage :shares] [math]]}
+         (with-shares {:session [] :device []}
+           #(commands/add-share! {:place stick :path "./Grade 5//math/"} :session)))
+      "empty and dot segments go; the folder's name; read-only unless asked"))
+
+
+(deftest sharing-a-folder-again-changes-what-is-given-and-keeps-the-rest
+  (let [renamed (assoc math :name "Maths" :access :rw)]
+    (is (= [renamed]
+           (-> (with-shares {:session [math] :device []}
+                 #(commands/add-share! {:place stick :path "Grade 5/math" :name "Maths" :access :rw} :session))
+               :wrote (nth 2)))
+        "one entry per folder, not two")
+    (is (= renamed
+           (:ack (with-shares {:session [renamed] :device []}
+                   #(commands/add-share! {:place stick :path "Grade 5/math"} :session))))
+        "re-added with nothing said: the name and access it has, not the defaults")))
+
+
+(deftest a-shares-name-is-unique-across-both-lists
+  (is (= :shares/name-taken
+         (:error (with-shares {:session [math] :device []}
+                   #(commands/add-share! {:place stick :path "Photos" :name "math"} :session)))))
+  (is (= :shares/name-taken
+         (:error (with-shares {:session [] :device [(assoc math :place [:local "storage"])]}
+                   #(commands/add-share! {:place stick :path "Grade 5/math"} :session))))
+      "the admin's list counts too")
+  (is (= "math"
+         (:name (:ack (with-shares {:session [math] :device []}
+                        #(commands/add-share! {:place stick :path "Grade 5/math"} :session)))))
+      "the folder's own entry is not a clash with itself"))
+
+
+(deftest a-path-out-of-the-place-is-malformed
+  (doseq [path ["../etc" "a/../../etc" "/etc" ".." "."]]
+    (is (= :request/malformed
+           (:error (with-shares {:session [] :device []}
+                     #(commands/add-share! {:place stick :path path} :session))))
+        path))
+  (is (= "a..b" (:name (:ack (with-shares {:session [] :device []}
+                               #(commands/add-share! {:place stick :path "x/a..b"} :session)))))
+      "dots inside a name are a name"))
+
+
+(deftest remove-share-finds-the-folder-or-refuses
+  (is (= {:ack   {:removed [stick "Grade 5/math"]}
+          :wrote [:session [:storage :shares] []]}
+         (with-shares {:session [math] :device []}
+           #(commands/remove-share! {:place stick :path "Grade 5/math/"} :session))))
+  (is (= :shares/unknown-share
+         (:error (with-shares {:session [math] :device []}
+                   #(commands/remove-share! {:place stick :path "Photos"} :session)))))
+  (is (= :shares/unknown-share
+         (:error (with-shares {:session [math] :device []}
+                   #(commands/remove-share! {:place stick :path "Grade 5/math"} :device))))
+      "each list is its own: the session's share is not the device's to remove"))
+
+
+(deftest shares-take-only-their-scopes
+  (is (= :request/malformed
+         (:error (with-shares {:session [] :device []}
+                   #(commands/add-share! {:place stick :path "Photos"} :activity))))))

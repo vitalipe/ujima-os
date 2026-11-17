@@ -1,13 +1,12 @@
 (ns ujima.desktop.places
-  "Places, presented. Projections of the storage plane's entries, from ONE source of names:
-   the wire blob that /stream/places carries (the Files app's cards); the user's home — the
-   Places screen IS home: one entry per ready place, named as its card, so a dialog opened at ~
-   shows the same places the Files app does and GTK's crumbs collapse behind the home button; and
-   the by-id root, every mounted place under <kind>/<id>, one fixed path per place while it is
-   mounted. Each is a directory of symlinks reconciled on the storage arrow
-   (ujima.desktop.places.links)."
+  "Places, presented: the blob /stream/places carries, and three directories of links, each
+   reconciled on its arrow by ujima.desktop.places.links:
+     ~/USB Stick                      -> /ujima/run/storage/6962-5E15                 home = the Places screen
+     /ujima/run/places/usb/6962-5E15  -> /ujima/run/storage/6962-5E15                 every mounted place, by id
+     /ujima/run/shares/rw/math        -> /ujima/run/places/usb/6962-5E15/Grade 5/math  the Samba roots"
   (:require [babashka.fs                :as fs]
             [ujima.desktop.places.links :as links]
+            [ujima.linux.smb            :as smb]
             [ujima.log                  :as log]))
 
 
@@ -48,9 +47,20 @@
 
 
 (defn places->ui
-  "Storage entries -> the places blob. The wire contract; :name is the display name."
-  [entries]
-  {:places (number-sticks (mapv entry->place entries))})
+  "Entries, shares -> the wire blob: each place with its own shares as
+   [{:name \"math\" :path \"Grade 5/math\" :access :rw}]."
+  ([entries] (places->ui entries []))
+  ([entries shares]
+   (let [by-place (group-by :place shares)]
+     {:places (mapv (fn [{:keys [id] :as place}]
+                      (assoc place :shares (mapv #(select-keys % [:name :path :access]) (by-place id))))
+                    (number-sticks (mapv entry->place entries)))})))
+
+
+(defn live-shares
+  "The places blob -> the shares of its ready places."
+  [{:keys [places]}]
+  (into [] (comp (filter #(= :ready (:state %))) (mapcat :shares)) places))
 
 
 ;; --- home: the Places screen on disk -----------------------------------------
@@ -99,7 +109,7 @@
       (links/reconcile! (fs/path places-dir kind) (get wanted kind {})))))
 
 
-;; --- the storage arrow --------------------------------------------------------
+;; --- the two arrows -----------------------------------------------------------
 
 (defn converge!
   "The storage arrow: entries -> the by-id root and home. Fails loud in the log, never into
@@ -115,3 +125,13 @@
            (catch Throwable e
              (log/error "places: home projection failed" {:root home :error (ex-message e)}))))))
 
+
+(defn converge-shares!
+  "The settings arrow: /ujima/run/shares/rw/math -> /ujima/run/places/usb/6962-5E15/Grade 5/math,
+   dangling while the stick is out."
+  [settings _prv]
+  (let [shares (:effective (get settings [:storage :shares]))]
+    (doseq [[access root] smb/roots]
+      (links/reconcile! root (into {} (for [{:keys [place path name] :as share} shares
+                                            :when (= access (:access share))]
+                                        [name (str (fs/path (place-path place) path))]))))))

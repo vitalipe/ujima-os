@@ -4,6 +4,7 @@
    are not domain state, the catalog, and files. The verbs mirror /api's for this
    machine only — no :scope, because this tier IS the session."
   (:require [lib.http.routes             :as routes]
+            [schema.ujima.settings       :as settings]
             [ujima.control.commands      :as effects]
             [ujima.desktop.app           :as app]
             [ujima.desktop.http.converge :as converge]
@@ -54,7 +55,19 @@
 
    "audio/volume" {:doc     "Set the active output's volume; the effect clamps to 0-100."
                    :params  [:map [:value [:or :int :double]]]
-                   :handler (fn [{:keys [value]}] (effects/change-current-volume! value :session))}})
+                   :handler (fn [{:keys [value]}] (effects/change-current-volume! value :session))}
+
+   ;; the session's shares; whether :path is a folder is the app's business
+   "shares/add"    {:doc     "Share a folder inside a place, :ro by default, under :name (the folder's by default); the same folder again changes its access or name."
+                    :params  [:map [:place settings/place-id] [:path [:string {:min 1}]]
+                                   [:access {:optional true} [:enum :ro :rw]]
+                                   [:name   {:optional true} settings/share-name]]
+                    :reply   true
+                    :handler (fn [share] (effects/add-share! share :session))}
+
+   "shares/remove" {:doc     "Unshare a folder."
+                    :params  [:map [:place settings/place-id] [:path [:string {:min 1}]]]
+                    :handler (fn [share] (effects/remove-share! share :session))}})
 
 
 ;; --- what this module serves ---------------------------------------------
@@ -64,7 +77,9 @@
   {:errors {:app/unknown-app         404
             :app/bad-url             400
             :keyboard/unknown-layout 409
-            :audio/no-output         409}
+            :audio/no-output         409
+            :shares/name-taken       409
+            :shares/unknown-share    404}
 
    :routes
    (merge

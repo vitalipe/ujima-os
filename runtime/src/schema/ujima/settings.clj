@@ -37,6 +37,19 @@
   (into [:enum {:error/message "not an XKB layout ujima knows"}] xkb/names))
 
 
+;; the desktop's share verbs take these shapes too
+(def place-id   [:tuple [:enum :local :usb :session] :string])
+(def share-name [:re {:error/message "1-64 characters, no slash, not starting with a dot"}
+                 #"^[^./\p{Cntrl}][^/\p{Cntrl}]{0,63}$"])
+(def share-path [:re {:error/message "a relative path inside the place, no .. segments"}
+                 #"^(?!.*(^|/)\.\.(/|$))[^/].*$"])
+(def share      [:map
+                 [:place  place-id]
+                 [:path   share-path]
+                 [:name   share-name]
+                 [:access [:enum :ro :rw]]])
+
+
 (def settings [{:key     [:circle :name]
                 :doc     "The circle's label"
                 :default "UjimaOS"
@@ -128,4 +141,10 @@
                 :doc     "HDMI output volume 0-100"
                 :default 70
                 :scopes  #{:device :session :activity}
-                :shape   [:int {:min 0 :max 100}]}])
+                :shape   [:int {:min 0 :max 100}]}
+
+               {:key     [:storage :shares]
+                :doc     "Folders shared with the circle: {:place [:usb \"6962-5E15\"] :path \"Grade 5/math\" :name \"math\" :access :rw}"
+                :default []
+                :scopes  #{:device :session}
+                :shape   [:vector share]}])

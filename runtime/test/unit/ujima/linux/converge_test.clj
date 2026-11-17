@@ -4,7 +4,8 @@
             [ujima.linux.audio      :as audio]
             [ujima.linux.keyboard   :as keyboard]
             [ujima.linux.system     :as system]
-            [ujima.linux.net.wifi   :as wifi]))
+            [ujima.linux.net.wifi   :as wifi]
+            [ujima.linux.smb        :as smb]))
 
 
 ;; Desired-vs-actual decision logic only (no OS): audio/full-topology and the setters are
@@ -12,7 +13,11 @@
 
 
 (defn- records  [settings] (update-vals settings #(hash-map :effective %)))
-(defn- converge! [settings] (converge/converge! (records settings) nil))
+
+;; the Samba account is stubbed out for every domain test but its own
+(defn- converge! [settings]
+  (with-redefs [smb/set-password! (fn [_] nil)]
+    (converge/converge! (records settings) nil)))
 
 
 (def ^:private world-hdmi-default
@@ -21,7 +26,8 @@
              :hdmi {:id 51 :name "hdmi-x" :volume 70  :muted false}}})
 
 (def ^:private base-settings
-  {[:audio :active]      :usb
+  {[:circle :token]       "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+   [:audio :active]      :usb
    [:audio :usb :volume]  40
    [:audio :hdmi :volume] 70
    [:audio :muted]        false
@@ -166,3 +172,17 @@
           (let [ahead (+ (System/currentTimeMillis) 60000)]
             (converge! (assoc base-settings [:system :clock :epoch-floor] ahead))
             (is (= ahead @set-to) "a lagging clock rises to the floor")))))))
+
+
+;; --- smb: the account follows the token ---------------------------------------
+
+(deftest the-samba-password-follows-the-token
+  (let [token    "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+        password (atom nil)]
+    (with-redefs [keyboard/layout     (constantly "us")
+                  system/timezone     (constantly "Africa/Dar_es_Salaam")
+                  wifi/radio          (constantly false)
+                  audio/full-topology (constantly {:default nil :sinks {}})
+                  smb/set-password!   (fn [pw] (reset! password pw))]
+      (converge/converge! (records {[:circle :token] token [:network :wifi :mode] :off}) nil))
+    (is (= (smb/password-for token) @password))))

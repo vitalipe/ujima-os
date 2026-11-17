@@ -10,7 +10,8 @@
             [ujima.linux.system   :as system]
             [ujima.linux.keyboard :as keyboard]
             [ujima.linux.audio    :as audio]
-            [ujima.linux.net.wifi :as wifi]))
+            [ujima.linux.net.wifi :as wifi]
+            [ujima.linux.smb      :as smb]))
 
 
 ;; converge runs inside control's critical section — a wedged tool must become a
@@ -80,6 +81,12 @@
       (system/clock! floor))))
 
 
+(defn- converge-smb!
+  ;; the Samba account follows the token — every machine of the circle derives the same
+  [settings]
+  (smb/set-password! (smb/password-for (get settings [:circle :token]))))
+
+
 (defn converge!
   "Drive linux to match `settings` (control's records; the domains see values).
    Settings without a consumer here are simply not linux's business."
@@ -90,7 +97,8 @@
                           [:keyboard converge-keyboard!]
                           [:system   converge-system!]
                           [:wifi     converge-wifi!]
-                          [:clock    converge-clock!]]]
+                          [:clock    converge-clock!]
+                          [:smb      converge-smb!]]]
         (try (f values)
              (catch Throwable e
                (log/error "converge: domain failed" {:domain domain :error (ex-message e)}))))))

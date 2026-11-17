@@ -29,6 +29,8 @@ version truth; branch names and build labels may disagree.
   name, for launcher and dock tiles alike; an app declares it in app.edn as `:description`.
 - Every mounted place has one fixed path by its id, `/ujima/run/places/<kind>/<id>`, for as long
   as it is mounted.
+- A folder in This Computer, a stick or Temporary can be shared with the circle, read-only or
+  writable, under its own name, for the session; served over SMB, away while its stick is out.
 
 ### Changed
 

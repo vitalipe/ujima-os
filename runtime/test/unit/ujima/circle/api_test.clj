@@ -3,7 +3,7 @@
   (:require [clojure.test :refer [deftest is]]
             [clojure.string :as str]
             [babashka.fs  :as fs]
-            [ujima.storage]
+            [ujima.storage :as storage]
             [malli.core   :as m]
             [malli.error  :as me]
             [lib.edn      :refer [edn->json]]
@@ -12,6 +12,7 @@
             [ujima.linux.system :as system]
             [ujima.linux.disk   :as disk]
             [ujima.desktop.app  :as desktop]
+            [ujima.control.commands :as commands]
             [ujima.circle       :as circle]
             [ujima.circle.api   :as api]
             [schema.ujima.settings  :as defs]
@@ -64,6 +65,15 @@
              (select-keys (first places) [:mount :tokens]))
           "the root and the token types ride the wire")
       (is (not (str/includes? (pr-str places) "s3cret")) "a token's value never does"))))
+
+
+(deftest the-shares-node-is-the-live-shares-name-and-access-only
+  (fresh!)
+  (commands/add-share! {:place [:usb "U"] :path "a/b" :access :rw} :session)
+  (is (= [] (GET "/api/query/machine/shares")) "the stick is out: nothing is served")
+  (with-redefs [storage/snapshot (constantly [{:kind :usb :name "U" :state :mounted :storage "/ujima/run/storage/U"}])]
+    (is (= [{:name "b" :access :rw}] (GET "/api/query/machine/shares"))
+        "where a share lives on this machine is nobody else's business")))
 
 
 (deftest the-roster-answers-its-contract-and-forget-is-a-verb

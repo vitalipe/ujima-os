@@ -31,23 +31,6 @@
     @calls*))
 
 
-(deftest smbd-is-driven-to-the-state-asked
-  (is (= [["systemctl" "is-active" "--quiet" "smbd"]
-          ["sudo" "-n" "systemctl" "start" "smbd"]
-          ["systemctl" "is-active" "--quiet" "smbd"]]
-         (calls-of false #(smb/smbd! true)))
-      "down and wanted up: started")
-  (is (= [["systemctl" "is-active" "--quiet" "smbd"]
-          ["sudo" "-n" "systemctl" "stop" "smbd"]
-          ["systemctl" "is-active" "--quiet" "smbd"]]
-         (calls-of true #(smb/smbd! false)))
-      "up and wanted down: stopped")
-  (is (= [["systemctl" "is-active" "--quiet" "smbd"]
-          ["systemctl" "is-active" "--quiet" "smbd"]]
-         (calls-of true #(smb/smbd! true)))
-      "already as wanted: left alone"))
-
-
 (deftest a-peer-root-is-mounted-with-the-spike-options
   (let [dir (fs/create-temp-dir {:prefix "ujima-smb-test"})
         mnt (str (fs/path dir "rw"))

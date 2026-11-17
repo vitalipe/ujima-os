@@ -3,9 +3,11 @@
    whole settings plane, so this projects; the app layer projects before its
    targets run, so that one republishes as-is."
   (:require [lib.http.ndjson        :as ndjson]
+            [ujima.control          :as control]
             [ujima.control.queries  :as queries]
             [ujima.desktop.places   :as places]
-            [ujima.linux.devicetree :as devicetree]))
+            [ujima.linux.devicetree :as devicetree]
+            [ujima.storage          :as storage]))
 
 (def pinned-app-order {:files   0   ; the one a user reaches for — it must not move
                        :console 1})
@@ -49,9 +51,13 @@
                      (sort-by #(pinned-app-order (:id %) 99)))})
 
 
-(defn converge-ui!     [settings _prv] (ndjson/publish! :ui/state  (settings->ui settings @serial-tail)))
-(defn converge-apps!   [snapshot _prv] (ndjson/publish! :ui/apps   (apps->ui snapshot)))
-(defn converge-places! [entries  _prv] (ndjson/publish! :ui/places (places/places->ui entries)))
+(defn- publish-places! [entries shares] (ndjson/publish! :ui/places (places/places->ui entries shares)))
+
+;; the places blob is settings x storage: either arrow republishes it, publish! drops a repeat
+(defn converge-ui!     [settings _prv] (ndjson/publish! :ui/state (settings->ui settings @serial-tail))
+                                       (publish-places! (storage/snapshot) (:effective (get settings [:storage :shares]))))
+(defn converge-apps!   [snapshot _prv] (ndjson/publish! :ui/apps  (apps->ui snapshot)))
+(defn converge-places! [entries  _prv] (publish-places! entries (:effective (control/setting [:storage :shares]))))
 
 (defn stream-ui     [req] (ndjson/subscribe! :ui/state  req))
 (defn stream-apps   [req] (ndjson/subscribe! :ui/apps   req))

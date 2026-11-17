@@ -183,6 +183,7 @@
 
      "places"   (constantly [{:id [:local "storage"] :kind :local :name "This Computer" :state :ready
                              :mount "/ujima/storage" :storage "/ujima/storage/files" :tokens []}])
+     "shares"   (constantly [])
 
      "desktop/locked"  #(boolean (:locked (m)))
      "desktop/mode"    #(let [it (m)]

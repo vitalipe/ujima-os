@@ -3,6 +3,7 @@
    containment checked after the path resolves) and its verbs."
   (:require [clojure.test :refer [deftest is]]
             [babashka.fs  :as fs]
+            [clojure.string :as str]
             [lib.edn      :refer [edn->json]]
             [lib.http     :as http]
             [ujima.control.commands :as effects]
@@ -76,7 +77,25 @@
   (is (= 400 (:status (POST "/ujima-desktop/commands/app/open" {}))))
   (is (= 400 (:status (POST "/ujima-desktop/commands/app/open-url" {:url ""}))))
   (is (= 400 (:status (POST "/ujima-desktop/commands/audio/muted" {:value "maybe"}))))
-  (is (= 400 (:status (POST "/ujima-desktop/commands/audio/volume" {:value "loud"})))))
+  (is (= 400 (:status (POST "/ujima-desktop/commands/audio/volume" {:value "loud"}))))
+  (is (= 400 (:status (POST "/ujima-desktop/commands/shares/add" {:place "usb" :path "x"}))) "a place is an id")
+  (is (= 400 (:status (POST "/ujima-desktop/commands/shares/add" {:place ["peer" "x"] :path "x"}))) "never a peer's")
+  (is (= 400 (:status (POST "/ujima-desktop/commands/shares/add" {:place ["usb" "x"] :path ""}))))
+  (is (= 400 (:status (POST "/ujima-desktop/commands/shares/add" {:place ["usb" "x"] :path "x" :access "rwx"}))))
+  (is (= 400 (:status (POST "/ujima-desktop/commands/shares/add" {:place ["usb" "x"] :path "x" :name ".hidden"})))))
+
+
+(deftest the-share-verbs-reach-the-commands-at-the-session-and-answer-with-the-share
+  (let [seen (atom nil)]
+    (with-redefs [effects/add-share!    (fn [args scope] (reset! seen [:add args scope]) (assoc args :name "math" :access :ro))
+                  effects/remove-share! (fn [args scope] (reset! seen [:remove args scope]) nil)]
+      (let [r (POST "/ujima-desktop/commands/shares/add" {:place ["usb" "6962-5E15"] :path "Grade 5/math" :access "rw"})]
+        (is (= 200 (:status r)) "the share as stored comes back")
+        (is (str/includes? (str (:body r)) "math"))
+        (is (= [:add {:place [:usb "6962-5E15"] :path "Grade 5/math" :access :rw} :session] @seen)
+            "the id and the access decode to the stored shapes"))
+      (is (= 202 (:status (POST "/ujima-desktop/commands/shares/remove" {:place ["usb" "6962-5E15"] :path "Grade 5/math"}))))
+      (is (= [:remove {:place [:usb "6962-5E15"] :path "Grade 5/math"} :session] @seen)))))
 
 
 (deftest a-verbs-own-errors-are-named-here-too
@@ -89,7 +108,11 @@
     (with-redefs [app/run! (boom :app/unknown-app)]
       (is (= 404 (:status (POST "/ujima-desktop/commands/app/open" {:app "nope"})))))
     (with-redefs [app/open-url! (boom :app/bad-url)]
-      (is (= 400 (:status (POST "/ujima-desktop/commands/app/open-url" {:url "ftp://x"})))))))
+      (is (= 400 (:status (POST "/ujima-desktop/commands/app/open-url" {:url "ftp://x"})))))
+    (with-redefs [effects/add-share! (boom :shares/name-taken)]
+      (is (= 409 (:status (POST "/ujima-desktop/commands/shares/add" {:place ["usb" "x"] :path "x"})))))
+    (with-redefs [effects/remove-share! (boom :shares/unknown-share)]
+      (is (= 404 (:status (POST "/ujima-desktop/commands/shares/remove" {:place ["usb" "x"] :path "x"})))))))
 
 
 (deftest the-desktop-listener-has-no-api-tier

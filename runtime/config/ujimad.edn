@@ -18,7 +18,7 @@
            :auth {:window-ms 60000}}
 
  :desktop {:places-home "/home/ujima"                       ; the Places screen = home (ujima.desktop.home)
-           :places-dir  "/ujima/run/places"                  ; every mounted place by id, one fixed path while it is mounted
+           :places-dir  "/ujima/run/places"                  ; every mounted place by id — a share link points through it
 
            :http     {:host "127.0.0.1" :port 1336
                       :static-root "/ujima/desktop/shell"}

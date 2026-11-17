@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [babashka.fs :as fs]
             [ujima.desktop.places :as places]
+            [ujima.desktop.places.links :as links]
             [lib.edn :refer [edn->json]]))
 
 
@@ -27,7 +28,7 @@
 (deftest a-machine-partition-projects-as-the-local-place
   (is (= {:id [:local "storage"] :kind :local :name "This Computer" :state :ready
           :label "UJSTORE" :fstype "ext4"
-          :mount "/ujima/storage" :storage "/ujima/storage/files" :tokens []}
+          :mount "/ujima/storage" :storage "/ujima/storage/files" :tokens [] :shares []}
          (usb-place ujstore-entry))
       "the label's convention names the place; :apps stays off this wire"))
 
@@ -37,7 +38,7 @@
           :mount   "/ujima/run/storage/6962-5E15"
           :storage "/ujima/run/storage/6962-5E15"
           :label   nil :fstype "vfat"
-          :tokens  ["circle/secret"]}
+          :tokens  ["circle/secret"] :shares []}
          (usb-place mounted-entry))
       "plane plumbing (:rm :disk) stays behind; the root rides along so a registration
        resolves; tokens flatten to type names, ns/name strings since the wire drops namespaces"))
@@ -53,14 +54,14 @@
 
 (deftest an-unmounted-machine-partition-projects-invalid
   (is (= {:id [:local "storage"] :kind :local :name "This Computer" :state :invalid
-          :label "UJSTORE" :fstype "ext4" :reason "not mounted: /ujima/storage"}
+          :label "UJSTORE" :fstype "ext4" :reason "not mounted: /ujima/storage" :shares []}
          (usb-place {:label "UJSTORE" :fstype "ext4" :kind :local :name "storage"
                      :state :invalid :reason "not mounted: /ujima/storage"}))))
 
 
 (deftest an-invalid-partition-carries-why-and-no-storage-root
   (is (= {:id [:usb "X"] :kind :usb :name "USB Stick" :state :invalid :label "KEYS" :fstype "vfat"
-          :reason "mount: fail"}
+          :reason "mount: fail" :shares []}
          (usb-place {:kind :usb :name "X" :state :invalid :label "KEYS"
                      :fstype "vfat" :reason "mount: fail"}))))
 
@@ -99,6 +100,23 @@
   (let [mounting (assoc mounted-entry :uuid "2222-BBBB" :name "2222-BBBB" :label "B" :state :detected)]
     (is (= ["USB Stick" "USB Stick 2"] (names [(assoc mounted-entry :label "A") mounting]))
         "numbering is by presence, not readiness — a stick keeps its number when it becomes ready")))
+
+
+;; --- shares: each rides on its place --------------------------------------------
+
+(def ^:private shares
+  [{:place [:usb "6962-5E15"] :path "Grade 5/math" :name "math"  :access :rw}
+   {:place [:local "storage"] :path "Books"        :name "Books" :access :ro}
+   {:place [:usb "GONE"]      :path "x"            :name "x"     :access :ro}])
+
+(deftest a-share-rides-on-its-place
+  (let [blob (places/places->ui [ujstore-entry (assoc mounted-entry :state :detected)] shares)]
+    (is (= {"This Computer" [{:name "Books" :path "Books" :access :ro}]
+            "USB Stick"     [{:name "math" :path "Grade 5/math" :access :rw}]}
+           (into {} (map (juxt :name :shares)) (:places blob)))
+        "the place's own, as name path access; a share of a place not present rides nowhere")
+    (is (= [{:name "Books" :path "Books" :access :ro}] (places/live-shares blob))
+        "live = on a ready place: the stick is still mounting")))
 
 
 ;; --- home: the Places screen on disk -----------------------------------------
@@ -142,3 +160,17 @@
     (is (= "/ujima/run/places/usb/6962-5E15" (places/place-path [:usb "6962-5E15"]))
         "unconfigured, the path is the machine's")))
 
+
+;; --- the share roots: a link per share, into its place by id -------------------
+
+(deftest each-share-is-a-link-in-its-root-into-its-place-by-id
+  (let [roots (atom {})
+        under (fn [place path] (str (places/place-path place) "/" path))]
+    (places/init! {})
+    (with-redefs [links/reconcile! (fn [root wanted] (swap! roots assoc root wanted))]
+      (places/converge-shares! {[:storage :shares] {:effective shares}} nil))
+    (is (= {"/ujima/run/shares/rw" {"math"  (under [:usb "6962-5E15"] "Grade 5/math")}
+            "/ujima/run/shares/ro" {"Books" (under [:local "storage"] "Books")
+                                    "x"     (under [:usb "GONE"] "x")}}
+           @roots)
+        "mounted or not: a place that is out leaves its link dangling")))

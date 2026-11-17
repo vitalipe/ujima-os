@@ -82,6 +82,10 @@
 (def ^:private node-ttl-ms 500)
 (def ^:private live-nodes #{"system/clock-ms"})
 
+(defn- places-blob []
+  (places/places->ui (storage/snapshot) (:effective (control/setting [:storage :shares]))))
+
+
 (defn machine-nodes
   "The open machine tier, one node per source. A var, not a literal inside endpoints, so
    the sim can hold its fake tier to this one's shape."
@@ -98,7 +102,9 @@
                       :settings (disk/device->space (get-in system-disk [:slots slot :config]))})
 
    ;; the same blob the desktop's places stream carries: roots and token types, never values
-   "places"   (fn [] (:places (places/places->ui (storage/snapshot))))
+   "places"   (fn [] (:places (places-blob)))
+   ;; served right now, [{:name "math" :access :rw}]; the roster says where
+   "shares"   (fn [] (mapv #(select-keys % [:name :access]) (places/live-shares (places-blob))))
 
    "desktop/locked"  #(desktop/locked?)
    "desktop/mode"    #(desktop/mode-state)

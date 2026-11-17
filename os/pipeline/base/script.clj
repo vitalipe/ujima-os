@@ -93,10 +93,8 @@
                  "/var/log/journal"]]
       (fs/create-dirs dir))
 
-    ;; 8. file sharing: the one static Samba config (the shares are two symlink roots ujimad
-    ;;    fills at runtime), with smbd left for ujimad to start, and only while something is
-    ;;    shared; the NetBIOS and winbind daemons never run
+    ;; 8. file sharing: the one static Samba config — the shares are two symlink roots ujimad
+    ;;    fills at runtime; the NetBIOS and winbind daemons never run
     (files/install! project "base/smb/smb.conf" "/etc/samba/smb.conf")
-    ($! systemctl disable "smbd")
     (doseq [unit ["nmbd.service" "winbind.service"]]
       (mask! unit))))

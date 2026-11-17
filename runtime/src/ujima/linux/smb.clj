@@ -1,12 +1,10 @@
 (ns ujima.linux.smb
-  "Samba as the circle uses it: one account, `ujima`, whose password every machine derives
-   from the circle token; smbd up only on request; a peer's share root mounted over cifs.
-   The config is the image's (os/pipeline/base/smb/smb.conf): two shares, `rw` and `ro`,
-   each a directory of symlinks ujimad keeps."
+  "Samba as the circle uses it: the `ujima` account's password, derived from the circle token
+   on every machine; a peer's root mounted over cifs. smbd runs from boot on the image's
+   smb.conf: two shares, `rw` and `ro`, each a directory of links ujimad keeps."
   (:require [babashka.fs            :as fs]
             [lib.hmac               :as hmac]
             [lib.io                 :as io]
-            [lib.shell              :refer [$?]]
             [ujima.linux.disk.mount :as mount]
             [ujima.linux.sudo       :refer [sudo! sudo$!]]))
 
@@ -14,7 +12,6 @@
 (def ^:private account "ujima")
 (def ^:private tag     "smb-v1")
 (def ^:private run-dir "/ujima/run/smb")
-(def ^:private unit    "smbd")
 
 (def roots
   "The two shares smb.conf exports, by access, and the directory each serves."
@@ -58,20 +55,6 @@
   (let [path (run-file "credentials")]
     (io/spit-file-atomic! path (str "username=" account "\npassword=" password "\n"))
     path))
-
-
-;; ── serving ─────────────────────────────────────────────────────────────────
-
-(defn smbd? []
-  (:ok? ($? systemctl is-active --quiet [unit])))
-
-
-(defn smbd!
-  "smbd up or down as ON? says, left alone when it already is. The state after."
-  [on?]
-  (when (not= on? (smbd?))
-    (sudo$! systemctl [(if on? "start" "stop")] [unit]))
-  (smbd?))
 
 
 ;; ── mounting a peer ─────────────────────────────────────────────────────────
