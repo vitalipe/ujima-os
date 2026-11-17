@@ -1,5 +1,5 @@
 (ns ujima.desktop.places-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.test :refer [deftest is]]
             [clojure.string :as str]
             [babashka.fs :as fs]
             [ujima.desktop.places :as places]
@@ -103,8 +103,6 @@
 
 ;; --- home: the Places screen on disk -----------------------------------------
 
-(def ^:private root "/places/ujima")
-
 (def ^:private places
   [{:id [:local "storage"] :kind :local :name "This Computer" :state :ready :storage "/ujima/storage/files"}
    {:id [:session "files"] :kind :session :name "Temporary" :state :ready :storage "/places/ujima/Temporary"}
@@ -120,60 +118,27 @@
       "a place still mounting has no root yet; a trailing slash is normalized away"))
 
 
-(deftest a-fresh-home-gets-a-link-per-place-except-its-own-dir
-  (let [plan (places/plan root (places/wanted places) {"Temporary" {:type :dir}})]
-    (is (= {"This Computer" "/ujima/storage/files"
-            "USB Stick"     "/ujima/run/storage/6962-5E15/files"}
-           (:link plan))
-        "Temporary's storage root IS ~/Temporary — the dir is the entry, no link")
-    (is (= [] (:unlink plan)))
-    (is (= [] (:conflict plan)))))
-
-
-(deftest a-link-nobody-wants-goes-and-a-moved-one-is-remade
-  (let [existing {"This Computer" {:type :symlink :target "/ujima/storage/files"}
-                  "USB Stick"     {:type :symlink :target "/ujima/run/storage/OLD-UUID/files"}
-                  "USB Stick 2"   {:type :symlink :target "/ujima/run/storage/GONE/files"}
-                  "Temporary"     {:type :dir}}
-        plan     (places/plan root (places/wanted places) existing)]
-    (is (= {"USB Stick" "/ujima/run/storage/6962-5E15/files"} (:link plan)) "This Computer is already right")
-    (is (= #{"USB Stick 2" "USB Stick"} (set (:unlink plan))) "stale link gone, moved link unlinked before relinking")))
-
-
-(deftest a-real-entry-in-the-way-is-a-conflict-never-a-casualty
-  (let [existing {"This Computer" {:type :dir}
-                  "notes.txt"     {:type :file}}
-        plan     (places/plan root (places/wanted places) existing)]
-    (is (= [{:type :dir :name "This Computer" :wanted "/ujima/storage/files"}] (:conflict plan)))
-    (is (not (contains? (:link plan) "This Computer")))
-    (is (= [] (:unlink plan)) "a plain file is not ours to remove")))
-
-
-(deftest apply-makes-and-unmakes-links-on-a-real-dir
-  (let [home   (str (fs/create-temp-dir))
-        target (str (fs/create-temp-dir))]
-    (try
-      (testing "links appear"
-        (places/apply! home (places/plan home {"This Computer" target} {}))
-        (is (fs/sym-link? (fs/path home "This Computer")))
-        (is (= target (str (fs/read-link (fs/path home "This Computer"))))))
-      (testing "a real dir with a place's name survives a conflict"
-        (fs/create-dirs (fs/path home "USB Stick"))
-        (fs/create-file (fs/path home "USB Stick" "keep.txt"))
-        (places/apply! home (places/plan home {"This Computer" target "USB Stick" "/nowhere"}
-                                     {"This Computer" {:type :symlink :target target}
-                                      "USB Stick"     {:type :dir}}))
-        (is (fs/exists? (fs/path home "USB Stick" "keep.txt"))))
-      (testing "an unwanted link goes, its target untouched"
-        (fs/create-file (fs/path target "data.txt"))
-        (places/apply! home (places/plan home {} {"This Computer" {:type :symlink :target target}}))
-        (is (not (fs/exists? (fs/path home "This Computer") {:nofollow-links true})))
-        (is (fs/exists? (fs/path target "data.txt"))))
-      (finally
-        (fs/delete-tree home)
-        (fs/delete-tree target)))))
-
-
 (deftest no-root-means-off
   (places/init! {})
   (is (nil? (places/converge! [] nil)) "a dev host without :places-home never touches a home"))
+
+
+;; --- the by-id root: every mounted place, by id -------------------------------
+
+(deftest a-mounted-place-is-reachable-by-id
+  (let [dir (str (fs/create-temp-dir))]
+    (fs/create-dirs (fs/path dir "usb"))
+    (fs/create-sym-link (fs/path dir "usb" "OLD-UUID") "/ujima/run/storage/OLD-UUID")
+    (places/init! {:places-dir dir})
+    (places/converge! [ujstore-entry (assoc mounted-entry :state :detected)] nil)
+    (is (= (str dir "/local/storage") (places/place-path [:local "storage"])))
+    (is (= "/ujima/storage/files" (str (fs/read-link (fs/path dir "local" "storage"))))
+        "the link lands on the storage root, not the mount")
+    (is (not (fs/exists? (fs/path dir "usb" "OLD-UUID") {:nofollow-links true}))
+        "a previous run's stick is gone from every kind dir")
+    (is (not (fs/exists? (fs/path dir "usb" "6962-5E15") {:nofollow-links true}))
+        "a stick still mounting has no link yet")
+    (places/init! {})
+    (is (= "/ujima/run/places/usb/6962-5E15" (places/place-path [:usb "6962-5E15"]))
+        "unconfigured, the path is the machine's")))
+

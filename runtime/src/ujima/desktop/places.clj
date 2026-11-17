@@ -1,15 +1,14 @@
 (ns ujima.desktop.places
-  "Places, presented. Two projections of the storage plane's entries, from ONE source of names:
-   the wire blob that /stream/places carries (the Files app's cards), and the user's home — the
+  "Places, presented. Projections of the storage plane's entries, from ONE source of names:
+   the wire blob that /stream/places carries (the Files app's cards); the user's home — the
    Places screen IS home: one entry per ready place, named as its card, so a dialog opened at ~
-   shows the same places the Files app does and GTK's crumbs collapse behind the home button. A
-   place whose storage root already is ~/<name> (Temporary) is its own entry; every other place
-   is a symlink. Full reconcile on each storage converge: missing links made, stale links removed,
-   and nothing that is not a symlink is ever touched — a real file or dir where a link belongs is
-   a conflict, logged and left alone."
-  (:require [clojure.string :as str]
-            [babashka.fs    :as fs]
-            [ujima.log      :as log]))
+   shows the same places the Files app does and GTK's crumbs collapse behind the home button; and
+   the by-id root, every mounted place under <kind>/<id>, one fixed path per place while it is
+   mounted. Each is a directory of symlinks reconciled on the storage arrow
+   (ujima.desktop.places.links)."
+  (:require [babashka.fs                :as fs]
+            [ujima.desktop.places.links :as links]
+            [ujima.log                  :as log]))
 
 
 ;; --- the wire blob: what /stream/places carries ------------------------------
@@ -56,12 +55,13 @@
 
 ;; --- home: the Places screen on disk -----------------------------------------
 
-(defonce ^:private root* (atom nil))
+(defonce ^:private cfg* (atom {}))
+(def ^:private default-places-dir "/ujima/run/places")
 
 (defn init!
-  "PLACES-HOME is the dir that plays the Places screen; nil = off."
-  [{:keys [places-home]}]
-  (reset! root* places-home))
+  "PLACES-HOME is the dir that plays the Places screen, PLACES-DIR the by-id root; nil = off."
+  [{:keys [places-home places-dir]}]
+  (reset! cfg* {:home places-home :places-dir places-dir}))
 
 
 (defn wanted
@@ -72,60 +72,46 @@
              [name (str (fs/path storage))])))
 
 
-(defn- scan
-  "ROOT's visible entries -> {name {:type :symlink|:dir|:file :target}}. Dot entries are the
-   apps' own business and never looked at."
-  [root]
-  (into {} (for [p     (fs/list-dir root)
-                 :let  [name (fs/file-name p)]
-                 :when (not (str/starts-with? name "."))]
-             [name (cond (fs/sym-link? p)  {:type :symlink :target (str (fs/read-link p))}
-                         (fs/directory? p) {:type :dir}
-                         :else             {:type :file})])))
+;; --- the by-id root: every mounted place, by id -------------------------------
+
+(defn place-path
+  "[:usb \"6962-5E15\"] -> \"/ujima/run/places/usb/6962-5E15\": the place's storage root, by id,
+   while it is mounted."
+  [[kind id]]
+  (str (fs/path (or (:places-dir @cfg*) default-places-dir) (name kind) id)))
 
 
-(defn plan
-  "WANTED {name target} against EXISTING (scan) -> {:link {name target} :unlink [names]
-   :conflict [entries]}. Pure. A link whose target moved is unlinked then linked."
-  [root wanted existing]
-  (let [own?  (fn [name target] (= (str (fs/path root name)) target))
-        stale (vec (for [[name {:keys [type]}] existing
-                         :when (and (= :symlink type) (not (contains? wanted name)))]
-                     name))]
-    (reduce-kv
-     (fn [plan name target]
-       (let [{:keys [type] :as entry} (get existing name)]
-         (cond
-           (nil? entry)         (update plan :link assoc name target)
-           (= :symlink type)    (if (= target (:target entry))
-                                  plan
-                                  (-> plan (update :unlink conj name) (update :link assoc name target)))
-           (own? name target)   plan
-           :else                (update plan :conflict conj (assoc entry :name name :wanted target)))))
-     {:link {} :unlink stale :conflict []}
-     wanted)))
+(defn- by-id
+  "Storage entries -> {kind {id storage-root}}, the mounted ones."
+  [entries]
+  (into {} (for [[kind entries] (group-by :kind entries)]
+             [(name kind) (into {} (for [{id :name :keys [state storage]} entries
+                                         :when (and (= :mounted state) storage)]
+                                     [id (str (fs/path storage))]))])))
 
 
-(defn apply!
-  "Effect a plan on ROOT. Unlinks first, so a moved link is remade cleanly."
-  [root {:keys [link unlink conflict]}]
-  (doseq [name unlink]
-    (fs/delete (fs/path root name)))                 ; the link itself — never its target
-  (doseq [[name target] link]
-    (fs/create-sym-link (fs/path root name) target))
-  (doseq [entry conflict]
-    (log/error "places: something that is not a link sits where a place belongs — left alone" entry))
-  (when (or (seq link) (seq unlink))
-    (log/info "places: home reconciled" {:linked (vec (keys link)) :unlinked unlink})))
+(defn- publish-by-id!
+  "PLACES-DIR holds, per kind, a link per mounted entry to its storage root."
+  [places-dir entries]
+  (let [wanted  (by-id entries)
+        on-disk (when (fs/directory? places-dir) (map fs/file-name (fs/list-dir places-dir)))]
+    (doseq [kind (into #{} (concat (keys wanted) on-disk))]
+      (links/reconcile! (fs/path places-dir kind) (get wanted kind {})))))
 
+
+;; --- the storage arrow --------------------------------------------------------
 
 (defn converge!
-  "The storage arrow: entries -> home. Fails loud in the log, never into the plane."
+  "The storage arrow: entries -> the by-id root and home. Fails loud in the log, never into
+   the plane."
   [entries _prv]
-  (when-some [root @root*]
-    (try
-      (fs/create-dirs root)
-      (let [places (:places (places->ui entries))]
-        (apply! root (plan root (wanted places) (scan root))))
-      (catch Throwable e
-        (log/error "places: home projection failed" {:root root :error (ex-message e)})))))
+  (let [{:keys [places-dir home]} @cfg*]
+    (when places-dir
+      (try (publish-by-id! places-dir entries)
+           (catch Throwable e
+             (log/error "places: by-id root failed" {:root places-dir :error (ex-message e)}))))
+    (when home
+      (try (links/reconcile! home (wanted (:places (places->ui entries))))
+           (catch Throwable e
+             (log/error "places: home projection failed" {:root home :error (ex-message e)}))))))
+

@@ -27,6 +27,8 @@ version truth; branch names and build labels may disagree.
   right-click menu on an item and on the folder offers the toolbar's actions.
 - The launcher names the app under the pointer and shows its one-line description under the machine
   name, for launcher and dock tiles alike; an app declares it in app.edn as `:description`.
+- Every mounted place has one fixed path by its id, `/ujima/run/places/<kind>/<id>`, for as long
+  as it is mounted.
 
 ### Changed
 

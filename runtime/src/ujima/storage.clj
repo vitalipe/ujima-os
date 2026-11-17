@@ -5,8 +5,7 @@
    the critical section is a swap and a derive, never the 40ms of mounting.
 
    Storage sweeps for markers and reports what it finds; it never interprets them."
-  (:require [clojure.core.async     :as async]
-            [babashka.fs            :as fs]
+  (:require [babashka.fs            :as fs]
             [cheshire.core          :as json]
             [lib.io                 :as io]
             [lib.task               :as task]
@@ -114,7 +113,7 @@
 
 ;; --- the write path (serialized) --------------------------------------------
 
-(declare converge!)
+(declare act! converge!)
 
 
 (defn- provision-root [backing sub]
@@ -140,46 +139,65 @@
 
 (defn- ->mount-task [fstype uuid mnt conv]
   (flow :storage/mount
-    
+
     (fs/create-dirs mnt)
-    
+
     (mount/umount-lazy! mnt)
+
     (when-let [fsck! (fsck-of fstype)]
       (let [r (fsck! (str "/dev/disk/by-uuid/" uuid))]
         (when-not (:ok? r)
           (log/warn "storage: fsck did not come back clean" {:uuid uuid :fstype fstype}))))
+
     (mount/mount! fstype {:UUID uuid} mnt (mount-opts fstype default-opts))
 
-    ;; departed while we were mounting: observe! released the point before we took it
-    (if (@partitions* uuid)
-      {:mount   mnt
-       :storage (provision-root mnt (:storage conv))
-       :tokens  (if (:tokens conv) (sweep mnt) {})}
-      (do (release-mount! mnt) nil))))
+    {:mount   mnt
+     :storage (provision-root mnt (:storage conv))
+     :tokens  (if (:tokens conv) (sweep mnt) {})}))
 
 
-(defn- start-mount! [uuid {:keys [fstype label]}]
+(defn- start-mount!
+  "The mount runs off the lock; the pass after it runs under it — act! releases the point if
+   the stick left meanwhile."
+  [uuid {:keys [fstype label]}]
   (let [t (->mount-task fstype uuid (mount-of uuid) (schema/convention label))]
     (swap! partitions* assoc-in [uuid :task] t)
+    (task/run!
+      (flow :storage/land
+        (task/run!! t)
+        (try (locking lock (act!) (converge!))
+             (catch Throwable e
+               (log/error "storage: the pass after a mount failed" {:uuid uuid :error (ex-message e)})))))))
 
-    (async/thread
-      (task/run!! t)
-      (locking lock (converge!)))))
 
-
-(defn- observe! [partitions]
-  (doseq [uuid (remove (set (keys partitions)) (keys @partitions*))]
-    (release-mount! (mount-of uuid)))
+(defn- observe!
+  "Linux's partitions -> the known map: a new uuid has no task, a known one keeps its task,
+   a departed one is gone. State only; act! does the rest."
+  [partitions]
   (swap! partitions*
          (fn [prev]
            (into {} (for [[uuid facts] partitions]
                       [uuid {:facts facts :task (get-in prev [uuid :task])}])))))
 
 
-(defn- act! []
-  (doseq [[uuid {:keys [facts task]}] @partitions*
-          :when (= :detected (task->state task))]
-    (start-mount! uuid facts)))
+(defn- release-departed!
+  "MOUNTS-DIR holds one point per known partition; every other one is released — a stick
+   that left this run, or while ujimad was down."
+  [mounts-dir]
+  (doseq [m     (when (fs/directory? mounts-dir) (fs/list-dir mounts-dir))
+          :when (not (contains? @partitions* (fs/file-name m)))]
+    (release-mount! (str m))))
+
+
+(defn- act!
+  "The world made to match the known partitions: departed mount points released, a mount
+   task per detected partition. A mount lands on its own thread, which acts and converges
+   again."
+  []
+  (release-departed! (:mounts-dir @cfg*))
+  (doseq [[uuid {:keys [facts task]}] @partitions*]
+    (when (= :detected (task->state task))
+      (start-mount! uuid facts))))
 
 
 (defn- converge! []
@@ -200,17 +218,6 @@
 
 
 ;; --- wiring + read side -----------------------------------------------------
-
-(defn- release-all-mounts!
-  "EVERY mount under MOUNTS-DIR, no questions asked: init! runs it before this run has
-   mounted anything, so what is there came from a previous one — and a partition that left
-   while ujimad was down has no entry and no task, so nothing else can ever reap it."
-  [mounts-dir]
-  (let [mounts (when (fs/directory? mounts-dir) (fs/list-dir mounts-dir))]
-    (when (seq mounts)
-      (log/info "storage: releasing mounts from a previous run" {:count (count mounts)})
-      (doseq [m mounts] (release-mount! (str m))))))
-
 
 (defn- builtin-entry
   "A config-declared place, resolved by kind. :local is checked, never created — a
@@ -234,8 +241,7 @@
     (reset! prev*       nil)
     (reset! builtin-places* (mapv builtin-entry places))
     (reset! cfg*        {:mounts-dir mounts-dir :targets []})
-    (release-all-mounts! mounts-dir)
-    (locking lock (converge!))
+    (locking lock (act!) (converge!))
     nil))
 
 

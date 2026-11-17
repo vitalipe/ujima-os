@@ -34,6 +34,7 @@
             [ujima.linux.net-test]
             [ujima.linux.net.wifi-test]
             [ujima.linux.smb-test]
+            [ujima.desktop.places.links-test]
             [ujima.linux.systemd-test]
             [ujima.linux.memory-test]
             [ujima.linux.disk.block-test]
@@ -87,6 +88,7 @@
     ujima.linux.net-test
     ujima.linux.net.wifi-test
     ujima.linux.smb-test
+    ujima.desktop.places.links-test
     ujima.linux.systemd-test
     ujima.linux.memory-test
     ujima.linux.disk.block-test

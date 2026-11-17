@@ -127,6 +127,18 @@
       (is (= [entry] (storage/snapshot)) "a udev pass must not drop it"))))
 
 
+(deftest a-mount-point-without-a-partition-is-released
+  (let [mounts   (str (fs/create-temp-dir))
+        released (atom [])]
+    (fs/create-dirs (fs/path mounts "GONE-UUID"))
+    (with-redefs [mount/umount-lazy! (fn [mnt] (swap! released conj (str mnt)) true)]
+      (storage/init! {:mounts-dir mounts :places []})
+      (is (= [(str (fs/path mounts "GONE-UUID"))] @released) "lazily, device or not")
+      (is (not (fs/exists? (fs/path mounts "GONE-UUID"))) "and its point is gone")
+      (storage/handle-event! {:partitions {}})
+      (is (= 1 (count @released)) "the next pass finds nothing to release"))))
+
+
 (deftest an-unmounted-local-place-tells-the-truth
   (with-redefs [mount/mount-point? (constantly false)
                 fs/create-dirs     (fn [_] (throw (ex-info "must not mkdir a :local" {})))]
