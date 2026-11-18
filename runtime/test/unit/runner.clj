@@ -27,6 +27,9 @@
             [ujima.control.commands-test]
             [ujima.control.queries-test]
             [ujima.circle-test]
+            [ujima.circle.beat-test]
+            [ujima.circle.peers-test]
+            [ujima.circle.self-test]
             [ujima.circle.api-test]
 
             [ujima.linux.audio-test]
@@ -81,6 +84,9 @@
     ujima.control.commands-test
     ujima.control.queries-test
     ujima.circle-test
+    ujima.circle.beat-test
+    ujima.circle.peers-test
+    ujima.circle.self-test
     ujima.circle.api-test
 
     ujima.linux.audio-test

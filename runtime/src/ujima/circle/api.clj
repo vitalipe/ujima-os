@@ -13,6 +13,7 @@
             [ujima.desktop.app      :as desktop]
             [ujima.desktop.places   :as places]
             [ujima.circle           :as circle]
+            [ujima.circle.self      :as self]
             [ujima.storage          :as storage]
             [ujima.linux.devicetree :as devicetree]
             [ujima.linux.disk       :as disk]
@@ -83,7 +84,7 @@
 (def ^:private live-nodes #{"system/clock-ms"})
 
 (defn- places-blob []
-  (places/places->ui (storage/snapshot) (:effective (control/setting [:storage :shares]))))
+  (places/places->ui (storage/snapshot) (:shares (self/snapshot))))
 
 
 (defn machine-nodes
@@ -103,8 +104,8 @@
 
    ;; the same blob the desktop's places stream carries: roots and token types, never values
    "places"   (fn [] (:places (places-blob)))
-   ;; served right now, [{:name "math" :access :rw}]; the roster says where
-   "shares"   (fn [] (mapv #(select-keys % [:name :access]) (places/live-shares (places-blob))))
+   ;; served right now; query/peers says where
+   "shares"   #(:published (self/snapshot))
 
    "desktop/locked"  #(desktop/locked?)
    "desktop/mode"    #(desktop/mode-state)

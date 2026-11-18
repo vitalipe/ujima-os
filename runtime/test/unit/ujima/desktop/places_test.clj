@@ -114,9 +114,7 @@
     (is (= {"This Computer" [{:name "Books" :path "Books" :access :ro}]
             "USB Stick"     [{:name "math" :path "Grade 5/math" :access :rw}]}
            (into {} (map (juxt :name :shares)) (:places blob)))
-        "the place's own, as name path access; a share of a place not present rides nowhere")
-    (is (= [{:name "Books" :path "Books" :access :ro}] (places/live-shares blob))
-        "live = on a ready place: the stick is still mounting")))
+        "the place's own, as name path access; a share of a place not present rides nowhere")))
 
 
 ;; --- home: the Places screen on disk -----------------------------------------
@@ -168,7 +166,7 @@
         under (fn [place path] (str (places/place-path place) "/" path))]
     (places/init! {})
     (with-redefs [links/reconcile! (fn [root wanted] (swap! roots assoc root wanted))]
-      (places/converge-shares! {[:storage :shares] {:effective shares}} nil))
+      (places/converge-shares! {:shares shares} nil))
     (is (= {"/ujima/run/shares/rw" {"math"  (under [:usb "6962-5E15"] "Grade 5/math")}
             "/ujima/run/shares/ro" {"Books" (under [:local "storage"] "Books")
                                     "x"     (under [:usb "GONE"] "x")}}

@@ -57,12 +57,6 @@
                     (number-sticks (mapv entry->place entries)))})))
 
 
-(defn live-shares
-  "The places blob -> the shares of its ready places."
-  [{:keys [places]}]
-  (into [] (comp (filter #(= :ready (:state %))) (mapcat :shares)) places))
-
-
 ;; --- home: the Places screen on disk -----------------------------------------
 
 (defonce ^:private cfg* (atom {}))
@@ -127,11 +121,10 @@
 
 
 (defn converge-shares!
-  "The settings arrow: /ujima/run/shares/rw/math -> /ujima/run/places/usb/6962-5E15/Grade 5/math,
+  "The self arrow: /ujima/run/shares/rw/math -> /ujima/run/places/usb/6962-5E15/Grade 5/math,
    dangling while the stick is out."
-  [settings _prv]
-  (let [shares (:effective (get settings [:storage :shares]))]
-    (doseq [[access root] smb/roots]
-      (links/reconcile! root (into {} (for [{:keys [place path name] :as share} shares
-                                            :when (= access (:access share))]
-                                        [name (str (fs/path (place-path place) path))]))))))
+  [{:keys [shares]} _prv]
+  (doseq [[access root] smb/roots]
+    (links/reconcile! root (into {} (for [{:keys [place path name] :as share} shares
+                                          :when (= access (:access share))]
+                                      [name (str (fs/path (place-path place) path))])))))

@@ -12,8 +12,9 @@
             [ujima.linux.system :as system]
             [ujima.linux.disk   :as disk]
             [ujima.desktop.app  :as desktop]
-            [ujima.control.commands :as commands]
             [ujima.circle       :as circle]
+            [ujima.circle.beat  :as beat]
+            [ujima.circle.self  :as self]
             [ujima.circle.api   :as api]
             [schema.ujima.settings  :as defs]
             [schema.ujima.api.query :as query]))
@@ -21,6 +22,7 @@
 
 (defn- fresh! []
   (let [dir (str (fs/create-temp-dir))]
+    (self/init!)
     (control/init! {:storage dir :tmp dir})))
 
 (defn- call
@@ -67,18 +69,18 @@
       (is (not (str/includes? (pr-str places) "s3cret")) "a token's value never does"))))
 
 
-(deftest the-shares-node-is-the-live-shares-name-and-access-only
+(deftest the-shares-node-is-what-self-publishes-name-and-access-only
   (fresh!)
-  (commands/add-share! {:place [:usb "U"] :path "a/b" :access :rw} :session)
+  (self/share! {:place [:usb "U"] :path "a/b" :access :rw})
   (is (= [] (GET "/api/query/machine/shares")) "the stick is out: nothing is served")
-  (with-redefs [storage/snapshot (constantly [{:kind :usb :name "U" :state :mounted :storage "/ujima/run/storage/U"}])]
-    (is (= [{:name "b" :access :rw}] (GET "/api/query/machine/shares"))
-        "where a share lives on this machine is nobody else's business")))
+  (self/converge-storage! [{:kind :usb :name "U" :state :mounted :storage "/ujima/run/storage/U"}] nil)
+  (is (= [{:name "b" :access :rw}] (GET "/api/query/machine/shares"))
+      "where a share lives on this machine is nobody else's business"))
 
 
 (deftest the-roster-answers-its-contract-and-forget-is-a-verb
   (fresh!)
-  (#'circle/heard! {:key "k" :id "me"} "10.0.0.5" (circle/encode "k" {:id "x" :host "10.0.0.5" :port 1337 :boot "b" :seq 0}))
+  (#'circle/heard! {:key "k" :id "me"} "10.0.0.5" (beat/encode "k" {:id "x" :host "10.0.0.5" :port 1337 :boot "b" :seq 0 :hash "h"}))
   (let [roster (GET "/api/query/peers")]
     (is (nil? (drift query/peers roster)))
     (is (= ["x"] (map :id roster))))

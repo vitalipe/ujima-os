@@ -6,6 +6,7 @@
             [clojure.string :as str]
             [lib.edn      :refer [edn->json]]
             [lib.http     :as http]
+            [ujima.circle.self      :as self]
             [ujima.control.commands :as effects]
             [ujima.desktop.app      :as app]
             [ujima.desktop.http     :as shell]))
@@ -85,17 +86,17 @@
   (is (= 400 (:status (POST "/ujima-desktop/commands/shares/add" {:place ["usb" "x"] :path "x" :name ".hidden"})))))
 
 
-(deftest the-share-verbs-reach-the-commands-at-the-session-and-answer-with-the-share
+(deftest the-share-verbs-reach-self-and-answer-with-the-share
   (let [seen (atom nil)]
-    (with-redefs [effects/add-share!    (fn [args scope] (reset! seen [:add args scope]) (assoc args :name "math" :access :ro))
-                  effects/remove-share! (fn [args scope] (reset! seen [:remove args scope]) nil)]
+    (with-redefs [self/share!   (fn [args] (reset! seen [:add args]) (assoc args :name "math" :access :ro))
+                  self/unshare! (fn [args] (reset! seen [:remove args]) nil)]
       (let [r (POST "/ujima-desktop/commands/shares/add" {:place ["usb" "6962-5E15"] :path "Grade 5/math" :access "rw"})]
         (is (= 200 (:status r)) "the share as stored comes back")
         (is (str/includes? (str (:body r)) "math"))
-        (is (= [:add {:place [:usb "6962-5E15"] :path "Grade 5/math" :access :rw} :session] @seen)
+        (is (= [:add {:place [:usb "6962-5E15"] :path "Grade 5/math" :access :rw}] @seen)
             "the id and the access decode to the stored shapes"))
       (is (= 202 (:status (POST "/ujima-desktop/commands/shares/remove" {:place ["usb" "6962-5E15"] :path "Grade 5/math"}))))
-      (is (= [:remove {:place [:usb "6962-5E15"] :path "Grade 5/math"} :session] @seen)))))
+      (is (= [:remove {:place [:usb "6962-5E15"] :path "Grade 5/math"}] @seen)))))
 
 
 (deftest a-verbs-own-errors-are-named-here-too
@@ -109,9 +110,9 @@
       (is (= 404 (:status (POST "/ujima-desktop/commands/app/open" {:app "nope"})))))
     (with-redefs [app/open-url! (boom :app/bad-url)]
       (is (= 400 (:status (POST "/ujima-desktop/commands/app/open-url" {:url "ftp://x"})))))
-    (with-redefs [effects/add-share! (boom :shares/name-taken)]
+    (with-redefs [self/share! (boom :shares/name-taken)]
       (is (= 409 (:status (POST "/ujima-desktop/commands/shares/add" {:place ["usb" "x"] :path "x"})))))
-    (with-redefs [effects/remove-share! (boom :shares/unknown-share)]
+    (with-redefs [self/unshare! (boom :shares/unknown-share)]
       (is (= 404 (:status (POST "/ujima-desktop/commands/shares/remove" {:place ["usb" "x"] :path "x"})))))))
 
 

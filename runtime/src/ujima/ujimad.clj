@@ -16,6 +16,7 @@
             [ujima.desktop.http.converge :as shell-http-converge]
             [ujima.desktop.places   :as places]
             [ujima.circle           :as circle]
+            [ujima.circle.self      :as self]
             [ujima.storage          :as storage]
             [ujima.events           :as events]
             [ujima.events.tryboot   :as tryboot]))
@@ -42,6 +43,7 @@
     (shell-http-converge/init!)
 
     (places/init!  (get-in env [:desktop] {}))
+    (self/init!)
     (control/init! (get-in env [:control] {}))
     (desktop/init! (get-in env [:desktop] {}))
     (storage/init! (get-in env [:storage] {}))

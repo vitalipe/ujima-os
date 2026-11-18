@@ -4,7 +4,8 @@
    are not domain state, the catalog, and files. The verbs mirror /api's for this
    machine only — no :scope, because this tier IS the session."
   (:require [lib.http.routes             :as routes]
-            [schema.ujima.settings       :as settings]
+            [schema.ujima.shares         :as shares]
+            [ujima.circle.self           :as self]
             [ujima.control.commands      :as effects]
             [ujima.desktop.app           :as app]
             [ujima.desktop.http.converge :as converge]
@@ -59,15 +60,15 @@
 
    ;; the session's shares; whether :path is a folder is the app's business
    "shares/add"    {:doc     "Share a folder inside a place, :ro by default, under :name (the folder's by default); the same folder again changes its access or name."
-                    :params  [:map [:place settings/place-id] [:path [:string {:min 1}]]
+                    :params  [:map [:place shares/place-id] [:path [:string {:min 1}]]
                                    [:access {:optional true} [:enum :ro :rw]]
-                                   [:name   {:optional true} settings/share-name]]
+                                   [:name   {:optional true} shares/share-name]]
                     :reply   true
-                    :handler (fn [share] (effects/add-share! share :session))}
+                    :handler (fn [share] (self/share! share))}
 
    "shares/remove" {:doc     "Unshare a folder."
-                    :params  [:map [:place settings/place-id] [:path [:string {:min 1}]]]
-                    :handler (fn [share] (effects/remove-share! share :session))}})
+                    :params  [:map [:place shares/place-id] [:path [:string {:min 1}]]]
+                    :handler (fn [share] (self/unshare! share))}})
 
 
 ;; --- what this module serves ---------------------------------------------

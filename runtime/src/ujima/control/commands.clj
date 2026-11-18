@@ -2,10 +2,8 @@
   "User-intent write verbs: map screen-facing intent onto concrete settings. The caller names
    the scope; which scopes a surface offers is that surface's policy. Verbs return a narrow ack
    and throw ex-info {:error kw} — projections live in ujima.control.queries."
-  (:require [clojure.string  :as str]
-            [malli.core      :as m]
+  (:require [malli.core      :as m]
             [malli.error     :as me]
-            [lib.util        :refer [find-first]]
             [schema.ujima.settings :as defs]
             [ujima.control   :as control]))
 
@@ -103,53 +101,3 @@
                     {:error :request/malformed :scope scope})))
   (control/update-settings! scope (constantly {}))
   {:cleared true})
-
-;; ── shares: a list setting, identity = place + path ───────────────────────────
-
-(def ^:private shares-key [:storage :shares])
-
-
-(defn- canonical
-  "\"./Grade 5//math/\" -> \"Grade 5/math\". A leading slash and `..` stay, for the shape to refuse."
-  [path]
-  (str (when (str/starts-with? (str path) "/") "/")
-       (str/join "/" (remove #{"" "."} (str/split (str path) #"/")))))
-
-(defn- same-folder? [place path share]
-  (and (= place (:place share)) (= path (:path share))))
-
-
-(defn add-share!
-  "{:place [:usb \"6962-5E15\"] :path \"./Grade 5//math/\"} in SCOPE's list ->
-   {:place [:usb \"6962-5E15\"] :path \"Grade 5/math\" :name \"math\" :access :ro}, as stored.
-   The same folder again changes its :name or :access."
-  [{:keys [place path access] wanted-name :name} scope]
-  (let [path   (canonical path)
-        record (control/setting shares-key)
-        own    (get-in record [:scopes scope])
-        before (find-first (partial same-folder? place path) own)
-        others (into [] (remove (partial same-folder? place path)) own)
-        share  {:place  place
-                :path   path
-                :name   (or wanted-name (:name before) (last (str/split path #"/")))
-                :access (or access (:access before) :ro)}
-        taken  (into #{} (map :name) (concat others (mapcat val (dissoc (:scopes record) scope))))]
-
-    (when (taken (:name share))
-      (throw (ex-info "a share by that name exists" {:error :shares/name-taken :name (:name share)})))
-
-    (change-setting! shares-key (conj others share) scope)
-    share))
-
-
-(defn remove-share!
-  "Unshare the folder at PATH inside PLACE from SCOPE's list."
-  [{:keys [place path]} scope]
-  (let [path (canonical path)
-        own  (get-in (control/setting shares-key) [:scopes scope])]
-
-    (when-not (some (partial same-folder? place path) own)
-      (throw (ex-info "no such share" {:error :shares/unknown-share :place place :path path})))
-
-    (change-setting! shares-key (into [] (remove (partial same-folder? place path)) own) scope)
-    {:removed [place path]}))

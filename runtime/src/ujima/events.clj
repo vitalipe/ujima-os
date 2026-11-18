@@ -12,6 +12,7 @@
             [ujima.linux.converge   :as linux]
 
             [ujima.control               :as control]
+            [ujima.circle.self           :as self]
             [ujima.storage               :as storage]
             [ujima.desktop.app           :as app]
             [ujima.desktop.guard         :as guard]
@@ -60,10 +61,14 @@
   (log/info "starting event listeners")
 
 
-  ;; settings -> OS, the share roots, UI
+  ;; settings -> OS, UI, this machine's name as the circle sees it
   (control/on-converge! linux/converge!)
-  (control/on-converge! places/converge-shares!)
   (control/on-converge! shell-http-converge/converge-ui!)
+  (control/on-converge! self/converge-settings!)
+
+  ;; what this machine offers the circle -> the share roots, the places stream
+  (self/on-converge! places/converge-shares!)
+  (self/on-converge! shell-http-converge/converge-places!)
 
   ;; apps -> UI (the shell reads the bars' visibility off it too)
   (app/on-converge! shell-http-converge/converge-apps!)
@@ -71,11 +76,11 @@
   ;; circle token on a stick -> console
   (storage/on-converge! token-events/on-storage!)
 
-  ;; places (machine + removable) -> the UI stream, and -> the user's home (the Places screen)
-  (storage/on-converge! shell-http-converge/converge-places!)
+  ;; places (machine + removable) -> the by-id root and home, then self (a share's place came or went)
   (storage/on-converge! places/converge!)
-  (shell-http-converge/converge-places! (storage/snapshot) nil)
+  (storage/on-converge! self/converge-storage!)
   (places/converge! (storage/snapshot) nil)
+  (self/converge-storage! (storage/snapshot) nil)
 
   ;; plugged sinks -> [:audio :active]
   (listen! :audio-sinks
