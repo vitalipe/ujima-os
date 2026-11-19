@@ -65,6 +65,12 @@
   [peer]
   (call peer :get "/api/query/machine" nil (:poll timeouts) nil))
 
+(defn node
+  "One node of a peer's machine tree: \"shares\" -> [{:name \"math\" :access :rw}],
+   \"system/name\" -> {:name \"Mvule\"}."
+  [peer path]
+  (call peer :get (str "/api/query/machine/" path) nil (:poll timeouts) nil))
+
 (defn peers
   "A peer's roster: who it hears."
   [peer]

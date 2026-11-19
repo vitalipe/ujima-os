@@ -23,6 +23,7 @@
 (defn- fresh! []
   (let [dir (str (fs/create-temp-dir))]
     (self/init!)
+    (#'circle/reset-state! {:key "k" :id "me"})
     (control/init! {:storage dir :tmp dir})))
 
 (defn- call
@@ -80,10 +81,13 @@
 
 (deftest the-roster-answers-its-contract-and-forget-is-a-verb
   (fresh!)
-  (#'circle/heard! {:key "k" :id "me"} "10.0.0.5" (beat/encode "k" {:id "x" :host "10.0.0.5" :port 1337 :boot "b" :seq 0 :hash "h"}))
+  ;; what x publishes is circle's own test; here no read goes out
+  (with-redefs [circle/start-read! (fn [_ _])]
+    (#'circle/heard! "10.0.0.5" (beat/encode "k" {:id "x" :host "10.0.0.5" :port 1337 :boot "b" :seq 0 :hash "h"})))
   (let [roster (GET "/api/query/peers")]
     (is (nil? (drift query/peers roster)))
-    (is (= ["x"] (map :id roster))))
+    (is (= [{:id "x" :address {:host "10.0.0.5" :port 1337} :state :online}] roster)
+        "presence only — a peer's name and shares are its own tree"))
   (is (= 400 (:status (POST "/api/commands/peers/forget" {}))) "an id is required")
   (is (= 202 (:status (POST "/api/commands/peers/forget" {:id "x"}))))
   (is (= [] (GET "/api/query/peers")) "gone until it is heard again"))

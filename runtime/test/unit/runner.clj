@@ -3,6 +3,7 @@
             [lib.task.timeline-test]
             [lib.task.flow-test]
             [lib.task.task-test]
+            [lib.task.probe-test]
 
             [lib.shell-test]
             [lib.shell.command-test]
@@ -60,6 +61,7 @@
   '[lib.task.task-test
     lib.task.timeline-test
     lib.task.flow-test
+    lib.task.probe-test
 
     lib.shell-test
     lib.shell.command-test

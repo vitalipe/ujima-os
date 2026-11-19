@@ -161,6 +161,7 @@
                 (map-kv-vals (fn [path f]
                                (if (live-nodes path) f (memoize-ttl node-ttl-ms f)))))})
 
+     ;; presence only; what a peer publishes is its own tree
      (routes/queries
       {:base  "query/peers"
-       :nodes {"" circle/snapshot}}))})
+       :nodes {"" (fn [] (mapv #(select-keys % [:id :address :state]) (circle/snapshot)))}}))})
