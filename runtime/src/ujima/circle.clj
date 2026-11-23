@@ -9,7 +9,8 @@
    targets when it moved) — on a beat, on the tick, and when a read lands. The datagram is
    ujima.circle.beat, the peers as data ujima.circle.peers; this is the sockets, the
    threads, the clock and the reads."
-  (:require [lib.hmac            :as hmac]
+  (:require [clojure.core.async  :as async]
+            [lib.hmac            :as hmac]
             [lib.task            :as task]
             [lib.task.flow       :refer [flow <join!]]
             [lib.task.probe      :as probe]
@@ -237,11 +238,25 @@
 
 (defn on-converge!
   "Attach a target: F gets (next prev) under the lock when the peers moved. A target that
-   runs another plane's pass hands it off on a task — two planes waiting on each other's
-   lock is a deadlock."
+   runs another plane's pass is handed off (`watch-peers!`) — two planes waiting on each
+   other's lock is a deadlock."
   [f]
   (swap! targets* conj f)
   nil)
+
+(defn watch-peers!
+  "The present peers as a watcher channel, for another plane's pass off this lock:
+     {:type :circle/peers :peers #{\"87f6…\" …}}
+   one event when the set moved, none for a read that landed; a slow consumer sees the latest."
+  []
+  (let [ch   (async/chan (async/sliding-buffer 1))
+        seen (atom nil)]
+    (on-converge! (fn [next _prev]
+                    (let [present (into #{} (map :id) (peers/present next))]
+                      (when (not= present @seen)
+                        (reset! seen present)
+                        (async/>!! ch {:type :circle/peers :peers present})))))
+    ch))
 
 (defn- reset-state! [cfg]
   (reset! peers* {})

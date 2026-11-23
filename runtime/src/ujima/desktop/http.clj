@@ -9,6 +9,7 @@
             [ujima.control.commands      :as effects]
             [ujima.desktop.app           :as app]
             [ujima.desktop.http.converge :as converge]
+            [ujima.desktop.places        :as places]
             [ujima.control               :as control]
             [ujima.control.queries       :as queries]
             [ujima.desktop.http.files    :as files]))
@@ -68,7 +69,12 @@
 
    "shares/remove" {:doc     "Unshare a folder."
                     :params  [:map [:place shares/place-id] [:path [:string {:min 1}]]]
-                    :handler (fn [share] (self/unshare! share))}})
+                    :handler (fn [share] (self/unshare! share))}
+
+   ;; the mount runs after the reply; the stream says :ready or :invalid
+   "places/mount"  {:doc     "Mount the share behind a peer place, by its id; the outcome arrives on the places stream."
+                    :params  [:map [:place [:tuple [:enum :peer] [:string {:min 1}]]]]
+                    :handler (fn [{:keys [place]}] (places/mount! place))}})
 
 
 ;; --- what this module serves ---------------------------------------------
@@ -80,7 +86,8 @@
             :keyboard/unknown-layout 409
             :audio/no-output         409
             :shares/name-taken       409
-            :shares/unknown-share    404}
+            :shares/unknown-share    404
+            :places/unknown-place    404}
 
    :routes
    (merge

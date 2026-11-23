@@ -82,9 +82,12 @@
 
 
 (defn- converge-smb!
-  ;; the Samba account follows the token — every machine of the circle derives the same
+  ;; the Samba account follows the token — every machine of the circle derives the same, and
+  ;; the credentials file is how this one logs into a peer's
   [settings]
-  (smb/set-password! (smb/password-for (get settings [:circle :token]))))
+  (let [password (smb/password-for (get settings [:circle :token]))]
+    (smb/set-password! password)
+    (smb/credentials-file! password)))
 
 
 (defn converge!

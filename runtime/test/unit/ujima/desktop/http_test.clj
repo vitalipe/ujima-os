@@ -9,7 +9,8 @@
             [ujima.circle.self      :as self]
             [ujima.control.commands :as effects]
             [ujima.desktop.app      :as app]
-            [ujima.desktop.http     :as shell]))
+            [ujima.desktop.http     :as shell]
+            [ujima.desktop.places   :as places]))
 
 
 (defn- tree []
@@ -119,3 +120,13 @@
 (deftest the-desktop-listener-has-no-api-tier
   (is (= 404 (:status (POST "/api/commands/app/open" {:app "files"})))
       "/api is another machine's door — it is not on this socket at all"))
+
+
+(deftest the-mount-verb-reaches-places
+  (let [seen (atom nil)]
+    (with-redefs [places/mount! (fn [place] (reset! seen place))]
+      (is (= 202 (:status (POST "/ujima-desktop/commands/places/mount" {:place ["peer" "87f6/math"]}))) "the mount runs after the reply")
+      (is (= [:peer "87f6/math"] @seen))
+      (is (= 400 (:status (POST "/ujima-desktop/commands/places/mount" {:place ["usb" "6962-5E15"]}))) "only a peer's place mounts"))
+    (with-redefs [places/mount! (fn [_] (throw (ex-info "nope" {:error :places/unknown-place})))]
+      (is (= 404 (:status (POST "/ujima-desktop/commands/places/mount" {:place ["peer" "87f6/gone"]})))))))

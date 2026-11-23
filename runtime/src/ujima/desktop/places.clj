@@ -3,11 +3,17 @@
    reconciled on its arrow by ujima.desktop.places.links:
      ~/USB Stick                      -> /ujima/run/storage/6962-5E15                 home = the Places screen
      /ujima/run/places/usb/6962-5E15  -> /ujima/run/storage/6962-5E15                 every mounted place, by id
-     /ujima/run/shares/rw/math        -> /ujima/run/places/usb/6962-5E15/Grade 5/math  the Samba roots"
+     /ujima/run/shares/rw/math        -> /ujima/run/places/usb/6962-5E15/Grade 5/math  the Samba roots
+   A share a peer offers is a place too, joined from the circle's nearby list and storage's
+   mount of that peer's root; `mount!` asks storage for the root behind one."
   (:require [babashka.fs                :as fs]
+            [clojure.string             :as str]
+            [lib.util                   :refer [find-first]]
+            [ujima.circle               :as circle]
             [ujima.desktop.places.links :as links]
             [ujima.linux.smb            :as smb]
-            [ujima.log                  :as log]))
+            [ujima.log                  :as log]
+            [ujima.storage              :as storage]))
 
 
 ;; --- the wire blob: what /stream/places carries ------------------------------
@@ -51,15 +57,40 @@
   [entry]
   (= :peer (:kind entry)))
 
+
+(defn- peer-place
+  "A share a peer offers, as a place: :available until its root is asked for, then that
+   mount's state, the browse root the share's folder under it."
+  [mounts {:keys [peer-id host label access]}]
+  (let [{:keys [state storage reason]} (mounts [peer-id access])
+        state ({:mounted :ready :detected :mounting} state state)]
+    (cond-> {:id    [:peer (str peer-id "/" label)]
+             :kind  :peer
+             :name  (kind->name :peer)
+             :label label :host host :host-id peer-id :access access
+             :state (or state :available)}
+      (= :ready   state) (assoc :storage (str (fs/path storage label)))
+      (= :invalid state) (assoc :reason reason))))
+
+(defn- peer-places
+  "NEARBY's shares as places, each at the state of storage's mount of its peer and access."
+  [entries nearby]
+  (let [mounts (into {} (for [{:keys [peer access] :as entry} (filter peer-mount? entries)]
+                          [[peer access] entry]))]
+    (mapv (partial peer-place mounts) nearby)))
+
+
 (defn places->ui
-  "Entries, shares -> the wire blob: each place with its own shares as
-   [{:name \"math\" :path \"Grade 5/math\" :access :rw}]."
-  ([entries] (places->ui entries []))
-  ([entries shares]
-   (let [by-place (group-by :place shares)]
+  "Entries, shares, nearby -> the wire blob: each place with its own shares as
+   [{:name \"math\" :path \"Grade 5/math\" :access :rw}], then a place per share nearby."
+  ([entries] (places->ui entries [] []))
+  ([entries shares] (places->ui entries shares []))
+  ([entries shares nearby]
+   (let [by-place (group-by :place shares)
+         own      (number-sticks (mapv entry->place (remove peer-mount? entries)))]
      {:places (mapv (fn [{:keys [id] :as place}]
                       (assoc place :shares (mapv #(select-keys % [:name :path :access]) (by-place id))))
-                    (number-sticks (mapv entry->place (remove peer-mount? entries))))})))
+                    (into own (peer-places entries nearby)))})))
 
 
 ;; --- home: the Places screen on disk -----------------------------------------
@@ -74,10 +105,11 @@
 
 
 (defn wanted
-  "The places blob -> {name storage-root} for the places that are ready to browse."
+  "The places blob -> {name storage-root} for the places that are ready to browse. A peer's
+   share is not one of them: every one is called Nearby Computer."
   [places]
-  (into {} (for [{:keys [state name storage]} places
-                 :when (and (= :ready state) storage)]
+  (into {} (for [{:keys [kind state name storage]} places
+                 :when (and (not= :peer kind) (= :ready state) storage)]
              [name (str (fs/path storage))])))
 
 
@@ -133,3 +165,24 @@
     (links/reconcile! root (into {} (for [{:keys [place path name] :as share} shares
                                           :when (= access (:access share))]
                                       [name (str (fs/path (place-path place) path))])))))
+
+
+;; --- mounting a peer's share -----------------------------------------------------
+
+(defn- offers? [peer label {:keys [peer-id] :as share}]
+  (and (= peer peer-id) (= label (:label share))))
+
+(defn peer-request
+  "[:peer \"87f6…/math\"] against NEARBY -> what storage mounts for it, {:peer :access :host};
+   a place no present peer offers throws :places/unknown-place."
+  [nearby [_kind name]]
+  (let [[peer label] (str/split name #"/" 2)
+        share        (find-first (partial offers? peer label) nearby)]
+    (when-not share
+      (throw (ex-info "no such place nearby" {:error :places/unknown-place :place [:peer name]})))
+    {:peer peer :access (:access share) :host (get-in share [:address :host])}))
+
+(defn mount!
+  "Ask storage for the root behind PLACE, a peer's share; the outcome arrives on the stream."
+  [place]
+  (storage/mount! (assoc (peer-request (circle/nearby) place) :credentials smb/credentials)))

@@ -3,6 +3,8 @@
    whole settings plane, so this projects; the app layer projects before its
    targets run, so that one republishes as-is."
   (:require [lib.http.ndjson        :as ndjson]
+            [ujima.circle           :as circle]
+            [ujima.circle.self      :as self]
             [ujima.control.queries  :as queries]
             [ujima.desktop.places   :as places]
             [ujima.linux.devicetree :as devicetree]
@@ -50,12 +52,14 @@
                      (sort-by #(pinned-app-order (:id %) 99)))})
 
 
-(defn- publish-places! [entries shares] (ndjson/publish! :ui/places (places/places->ui entries shares)))
+(defn- publish-places! []
+  (ndjson/publish! :ui/places (places/places->ui (storage/snapshot) (:shares (self/snapshot)) (circle/nearby))))
 
 (defn converge-ui!     [settings _prv] (ndjson/publish! :ui/state (settings->ui settings @serial-tail)))
 (defn converge-apps!   [snapshot _prv] (ndjson/publish! :ui/apps  (apps->ui snapshot)))
-;; the places blob is storage x self's shares; self hears storage, so its arrow carries both
-(defn converge-places! [self     _prv] (publish-places! (storage/snapshot) (:shares self)))
+;; the places blob is storage x self's shares x the circle's nearby; self hears storage, so
+;; self's arrow and the circle's carry all three
+(defn converge-places! [_nxt _prv] (publish-places!))
 
 (defn stream-ui     [req] (ndjson/subscribe! :ui/state  req))
 (defn stream-apps   [req] (ndjson/subscribe! :ui/apps   req))

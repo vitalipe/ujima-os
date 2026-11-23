@@ -49,12 +49,18 @@
       true)))
 
 
+(def credentials
+  "The file mount.cifs reads the account from; the :smb converge domain keeps it."
+  (str run-dir "/credentials"))
+
 (defn credentials-file!
-  "The file mount.cifs reads the account from; its path."
+  "PASSWORD into the credentials file, unless it is there already. True when it ran."
   [password]
-  (let [path (run-file "credentials")]
-    (io/spit-file-atomic! path (str "username=" account "\npassword=" password "\n"))
-    path))
+  (let [path (run-file "credentials")
+        text (str "username=" account "\npassword=" password "\n")]
+    (when (not= text (io/slurp-text path nil))
+      (io/spit-file-atomic! path text)
+      true)))
 
 
 ;; ── mounting a peer ─────────────────────────────────────────────────────────

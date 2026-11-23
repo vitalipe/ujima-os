@@ -56,7 +56,7 @@
 (defn watch-partitions!
   "Watch removable partitions (udev block events trigger a re-read) and emit one event per
    change on the returned channel:
-     {:partitions {uuid facts}}
+     {:type :storage/partitions :partitions {uuid facts}}
    The first emit is a baseline, not arrivals. Pure mechanism — no history, since the
    consumer holding this state is the one that owns diffing it."
   []
@@ -69,7 +69,7 @@
     (async/thread
       (try
         (let [initial (partitions)]
-          (async/>!! ch {:partitions initial})
+          (async/>!! ch {:type :storage/partitions :partitions initial})
           (with-open [reader (java-io/reader (:out proc))]
             (loop [prv initial]
               (when (.readLine reader)
@@ -79,7 +79,7 @@
                 (let [now (partitions)]
                   (if (= now prv)
                     (recur prv)
-                    (when (async/>!! ch {:partitions now})
+                    (when (async/>!! ch {:type :storage/partitions :partitions now})
                       (recur now))))))))
         (catch Throwable e
           (log/error "block watch: udev monitor died" {:error (ex-message e)}))

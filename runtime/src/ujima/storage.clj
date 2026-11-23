@@ -1,13 +1,14 @@
 (ns ujima.storage
-  "Removable partitions as observed state. Two threads write — the event listener, and a
-   mount that just finished — so a pass runs whole under one lock: fold in what was
-   observed, start what is not started, push. The mount itself runs outside the lock, so
-   the critical section is a swap and a derive, never the 40ms of mounting.
+  "Removable partitions as observed state. Several threads write — the listeners, a verb, a
+   mount that just finished — so a pass runs whole under one lock: fold the event in, start
+   what is not started, push. The mount itself runs outside the lock, so the critical section
+   is a fold and a derive, never the 40ms of mounting.
 
    Storage sweeps for markers and reports what it finds; it never interprets them.
 
    A peer's Samba root is mounted on request (`mount!`), with everything the mount needs in
-   the request; it is an entry like a stick's, under /ujima/run/peer/<peer id>/<rw|ro>."
+   the request; it is an entry like a stick's, under /ujima/run/peer/<peer id>/<rw|ro>, and
+   gone with the peer (the circle's :peers event)."
   (:require [babashka.fs            :as fs]
             [cheshire.core          :as json]
             [lib.io                 :as io]
@@ -127,7 +128,7 @@
 
 ;; --- the write path (serialized) --------------------------------------------
 
-(declare act! converge!)
+(declare handle-event!)
 
 
 (defn- provision-root [backing sub]
@@ -177,9 +178,10 @@
   (task/run!
     (flow :storage/land
       (task/run!! t)
-      (try (locking lock (act!) (converge!))
+      (try (handle-event! {:type :storage/landed})
            (catch Throwable e
              (log/error "storage: the pass after a mount failed" (assoc about :error (ex-message e))))))))
+
 
 (defn- start-mount! [uuid {:keys [fstype label]}]
   (let [t (->mount-task fstype uuid (mount-of uuid) (schema/convention label))]
@@ -198,27 +200,31 @@
     (land! t {:peer name})))
 
 
-(defn- observe!
-  "Linux's partitions -> the known map: a new uuid has no task, a known one keeps its task,
-   a departed one is gone. State only; act! does the rest."
-  [partitions]
-  (swap! partitions*
-         (fn [prev]
-           (into {} (for [[uuid facts] partitions]
-                      [uuid {:facts facts :task (get-in prev [uuid :task])}])))))
+(defn- with-partitions
+  "KNOWN at linux's PARTITIONS: a new uuid has no task, a known one keeps its task, a departed
+   one is gone."
+  [known partitions]
+  (into {} (for [[uuid facts] partitions]
+             [uuid {:facts facts :task (get-in known [uuid :task])}])))
 
+(defn- with-request
+  "KNOWN with a peer root asked for: new, it is detected; failed, its task goes so it is tried
+   again; in flight or mounted, left alone."
+  [known {:keys [peer access] :as request}]
+  (let [root (str peer "/" (name access))
+        {:keys [task] :as entry} (known root)]
+    (cond
+      (nil? entry)                    (assoc known root {:facts       (select-keys request [:peer :access :host])
+                                                         :credentials (:credentials request)})
+      (= :invalid (task->state task)) (update known root dissoc :task)
+      :else                           known)))
 
-(defn- observe-request!
-  "A peer mount asked for -> the known map, unless it is known already. A known one that
-   failed is asked again: its task goes, act! starts another. State only."
-  [{:keys [peer access] :as request}]
-  (let [name (str peer "/" (name access))]
-    (swap! peers* update name
-           (fn [{:keys [task] :as known}]
-             (cond
-               (nil? known)                      {:facts (select-keys request [:peer :access :host]) :credentials (:credentials request)}
-               (= :invalid (task->state task))   (dissoc known :task)
-               :else                             known)))))
+(defn- of-present? [peers [_root {:keys [facts]}]] (contains? peers (:peer facts)))
+
+(defn- with-peers
+  "KNOWN without the roots of any peer not among PEERS, the ids present."
+  [known peers]
+  (into {} (filter (partial of-present? peers) known)))
 
 
 (defn- list-dir [dir] (when (fs/directory? dir) (fs/list-dir dir)))
@@ -244,18 +250,27 @@
 
 
 (defn- act!
-  "The world made to match what is known: departed mount points released, a mount task per
-   detected partition and peer root. A mount lands on its own thread, which acts and
-   converges again."
-  []
+  "EVENT folded into what is known, then the world made to match: departed mount points
+   released, a mount task per detected partition and peer root. A mount lands on its own
+   thread, which acts and converges again."
+  [{:keys [type] :as event}]
+  (let [partitions @partitions*
+        peers      @peers*]
 
-  (release-departed! (:mounts-dir @cfg*) (:peers-dir @cfg*))
+    (case type
+      :storage/partitions (reset! partitions* (with-partitions partitions (:partitions event)))
+      :circle/peers       (reset! peers*      (with-peers peers (:peers event)))
+      :storage/mount      (reset! peers*      (with-request peers event))
+      (:storage/init
+       :storage/landed)   nil)
 
-  (doseq [[uuid {:keys [facts]}] (filter detected? @partitions*)]
-    (start-mount! uuid facts))
+    (release-departed! (:mounts-dir @cfg*) (:peers-dir @cfg*))
 
-  (doseq [[name known] (filter detected? @peers*)]
-    (start-peer-mount! name known)))
+    (doseq [[uuid {:keys [facts]}] (filter detected? @partitions*)]
+      (start-mount! uuid facts))
+
+    (doseq [[root known] (filter detected? @peers*)]
+      (start-peer-mount! root known))))
 
 
 (defn- converge! []
@@ -266,12 +281,16 @@
 
 
 (defn handle-event!
-  "One pass, whole, under the lock: `act!`'s check-then-act and `converge!`'s
-   read-then-reset of prev are only guards while a pass cannot interleave."
-  [{:keys [partitions]}]
+  "One pass, whole, under the lock: `act!`'s check-then-act and `converge!`'s read-then-reset of
+   prev are only guards while a pass cannot interleave. An event of a type not known here is
+   refused. The events:
+     {:type :storage/partitions :partitions {uuid facts}}      linux's removable partitions
+     {:type :circle/peers :peers #{id}}                        the circle's present peers
+     {:type :storage/mount :peer :access :host :credentials}   a peer root asked for (`mount!`)
+     {:type :storage/landed}  {:type :storage/init}            a mount finished; the first pass"
+  [event]
   (locking lock
-    (observe! partitions)
-    (act!)
+    (act! event)
     (converge!)))
 
 
@@ -281,10 +300,7 @@
    Known and in flight or mounted, it is left alone; failed, it is tried again. The outcome
    is the entry [:peer \"87f6…/rw\"] in the snapshot."
   [request]
-  (locking lock
-    (observe-request! request)
-    (act!)
-    (converge!))
+  (handle-event! (assoc request :type :storage/mount))
   nil)
 
 
@@ -314,7 +330,7 @@
   (reset! cfg*        {:mounts-dir (or mounts-dir default-mounts-dir)
                        :peers-dir  (or peers-dir default-peers-dir)
                        :targets    []})
-  (locking lock (act!) (converge!))
+  (handle-event! {:type :storage/init})
   nil)
 
 

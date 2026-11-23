@@ -1,7 +1,11 @@
 (ns ujima.desktop.http.converge-test
   (:require [clojure.test :refer [deftest is]]
+            [lib.http.ndjson :as ndjson]
+            [ujima.circle :as circle]
+            [ujima.circle.self :as self]
             [ujima.desktop.app :as app]
-            [ujima.desktop.http.converge :as converge]))
+            [ujima.desktop.http.converge :as converge]
+            [ujima.storage :as storage]))
 
 
 (defn- ui [settings]
@@ -110,3 +114,26 @@
         out   (converge/apps->ui {:running [] :catalog leaky :current nil})]
     (is (not (re-find #"s3cret" (pr-str out)))
         "pinned select-keys the entry — assert over the WHOLE blob, not one field")))
+
+
+;; --- the places stream: storage x self x the circle ---------------------------------------
+
+(deftest the-places-stream-joins-storage-self-and-the-circle
+  (let [published (atom nil)
+        local     {:kind :local :name "storage" :label "UJSTORE" :fstype "ext4" :state :mounted
+                   :mount "/ujima/storage" :storage "/ujima/storage/files" :tokens {}}
+        root      {:kind :peer :name "87f6/rw" :peer "87f6" :access :rw :host "10.0.0.5" :state :mounted
+                   :mount "/ujima/run/peer/87f6/rw" :storage "/ujima/run/peer/87f6/rw"}]
+    (with-redefs [storage/snapshot (constantly [local root])
+                  self/snapshot    (constantly {:shares [{:place [:local "storage"] :path "Books" :name "Books" :access :ro}]})
+                  circle/nearby    (constantly [{:peer-id "87f6" :address {:host "10.0.0.5" :port 1337} :host "Mvule" :label "math" :access :rw}])
+                  ndjson/publish!  (fn [topic blob] (reset! published [topic blob]))]
+      (converge/converge-places! nil nil)
+      (is (= [:ui/places
+              {:places [{:id [:local "storage"] :kind :local :name "This Computer" :state :ready :label "UJSTORE" :fstype "ext4"
+                         :storage "/ujima/storage/files" :mount "/ujima/storage" :tokens []
+                         :shares [{:name "Books" :path "Books" :access :ro}]}
+                        {:id [:peer "87f6/math"] :kind :peer :name "Nearby Computer" :label "math" :host "Mvule" :host-id "87f6" :access :rw
+                         :state :ready :storage "/ujima/run/peer/87f6/rw/math" :shares []}]}]
+             @published)
+          "whichever arrow fired, the blob is the three snapshots joined"))))

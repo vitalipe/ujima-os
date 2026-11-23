@@ -36,16 +36,23 @@
         (sort-by :id)
         (into []))))
 
+(defn- offline? [{:keys [state]}] (= :offline state))
+
+(defn present
+  "The rows of every peer heard recently enough to count: online or unsure."
+  [rendered]
+  (remove offline? rendered))
+
 (defn- id-tail [id] (subs id (max 0 (- (count id) 4))))
 
 (defn nearby
   "Every present peer's shares, by host then label; two hosts of one name get the id's tail:
    [{:peer-id \"87f6…\" :address {:host \"10.0.0.5\" :port 1337} :host \"Mvule 87f6\" :label \"math\" :access :rw} …]"
   [rendered]
-  (let [present (remove (comp #{:offline} :state) rendered)
-        clashes (->> present (map :name) frequencies (filter (fn [[_ n]] (> n 1))) (map key) set)
+  (let [here    (present rendered)
+        clashes (->> here (map :name) frequencies (filter (fn [[_ n]] (> n 1))) (map key) set)
         host    (fn [{:keys [id name]}] (if (clashes name) (str name " " (id-tail id)) name))]
-    (->> (for [{:keys [id address shares] :as peer} present
+    (->> (for [{:keys [id address shares] :as peer} here
                {:keys [name access]} shares]
            {:peer-id id :address address :host (host peer) :label name :access access})
          (sort-by (juxt :host :label))

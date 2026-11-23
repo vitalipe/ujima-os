@@ -1,6 +1,7 @@
 (ns ujima.circle-test
   "The plane: a datagram over the real socket, and the read of a peer as a pass."
   (:require [clojure.test :refer [deftest is]]
+            [clojure.core.async  :as async]
             [lib.task.probe      :as probe]
             [ujima.circle        :as circle]
             [ujima.circle.beat   :as beat]
@@ -119,3 +120,16 @@
                             (= :error (probe/probe->state (read-of "x")))
                             (< first-failure (failed-at "x"))))
               "after retry-ms it is — once, and it failed again"))))))
+
+
+(deftest the-present-peers-are-watched-as-events-only-when-the-set-moves
+  (fresh!)
+  (let [ch    (circle/watch-peers!)
+        taken (fn [] (async/alt!! ch ([v] v) (async/timeout 500) :nothing))]
+    (with-redefs [client/node (a-tree "Mvule" [])]
+      (#'circle/heard! "10.0.0.5" (a-beat "x" "10.0.0.5" 1337 0 "h1"))
+      (is (= {:type :circle/peers :peers #{"x"}} (taken)) "heard: present")
+      (is (settle #(= "Mvule" (:name (first (circle/snapshot))))))
+      (is (= :nothing (taken)) "the read that landed moved the projection, not who is present")
+      (circle/forget! "x")
+      (is (= {:type :circle/peers :peers #{}} (taken))))))

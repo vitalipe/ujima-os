@@ -2,8 +2,11 @@
   (:require [clojure.test :refer [deftest is]]
             [clojure.string :as str]
             [babashka.fs :as fs]
+            [ujima.circle :as circle]
             [ujima.desktop.places :as places]
             [ujima.desktop.places.links :as links]
+            [ujima.linux.smb :as smb]
+            [ujima.storage :as storage]
             [lib.edn :refer [edn->json]]))
 
 
@@ -186,3 +189,51 @@
     (places/converge! [ujstore-entry peer] nil)
     (is (fs/exists? (fs/path dir "local" "storage") {:nofollow-links true}))
     (is (not (fs/exists? (fs/path dir "peer"))) "and no by-id link")))
+
+
+;; --- a peer's shares: places by the join of nearby and the mounts -----------------
+
+(def ^:private nearby
+  [{:peer-id "87f6" :address {:host "10.0.0.5" :port 1337} :host "Mvule"  :label "art"   :access :ro}
+   {:peer-id "87f6" :address {:host "10.0.0.5" :port 1337} :host "Mvule"  :label "math"  :access :rw}
+   {:peer-id "c0ff" :address {:host "10.0.0.6" :port 1337} :host "Baobab" :label "films" :access :rw}])
+
+(defn- peer-root [peer access state & [more]]
+  (let [mnt (str "/ujima/run/peer/" peer "/" (name access))]
+    (merge {:kind :peer :name (str peer "/" (name access)) :peer peer :access access :host "10.0.0.5" :state state}
+           (when (= :mounted state) {:mount mnt :storage mnt})
+           more)))
+
+
+(deftest a-peer-share-is-a-place-at-the-state-of-its-roots-mount
+  (let [roots [(peer-root "87f6" :rw :mounted) (peer-root "c0ff" :rw :invalid {:reason "mount error(113): No route to host"})]
+        blob  (places/places->ui (into [ujstore-entry] roots) [] nearby)]
+    (is (= ["This Computer" "Nearby Computer" "Nearby Computer" "Nearby Computer"] (mapv :name (:places blob)))
+        "after this machine's own places, in nearby's order")
+    (is (= [{:id [:peer "87f6/art"]   :kind :peer :name "Nearby Computer" :label "art"   :host "Mvule"  :host-id "87f6" :access :ro :state :available :shares []}
+            {:id [:peer "87f6/math"]  :kind :peer :name "Nearby Computer" :label "math"  :host "Mvule"  :host-id "87f6" :access :rw :state :ready
+             :storage "/ujima/run/peer/87f6/rw/math" :shares []}
+            {:id [:peer "c0ff/films"] :kind :peer :name "Nearby Computer" :label "films" :host "Baobab" :host-id "c0ff" :access :rw :state :invalid
+             :reason "mount error(113): No route to host" :shares []}]
+           (subvec (:places blob) 1))
+        "its root not asked for: available; mounted: ready, the share's folder the browse root; failed: why")
+    (is (= :mounting (:state (first (:places (places/places->ui [(peer-root "c0ff" :rw :detected)] [] (subvec nearby 2))))))
+        "a root asked for is mounting until it lands")))
+
+
+(deftest a-peer-share-has-no-folder-in-home
+  (is (= {} (places/wanted [{:id [:peer "87f6/math"] :kind :peer :name "Nearby Computer" :state :ready :storage "/ujima/run/peer/87f6/rw/math"}]))
+      "every one is Nearby Computer; the Files app lists them by host and label"))
+
+
+(deftest a-peer-place-is-mounted-by-what-nearby-knows-of-it
+  (let [refused (fn [place] (try (places/peer-request nearby place) (catch Exception e (:error (ex-data e)))))]
+    (is (= {:peer "87f6" :access :rw :host "10.0.0.5"} (places/peer-request nearby [:peer "87f6/math"])))
+    (is (= :places/unknown-place (refused [:peer "87f6/gone"])) "a share no present peer offers")
+    (is (= :places/unknown-place (refused [:peer "nobody/math"]))))
+  (let [asked (atom nil)]
+    (with-redefs [circle/nearby  (constantly nearby)
+                  storage/mount! (fn [request] (reset! asked request))]
+      (places/mount! [:peer "87f6/art"])
+      (is (= {:peer "87f6" :access :ro :host "10.0.0.5" :credentials smb/credentials} @asked)
+          "all storage needs, the credentials file among it"))))

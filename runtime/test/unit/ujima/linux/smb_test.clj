@@ -45,3 +45,13 @@
       (is (= "//10.0.0.5/ro" (nth (at :ro) 7)))
       (is (fs/directory? mnt) "the mount point is made")
       (finally (fs/delete-tree dir)))))
+
+
+(deftest the-credentials-file-is-written-once-per-password
+  (let [dir (str (fs/create-temp-dir))]
+    (with-redefs [smb/run-dir dir]
+      (is (true? (smb/credentials-file! "pw1")))
+      (is (= "username=ujima\npassword=pw1\n" (slurp (str dir "/credentials"))))
+      (is (nil? (smb/credentials-file! "pw1")) "the same again is left alone")
+      (is (true? (smb/credentials-file! "pw2")))
+      (is (= "username=ujima\npassword=pw2\n" (slurp (str dir "/credentials")))))))

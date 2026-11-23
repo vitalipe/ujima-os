@@ -124,7 +124,7 @@
                  :label "UJSTORE" :fstype "ext4"
                  :storage "/ujima/storage/files" :state :mounted :tokens {}}]
       (is (= [entry] (storage/snapshot)) "observed mounted — adopted, never managed")
-      (storage/handle-event! {:partitions {}})
+      (storage/handle-event! {:type :storage/partitions :partitions {}})
       (is (= [entry] (storage/snapshot)) "a udev pass must not drop it"))))
 
 
@@ -136,7 +136,7 @@
       (storage/init! {:mounts-dir mounts :places []})
       (is (= [(str (fs/path mounts "GONE-UUID"))] @released) "lazily, device or not")
       (is (not (fs/exists? (fs/path mounts "GONE-UUID"))) "and its point is gone")
-      (storage/handle-event! {:partitions {}})
+      (storage/handle-event! {:type :storage/partitions :partitions {}})
       (is (= 1 (count @released)) "the next pass finds nothing to release"))))
 
 
@@ -193,7 +193,7 @@
       (is (= [["/run/smb/credentials" "10.0.0.5" :rw (str peers "/87f6/rw")]] @mounts)
           "all the mount needs came in the request")
       (storage/mount! a-request)
-      (storage/handle-event! {:partitions {}})
+      (storage/handle-event! {:type :storage/partitions :partitions {}})
       (is (= 1 (count @mounts)) "asked again while mounted, or a udev pass: left alone"))))
 
 
@@ -204,7 +204,7 @@
       (storage/mount! a-request)
       (is (settle #(= :invalid (:state (first (peer-entries))))))
       (is (= "mount error(113): No route to host" (:reason (first (peer-entries)))))
-      (storage/handle-event! {:partitions {}})
+      (storage/handle-event! {:type :storage/partitions :partitions {}})
       (is (= 1 @mounts) "a pass never retries on its own")
       (storage/mount! a-request)
       (is (settle #(= 2 @mounts)) "the request is the retry"))))
@@ -218,3 +218,28 @@
       (storage/init! {:mounts-dir (str (fs/create-temp-dir)) :peers-dir peers :places []})
       (is (= [(str (fs/path peers "gone" "rw"))] @released) "a point left from the last run")
       (is (not (fs/exists? (fs/path peers "gone"))) "its point and the peer's dir are gone"))))
+
+
+(deftest a-peer-gone-from-the-circle-takes-its-mounts
+  (let [peers    (str (fs/create-temp-dir))
+        released (atom [])
+        other    {:peer "c0ffee" :access :ro :host "10.0.0.6" :credentials "/run/smb/credentials"}]
+    (with-redefs [smb/mount!         (fn [_ _ _ mnt] (fs/create-dirs mnt))
+                  mount/umount-lazy! (fn [mnt] (swap! released conj (str mnt)) true)]
+      (storage/init! {:mounts-dir (str (fs/create-temp-dir)) :peers-dir peers :places []})
+      (storage/mount! a-request)
+      (storage/mount! other)
+      (is (settle #(= [:mounted :mounted] (mapv :state (peer-entries)))))
+      (storage/handle-event! {:type :circle/peers :peers #{"87f6" "c0ffee"}})
+      (storage/handle-event! {:type :storage/partitions :partitions {}})
+      (is (= 2 (count (peer-entries))) "both present, or a udev pass: nothing moves")
+      (storage/handle-event! {:type :circle/peers :peers #{"87f6"}})
+      (is (= ["87f6/rw"] (mapv :name (peer-entries))) "the absent peer's mount is gone")
+      (is (= [(str (fs/path peers "c0ffee" "ro"))] @released) "and its point released")
+      (is (not (fs/exists? (fs/path peers "c0ffee"))))
+      (is (fs/exists? (fs/path peers "87f6" "rw"))))))
+
+
+(deftest an-event-of-no-known-type-is-refused
+  (storage/init! {:mounts-dir (str (fs/create-temp-dir)) :peers-dir (str (fs/create-temp-dir)) :places []})
+  (is (thrown? IllegalArgumentException (storage/handle-event! {:type :storage/bogus}))))

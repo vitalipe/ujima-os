@@ -12,6 +12,7 @@
             [ujima.linux.converge   :as linux]
 
             [ujima.control               :as control]
+            [ujima.circle                :as circle]
             [ujima.circle.self           :as self]
             [ujima.storage               :as storage]
             [ujima.desktop.app           :as app]
@@ -70,6 +71,9 @@
   (self/on-converge! places/converge-shares!)
   (self/on-converge! shell-http-converge/converge-places!)
 
+  ;; what the circle offers this machine -> the places stream
+  (circle/on-converge! shell-http-converge/converge-places!)
+
   ;; apps -> UI (the shell reads the bars' visibility off it too)
   (app/on-converge! shell-http-converge/converge-apps!)
 
@@ -90,6 +94,11 @@
   ;; removable partitions -> storage
   (listen! :storage
            (block/watch-partitions!)
+           storage/handle-event!)
+
+  ;; the circle's present peers -> storage: a peer gone takes its mounts
+  (listen! :circle
+           (circle/watch-peers!)
            storage/handle-event!)
 
   ;; window events -> apps

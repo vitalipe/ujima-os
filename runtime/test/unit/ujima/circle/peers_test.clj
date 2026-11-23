@@ -42,3 +42,8 @@
     (is (= {:peer-id "aaaa1111" :address {:host "h1" :port 1} :host "Mvule 1111" :label "art" :access :ro}
            (first (peers/nearby rows))))
     (is (= ["Mvule" "Mvule"] (map :host (peers/nearby (take 1 rows)))) "alone, the name is the host")))
+
+
+(deftest present-is-every-peer-not-offline
+  (is (= ["a" "b"] (map :id (peers/present [{:id "a" :state :online} {:id "b" :state :unsure} {:id "c" :state :offline}])))
+      "one missed beat is still present, three are not"))
