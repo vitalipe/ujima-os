@@ -48,10 +48,46 @@ static qint64 usedOf(const QString& root, qint64* total) {
     return si.bytesTotal() - si.bytesAvailable();
 }
 
+QVariantMap PeerShare::toMap() const {
+    return {{"id", id}, {"wire", wire}, {"kind", "peer"}, {"name", label + " on " + host}, {"label", label},
+            {"host", host}, {"hostId", hostId}, {"access", access}, {"state", state}, {"root", root}, {"reason", reason}};
+}
+
+static PeerShare peerOf(const QJsonObject& o) {
+    PeerShare s;
+    s.wire   = o.value("id").toArray().at(1).toString();
+    s.id     = "peer/" + s.wire;
+    s.label  = o.value("label").toString();
+    s.host   = o.value("host").toString();
+    s.hostId = o.value("host-id").toString();
+    s.access = o.value("access").toString();
+    s.state  = o.value("state").toString();
+    s.root   = o.value("storage").toString();
+    s.reason = o.value("reason").toString();
+    return s;
+}
+
+static QVariantList byComputer(const QList<PeerShare>& peers) {
+    QVariantList out;
+    for (int i = 0; i < peers.size();) {
+        const QString hostId = peers[i].hostId;
+        QVariantList shares;
+        int rw = 0;
+        for (; i < peers.size() && peers[i].hostId == hostId; ++i) {
+            shares << peers[i].toMap();
+            if (peers[i].access == "rw") ++rw;
+        }
+        out << QVariantMap{{"id", hostId}, {"name", shares.first().toMap().value("host")}, {"rw", rw}, {"shares", shares}};
+    }
+    return out;
+}
+
 void PlacesModel::apply(const QJsonArray& places) {
     QList<Place> next;
+    QList<PeerShare> peers;
     for (const QJsonValue& v : places) {
         const QJsonObject o = v.toObject();
+        if (o.value("kind").toString() == "peer") { peers.push_back(peerOf(o)); continue; }
         if (o.value("state").toString() != "ready") continue;
         Place p;
         const QJsonArray id = o.value("id").toArray();
@@ -73,10 +109,15 @@ void PlacesModel::apply(const QJsonArray& places) {
         if (rank(a.kind) != rank(b.kind)) return rank(a.kind) < rank(b.kind);
         return a.name.localeAwareCompare(b.name) < 0;
     });
+    std::stable_sort(peers.begin(), peers.end(), [](const PeerShare& a, const PeerShare& b) { return a.hostId < b.hostId; });
+    const QVariantList nearby = byComputer(peers);
+
     beginResetModel();
     m_places = next;
     endResetModel();
     emit countChanged();
+    m_peers = peers;
+    if (nearby != m_nearby) { m_nearby = nearby; emit nearbyChanged(); }
     emit placesChanged();
 }
 
@@ -123,4 +164,15 @@ QVariantMap PlacesModel::get(int row) const {
 int PlacesModel::indexOfId(const QString& id) const {
     for (int i = 0; i < m_places.size(); ++i) if (m_places[i].id == id) return i;
     return -1;
+}
+
+QVariantMap PlacesModel::peer(const QString& id) const {
+    for (const PeerShare& s : m_peers) if (s.id == id) return s.toMap();
+    return {};
+}
+
+bool PlacesModel::hasReady(const QString& id) const {
+    if (indexOfId(id) >= 0) return true;
+    for (const PeerShare& s : m_peers) if (s.id == id) return s.state == "ready";
+    return false;
 }

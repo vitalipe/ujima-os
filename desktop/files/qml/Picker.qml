@@ -257,7 +257,7 @@ Window {
 
                 // empty state
                 Column {
-                    visible: listing.count === 0
+                    visible: listing.count === 0 && !listing.loading
                     anchors.centerIn: rows
                     spacing: 10
                     Glyph { name: "folder"; color: Theme.faint; size: 34; stroke: 1.5; anchors.horizontalCenter: parent.horizontalCenter }

@@ -36,10 +36,7 @@ QtObject {
             desc: "A scratch space for right now.", badge: "Erased at shutdown",
             notice: "Everything here is erased when the computer shuts down.",   // the design's copy sentence waits for copy/move
             emptyHint: "Anything you save now will appear here — and be erased at shutdown." }
-        if (kind === "peer") return {
-            glyph: "peer", color: "#b58fc9", rgb: [181, 143, 201], dashed: false,
-            desc: "A shared folder on another computer in your Ujima Circle.", badge: "Nearby",
-            notice: "", emptyHint: "Nothing shared here yet." }
+        if (kind === "peer") return peerMeta("ro", "")
         if (kind === "usb") return {
             glyph: "usb", color: "#7e9ed6", rgb: [126, 158, 214],
             desc: "Plugged into this computer. Take it with you.",   // the label rides as a chip
@@ -54,6 +51,25 @@ QtObject {
             glyph: "local", color: "#8ab07c", rgb: [138, 176, 124],
             desc: "Shared by everyone who uses this computer.", badge: "Stays here", dashed: false,
             notice: "", emptyHint: "Use “New folder” to start organising files." }
+    }
+
+    readonly property color peer: "#b58fc9"
+    readonly property var   peerRgb: [181, 143, 201]
+
+    // a nearby computer's share: what you may do there rides on its access
+    function peerMeta(access, host) {
+        const rw = access === "rw"
+        return {
+            glyph: "peer", color: peer, rgb: peerRgb,
+            noticeGlyph: rw ? "pencil" : "eye",
+            notice: rw ? "Shared by " + host + ". You can open and change files here — other people may be using them too."
+                       : "View only — shared by " + host + ". You can open files, but not add, rename or delete.",
+            emptyHint: rw ? "Nothing here yet. Anything you add can be seen on " + host + " too."
+                          : "Nothing has been shared in this folder yet." }
+    }
+    function accessChip(access) {
+        return access === "rw" ? { text: "Can change", glyph: "pencil", tone: "frost" }
+                               : { text: "View only",  glyph: "eye",    tone: "plain" }
     }
 
     // token chips name the TYPE only — values never reach the wire

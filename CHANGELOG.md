@@ -32,7 +32,8 @@ version truth; branch names and build labels may disagree.
 - A folder in This Computer, a stick or Temporary can be shared with the circle, read-only or
   writable, under its own name, for the session; served over SMB, away while its stick is out.
   The shares of nearby computers are places too: one opens on request, and is gone when its
-  computer leaves the network.
+  computer leaves the network. Files lists them on a Nearby tab, a card per computer; a
+  view-only share opens with New folder, Rename and Delete off.
 
 ### Changed
 

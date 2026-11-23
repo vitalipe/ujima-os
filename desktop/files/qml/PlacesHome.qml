@@ -1,10 +1,27 @@
 import QtQuick
+import QtQuick.Shapes
 import "."
 
-// HOME: "Where are your files?" — one card per ready place from the stream
+// HOME: "Where are your files?" — two tabs: this computer's ready places, one card each, and the
+// folders nearby computers share, one card per computer
 Flickable {
     id: home
     signal enter(int row)
+    signal openShare(var share)
+    property string opening: ""       // the place id of the nearby share being opened
+    property string tab: "local"      // local | nearby
+    readonly property string tabLabel: tab === "nearby" ? "Nearby" : "This computer"
+
+    component SectionHead: Row {
+        property string glyph: ""
+        property color tint: Theme.text
+        property string title: ""
+        property string sub: ""
+        spacing: 12
+        Glyph { name: parent.glyph; color: parent.tint; size: 20; stroke: 1.8; anchors.verticalCenter: parent.verticalCenter }
+        Text { text: parent.title; color: Theme.text; font.pixelSize: prefs.name + 2.5; font.weight: Font.Bold; font.letterSpacing: -.2; font.family: Theme.font; anchors.verticalCenter: parent.verticalCenter }
+        Text { text: parent.sub; color: Theme.faint; font.pixelSize: prefs.sub - 1; font.family: Theme.font; anchors.verticalCenter: parent.verticalCenter }
+    }
     contentHeight: body.implicitHeight + 64
     clip: true
     boundsBehavior: Flickable.StopAtBounds
@@ -35,29 +52,158 @@ Flickable {
             }
         }
 
-        Grid {
-            id: grid
-            width: parent.width
-            columns: 2
-            columnSpacing: 18; rowSpacing: 18
-            readonly property real cellW: (width - columnSpacing) / 2
-            Repeater {
-                model: places
-                delegate: PlaceCard {
-                    required property int index
-                    required property var model
-                    width: grid.cellW
-                    place: model
-                    onOpen: home.enter(index)
-                }
+        Rectangle {
+            width: tabs.implicitWidth + 12; height: 64; radius: 16
+            color: Qt.rgba(0, 0, 0, .22)
+            border.width: 1; border.color: Qt.rgba(1, 1, 1, .05)
+            Row {
+                id: tabs
+                anchors.centerIn: parent
+                spacing: 8
+                TabButton { label: "This computer"; glyph: "computer"; tint: "#8ab07c"; rgb: [138, 176, 124]
+                            count: places.count; on: home.tab === "local"; onClicked: home.tab = "local" }
+                TabButton { label: "Nearby"; glyph: "network"; tint: Theme.peer; rgb: Theme.peerRgb
+                            count: places.nearbyCount; on: home.tab === "nearby"; onClicked: home.tab = "nearby" }
             }
         }
 
-        Text {
-            visible: places.count === 0
+        Column {
+            visible: home.tab === "local"
             width: parent.width
-            text: places.connected ? "No place is ready yet." : "Waiting for ujimad…"
-            color: Theme.faint; font.pixelSize: prefs.sub; font.family: Theme.font
+            spacing: 14
+
+            SectionHead { glyph: "computer"; tint: "#8ab07c"; title: "On this computer"; sub: "Storage and USB sticks plugged in here" }
+
+            Grid {
+                id: grid
+                width: parent.width
+                columns: 2
+                columnSpacing: 18; rowSpacing: 18
+                readonly property real cellW: (width - columnSpacing) / 2
+                Repeater {
+                    model: places
+                    delegate: PlaceCard {
+                        required property int index
+                        required property var model
+                        width: grid.cellW
+                        place: model
+                        onOpen: home.enter(index)
+                    }
+                }
+            }
+
+            Text {
+                visible: places.count === 0
+                width: parent.width
+                text: places.connected ? "No place is ready yet." : "Waiting for ujimad…"
+                color: Theme.faint; font.pixelSize: prefs.sub; font.family: Theme.font
+            }
+        }
+
+        Column {
+            visible: home.tab === "nearby"
+            width: parent.width
+            spacing: 14
+
+            SectionHead {
+                glyph: "network"; tint: Theme.peer; title: "From computers nearby"
+                readonly property int folders: places.nearbyCount
+                readonly property int computers: places.nearby.length
+                sub: !places.connected ? "Looking…"
+                   : folders === 0 ? "Nothing found yet"
+                   : folders + (folders === 1 ? " shared folder on " : " shared folders on ") + computers + (computers === 1 ? " computer" : " computers")
+            }
+
+            Grid {
+                id: nearby
+                width: parent.width
+                // the design's 380 px minimum, grown with the text size so a folder's name keeps its room
+                readonly property real minW: 380 * prefs.name / 15.5
+                columns: Math.max(1, Math.floor((width + 18) / (minW + 18)))
+                columnSpacing: 18; rowSpacing: 18
+                readonly property real cellW: (width - columnSpacing * (columns - 1)) / columns
+
+                Repeater {
+                    model: places.nearby
+                    delegate: ComputerCard {
+                        required property var modelData
+                        width: nearby.cellW
+                        host: modelData
+                        opening: home.opening
+                        onOpen: (share) => home.openShare(share)
+                    }
+                }
+
+                // before the first word from ujimad
+                Rectangle {
+                    visible: !places.connected
+                    width: nearby.cellW; height: looking.implicitHeight + 46; radius: 18
+                    color: Qt.rgba(1, 1, 1, .02)
+                    border.width: 1.5; border.color: Theme.tint(Theme.peerRgb, .2)
+                    Column {
+                        id: looking
+                        anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 24; leftMargin: 26; rightMargin: 26 }
+                        spacing: 18
+                        Row {
+                            width: parent.width
+                            spacing: 18
+                            Rectangle {
+                                width: 62; height: 62; radius: 18
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: Theme.tint(Theme.peerRgb, .07); border.width: 1; border.color: Theme.tint(Theme.peerRgb, .24)
+                                Glyph { anchors.centerIn: parent; name: "network"; color: Theme.peer; size: 30; stroke: 1.6 }
+                            }
+                            Column {
+                                width: parent.width - 62 - 18
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 4
+                                Text { width: parent.width; text: "Looking nearby…"; color: "#c2cad6"; font.pixelSize: prefs.card; font.weight: Font.Bold; font.letterSpacing: -.3; font.family: Theme.font }
+                                Text { width: parent.width; wrapMode: Text.WordWrap; text: "Checking other computers for shared folders"; color: Theme.dim; font.pixelSize: prefs.sub - 1; font.family: Theme.font }
+                            }
+                        }
+                        Rectangle {
+                            id: bar
+                            width: parent.width; height: 10; radius: 999; clip: true
+                            color: Qt.rgba(1, 1, 1, .07)
+                            Row {
+                                Repeater {
+                                    model: Math.max(0, Math.ceil(bar.width / 28))
+                                    Item { width: 28; height: 10; Rectangle { width: 14; height: 10; color: Theme.tint(Theme.peerRgb, .38) } }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Item {
+                    id: none
+                    visible: places.connected && places.nearbyCount === 0
+                    width: nearby.cellW; height: Math.max(62, noneText.implicitHeight) + 48
+                    Shape {
+                        anchors.fill: parent
+                        ShapePath {
+                            strokeColor: Qt.rgba(1, 1, 1, .13); strokeWidth: 1.5; fillColor: "transparent"
+                            strokeStyle: ShapePath.DashLine; dashPattern: [4, 3]
+                            PathRectangle { x: 0.75; y: 0.75; width: none.width - 1.5; height: none.height - 1.5; radius: 18 }
+                        }
+                    }
+                    Rectangle {
+                        id: noneIcon
+                        anchors { left: parent.left; leftMargin: 26; verticalCenter: parent.verticalCenter }
+                        width: 62; height: 62; radius: 18
+                        color: Qt.rgba(1, 1, 1, .04)
+                        Glyph { anchors.centerIn: parent; name: "network"; color: Theme.faint; size: 30; stroke: 1.6 }
+                    }
+                    Column {
+                        id: noneText
+                        anchors { left: noneIcon.right; leftMargin: 18; right: parent.right; rightMargin: 26; verticalCenter: parent.verticalCenter }
+                        spacing: 4
+                        Text { width: parent.width; text: "No shared folders nearby"; color: "#c2cad6"; font.pixelSize: prefs.name + 2.5; font.weight: Font.Bold; font.family: Theme.font }
+                        Text { width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.4; color: Theme.dim; font.pixelSize: prefs.sub - 1; font.family: Theme.font
+                               text: "When another computer nearby shares a folder, it shows up here." }
+                    }
+                }
+            }
         }
     }
 }

@@ -51,9 +51,9 @@ Item {
                 ActionButton { label: transfer.busy ? (transfer.moving ? "Moving…" : "Copying…") : view.holding ? "Holding 1" : "Take"
                                glyph: "hand"; tone: view.holding ? "held" : "plain"
                                enabled: !transfer.busy && (view.holding || view.hasSel); onClicked: view.holding ? nav.putBack() : nav.take() }
-                ActionButton { label: "New folder"; glyph: "newfolder"; tone: "plain";   onClicked: nav.ask("mkdir") }
-                ActionButton { label: "Rename";     glyph: "rename";    tone: "plain";   enabled: view.hasSel; onClicked: nav.ask("rename") }
-                ActionButton { label: "Delete";     glyph: "delete";    tone: "danger";  enabled: view.hasSel; onClicked: nav.ask("delete") }
+                ActionButton { label: "New folder"; glyph: "newfolder"; tone: "plain";   enabled: nav.canWrite; onClicked: nav.ask("mkdir") }
+                ActionButton { label: "Rename";     glyph: "rename";    tone: "plain";   enabled: view.hasSel && nav.canWrite; onClicked: nav.ask("rename") }
+                ActionButton { label: "Delete";     glyph: "delete";    tone: "danger";  enabled: view.hasSel && nav.canWrite; onClicked: nav.ask("delete") }
             }
         }
 
@@ -66,8 +66,9 @@ Item {
             Row {
                 anchors { left: parent.left; leftMargin: 26; verticalCenter: parent.verticalCenter }
                 spacing: 11
-                Glyph { name: m.glyph; color: m.color; size: 17; stroke: 1.9; anchors.verticalCenter: parent.verticalCenter }
-                Text { text: m.notice; color: m.color; font.pixelSize: prefs.btn; font.weight: Font.DemiBold; font.family: Theme.font }
+                Glyph { name: m.noticeGlyph || m.glyph; color: m.color; size: 17; stroke: 1.9; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: m.notice; color: m.color; font.pixelSize: prefs.btn; font.weight: Font.DemiBold; font.family: Theme.font
+                       width: Math.min(implicitWidth, view.width - 80); elide: Text.ElideRight }
             }
         }
 
@@ -76,8 +77,16 @@ Item {
             width: parent.width
             height: parent.height - 80 - (m.notice !== "" ? 46 : 0)
 
+            // a read that takes a while says so; a quick one never flashes it
+            Timer { id: slow; interval: 400; running: listing.loading }
+            Text {
+                visible: listing.loading && listing.count === 0 && !slow.running
+                anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 84 }
+                text: "Loading…"; color: Theme.dim; font.pixelSize: prefs.sub; font.family: Theme.font
+            }
+
             Column {
-                visible: listing.count === 0 && !nav.pocket
+                visible: listing.count === 0 && !nav.pocket && !listing.loading
                 anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 94 }
                 spacing: 0
                 Rectangle {

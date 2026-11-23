@@ -11,6 +11,7 @@ add_executable(ujima-files
   src/main.cpp
   src/glyphs.h   src/glyphs.cpp
   src/places.h   src/places.cpp
+  src/commands.h src/commands.cpp
   src/dirmodel.h src/dirmodel.cpp
   src/files.h    src/files.cpp
   src/transfer.h src/transfer.cpp

@@ -14,10 +14,12 @@ DirModel::DirModel(QObject* parent) : QAbstractListModel(parent) {
 
 void DirModel::setPath(const QString& p) {
     if (p == m_path) return;
-    if (!m_path.isEmpty()) m_watch.removePath(m_path);
+    if (!m_watch.directories().isEmpty()) m_watch.removePaths(m_watch.directories());
     m_path = p;
-    if (!m_path.isEmpty()) m_watch.addPath(m_path);
+    if (!m_path.isEmpty() && m_watching) m_watch.addPath(m_path);
     emit pathChanged();
+    show({});   // the folder left behind never shows under the new one's name
+    setLoading(!m_path.isEmpty());
     refresh();
 }
 
@@ -64,47 +66,70 @@ QString DirModel::sizeLabel(qint64 b) {
     return QString::number(std::max<qint64>(1, qRound(b / kb))) + " KB";
 }
 
-void DirModel::refresh() {
+QList<DirModel::Row> DirModel::read(const QString& path, bool hideToken, const QStringList& filter) {
     QList<Row> next;
-    if (!m_path.isEmpty()) {
-        const QDir dir(m_path);
-        const QFileInfoList entries = dir.entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot, QDir::NoSort);
-        QList<QRegularExpression> globs;
-        for (const QString& g : m_filter) globs << QRegularExpression::fromWildcard(g, Qt::CaseInsensitive);
-        for (const QFileInfo& fi : entries) {
-            if (m_hideToken && fi.isDir() && fi.fileName() == "ujima") continue;
-            if (!fi.isDir() && !globs.isEmpty()) {
-                bool hit = false;
-                for (const QRegularExpression& re : globs) if (re.match(fi.fileName()).hasMatch()) { hit = true; break; }
-                if (!hit) continue;
-            }
-            Row r;
-            r.name  = fi.fileName();
-            r.isDir = fi.isDir();
-            r.type  = typeOf(fi);
-            r.path  = fi.filePath();
-            r.size  = fi.isDir() ? 0 : fi.size();
-            r.mtime = fi.lastModified().toMSecsSinceEpoch();
-            if (r.isDir) {
-                const int n = QDir(fi.filePath()).entryList(QDir::AllEntries | QDir::NoDotAndDotDot).size();
-                r.meta = QString::number(n) + (n == 1 ? " item" : " items");
-            } else {
-                r.meta = sizeLabel(fi.size());
-            }
-            next.push_back(r);
+    const QDir dir(path);
+    const QFileInfoList entries = dir.entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot, QDir::NoSort);
+    QList<QRegularExpression> globs;
+    for (const QString& g : filter) globs << QRegularExpression::fromWildcard(g, Qt::CaseInsensitive);
+    for (const QFileInfo& fi : entries) {
+        if (hideToken && fi.isDir() && fi.fileName() == "ujima") continue;
+        if (!fi.isDir() && !globs.isEmpty()) {
+            bool hit = false;
+            for (const QRegularExpression& re : globs) if (re.match(fi.fileName()).hasMatch()) { hit = true; break; }
+            if (!hit) continue;
         }
-        QCollator coll;
-        coll.setNumericMode(true);
-        coll.setCaseSensitivity(Qt::CaseInsensitive);
-        std::stable_sort(next.begin(), next.end(), [&](const Row& a, const Row& b) {
-            if (a.isDir != b.isDir) return a.isDir;
-            return coll.compare(a.name, b.name) < 0;
-        });
+        Row r;
+        r.name  = fi.fileName();
+        r.isDir = fi.isDir();
+        r.type  = typeOf(fi);
+        r.path  = fi.filePath();
+        r.size  = fi.isDir() ? 0 : fi.size();
+        r.mtime = fi.lastModified().toMSecsSinceEpoch();
+        if (r.isDir) {
+            const int n = QDir(fi.filePath()).entryList(QDir::AllEntries | QDir::NoDotAndDotDot).size();
+            r.meta = QString::number(n) + (n == 1 ? " item" : " items");
+        } else {
+            r.meta = sizeLabel(fi.size());
+        }
+        next.push_back(r);
     }
+    QCollator coll;
+    coll.setNumericMode(true);
+    coll.setCaseSensitivity(Qt::CaseInsensitive);
+    std::stable_sort(next.begin(), next.end(), [&](const Row& a, const Row& b) {
+        if (a.isDir != b.isDir) return a.isDir;
+        return coll.compare(a.name, b.name) < 0;
+    });
+    return next;
+}
+
+void DirModel::refresh() {
+    const quint64 gen = ++m_gen;
+    if (m_path.isEmpty()) { land(gen, {}); return; }
+    m_pool.start([this, gen, path = m_path, hide = m_hideToken, filter = m_filter] {
+        const QList<Row> rows = read(path, hide, filter);
+        QMetaObject::invokeMethod(this, [this, gen, rows] { land(gen, rows); }, Qt::QueuedConnection);
+    });
+}
+
+void DirModel::land(quint64 gen, const QList<Row>& rows) {
+    if (gen != m_gen) return;
+    show(rows);
+    setLoading(false);
+}
+
+void DirModel::show(const QList<Row>& rows) {
     beginResetModel();
-    m_rows = next;
+    m_rows = rows;
     endResetModel();
     emit countChanged();
+}
+
+void DirModel::setLoading(bool v) {
+    if (v == m_loading) return;
+    m_loading = v;
+    emit loadingChanged();
 }
 
 QVariant DirModel::data(const QModelIndex& idx, int role) const {

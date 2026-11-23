@@ -7,16 +7,24 @@
 
 // The places stream (ujimad, NDJSON) as a list model: one row per READY place, Temporary first,
 // then the machine, then sticks. Names come from the wire — the same ones every dialog shows. Space figures come from statvfs on each browse root.
+// A nearby computer's shares are not rows: they ride `nearby`, one entry per computer, in every state.
 struct Place {
     QString id, kind, state, name, label, fstype, root;   // name = the display name, from the wire
     QStringList tokens;        // token TYPES the stick carries ("circle/secret", "ujima/pack") — never values
     qint64 used = 0, total = 0;
 };
 
+struct PeerShare {
+    QString id, wire, label, host, hostId, access, state, root, reason;   // wire = the id's name on the wire, "<machine id>/<share>"
+    QVariantMap toMap() const;
+};
+
 class PlacesModel : public QAbstractListModel {
     Q_OBJECT
     Q_PROPERTY(bool connected READ connected NOTIFY connectedChanged)
     Q_PROPERTY(int count READ count NOTIFY countChanged)
+    Q_PROPERTY(QVariantList nearby READ nearby NOTIFY nearbyChanged)     // [{id, name, rw, shares: [share]}] by machine id
+    Q_PROPERTY(int nearbyCount READ nearbyCount NOTIFY nearbyChanged)
 public:
     enum Roles { IdRole = Qt::UserRole + 1, KindRole, StateRole, LabelRole, FstypeRole, RootRole,
                  NameRole, UsedRole, TotalRole, FreeRole, PctRole, TokensRole };
@@ -30,11 +38,16 @@ public:
     bool connected() const { return m_connected; }
     Q_INVOKABLE QVariantMap get(int row) const;
     Q_INVOKABLE int indexOfId(const QString& id) const;
+    QVariantList nearby() const { return m_nearby; }
+    int nearbyCount() const { return m_peers.size(); }
+    Q_INVOKABLE QVariantMap peer(const QString& id) const;       // a nearby share by place id; empty when gone
+    Q_INVOKABLE bool hasReady(const QString& id) const;          // a row, or a nearby share that is mounted
     Q_INVOKABLE void refreshSpace();
 
 signals:
     void connectedChanged();
     void countChanged();
+    void nearbyChanged();
     void placesChanged();
 
 private:
@@ -50,4 +63,6 @@ private:
     QTimer m_retry;
     bool m_connected = false;
     QList<Place> m_places;
+    QList<PeerShare> m_peers;
+    QVariantList m_nearby;
 };
