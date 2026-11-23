@@ -172,3 +172,17 @@
                                     "x"     (under [:usb "GONE"] "x")}}
            @roots)
         "mounted or not: a place that is out leaves its link dangling")))
+
+
+;; --- a peer's root: an entry, never a place -----------------------------------
+
+(deftest a-peer-mount-is-an-entry-not-a-place
+  (let [dir  (str (fs/create-temp-dir))
+        peer {:kind :peer :name "87f6/rw" :peer "87f6" :access :rw :host "10.0.0.5"
+              :state :mounted :mount "/ujima/run/peer/87f6/rw" :storage "/ujima/run/peer/87f6/rw"}]
+    (is (= ["This Computer"] (mapv :name (:places (places/places->ui [ujstore-entry peer]))))
+        "its shares will be the places, each a browse root under the mount")
+    (places/init! {:places-dir dir})
+    (places/converge! [ujstore-entry peer] nil)
+    (is (fs/exists? (fs/path dir "local" "storage") {:nofollow-links true}))
+    (is (not (fs/exists? (fs/path dir "peer"))) "and no by-id link")))

@@ -4,7 +4,10 @@
    observed, start what is not started, push. The mount itself runs outside the lock, so
    the critical section is a swap and a derive, never the 40ms of mounting.
 
-   Storage sweeps for markers and reports what it finds; it never interprets them."
+   Storage sweeps for markers and reports what it finds; it never interprets them.
+
+   A peer's Samba root is mounted on request (`mount!`), with everything the mount needs in
+   the request; it is an entry like a stick's, under /ujima/run/peer/<peer id>/<rw|ro>."
   (:require [babashka.fs            :as fs]
             [cheshire.core          :as json]
             [lib.io                 :as io]
@@ -15,21 +18,25 @@
             [malli.error            :as me]
             [schema.ujima.storage   :as schema]
             [ujima.log              :as log]
-            [ujima.linux.disk.mount :as mount]))
+            [ujima.linux.disk.mount :as mount]
+            [ujima.linux.smb        :as smb]))
 
 
 (def ^:private max-marker-bytes 65536)
 (def ^:private default-mounts-dir "/ujima/run/storage")
+(def ^:private default-peers-dir  "/ujima/run/peer")
 
 
 (defonce ^:private partitions* (atom {}))   ; uuid -> {:facts f :task t}
+(defonce ^:private peers*      (atom {}))   ; "<peer id>/<rw|ro>" -> {:facts f :credentials path :task t}
 (defonce ^:private builtin-places* (atom []))  ; declared in config, resolved at init — always ahead of removable partitions
 (defonce ^:private prev*       (atom nil))  ; last projection, the prev of (next prev)
 (defonce ^:private cfg*        (atom {}))   ; :mounts-dir by init!, :targets by on-converge!
 (defonce ^:private lock        (Object.))   ; every write path holds this
 
 
-(defn- mount-of [uuid] (str (fs/path (:mounts-dir @cfg*) uuid)))
+(defn- mount-of      [uuid] (str (fs/path (:mounts-dir @cfg*) uuid)))
+(defn- peer-mount-of [name] (str (fs/path (:peers-dir @cfg*) name)))
 
 
 (defn- release-mount!
@@ -97,9 +104,10 @@
   (:payload (timeline/timeline->last-of (task/task->timeline t) (:id t))))
 
 
-(defn- ->entry [{:keys [facts task]}]
-  (let [facts (assoc facts :kind :usb :name (:uuid facts))
-        state (task->state task)]
+(defn- ->entry
+  "FACTS (with :kind and :name) at the state TASK gives, plus what the task brought."
+  [facts task]
+  (let [state (task->state task)]
     (case state
       :mounted (merge facts {:state state} (task-result task))
       :invalid (let [{:keys [error message]} (task-result task)]
@@ -107,8 +115,14 @@
       (assoc facts :state state))))
 
 
+(defn- entries [known kind]
+  (for [[name {:keys [facts task]}] (sort-by key known)]
+    (->entry (assoc facts :kind kind :name name) task)))
+
 (defn- projection []
-  (into (vec @builtin-places*) (map (comp ->entry val)) (sort-by key @partitions*)))
+  (-> (vec @builtin-places*)
+      (into (entries @partitions* :usb))
+      (into (entries @peers* :peer))))
 
 
 ;; --- the write path (serialized) --------------------------------------------
@@ -156,18 +170,32 @@
      :tokens  (if (:tokens conv) (sweep mnt) {})}))
 
 
-(defn- start-mount!
-  "The mount runs off the lock; the pass after it runs under it — act! releases the point if
-   the stick left meanwhile."
-  [uuid {:keys [fstype label]}]
+(defn- land!
+  "T runs off the lock; the pass after it runs under it — act! releases the point if the
+   stick left meanwhile."
+  [t about]
+  (task/run!
+    (flow :storage/land
+      (task/run!! t)
+      (try (locking lock (act!) (converge!))
+           (catch Throwable e
+             (log/error "storage: the pass after a mount failed" (assoc about :error (ex-message e))))))))
+
+(defn- start-mount! [uuid {:keys [fstype label]}]
   (let [t (->mount-task fstype uuid (mount-of uuid) (schema/convention label))]
     (swap! partitions* assoc-in [uuid :task] t)
-    (task/run!
-      (flow :storage/land
-        (task/run!! t)
-        (try (locking lock (act!) (converge!))
-             (catch Throwable e
-               (log/error "storage: the pass after a mount failed" {:uuid uuid :error (ex-message e)})))))))
+    (land! t {:uuid uuid})))
+
+
+(defn- ->peer-mount-task [{:keys [host access credentials]} mnt]
+  (flow :storage/mount-peer
+    (smb/mount! credentials host access mnt)
+    {:mount mnt :storage mnt}))
+
+(defn- start-peer-mount! [name {:keys [facts credentials]}]
+  (let [t (->peer-mount-task (assoc facts :credentials credentials) (peer-mount-of name))]
+    (swap! peers* assoc-in [name :task] t)
+    (land! t {:peer name})))
 
 
 (defn- observe!
@@ -180,24 +208,54 @@
                       [uuid {:facts facts :task (get-in prev [uuid :task])}])))))
 
 
+(defn- observe-request!
+  "A peer mount asked for -> the known map, unless it is known already. A known one that
+   failed is asked again: its task goes, act! starts another. State only."
+  [{:keys [peer access] :as request}]
+  (let [name (str peer "/" (name access))]
+    (swap! peers* update name
+           (fn [{:keys [task] :as known}]
+             (cond
+               (nil? known)                      {:facts (select-keys request [:peer :access :host]) :credentials (:credentials request)}
+               (= :invalid (task->state task))   (dissoc known :task)
+               :else                             known)))))
+
+
+(defn- list-dir [dir] (when (fs/directory? dir) (fs/list-dir dir)))
+
+(defn- known-partition? [partitions point] (contains? partitions (fs/file-name point)))
+(defn- known-root?      [peers peer point] (contains? peers (str peer "/" (fs/file-name point))))
+(defn- detected? [[_name {:keys [task]}]] (= :detected (task->state task)))
+
+
 (defn- release-departed!
-  "MOUNTS-DIR holds one point per known partition; every other one is released — a stick
-   that left this run, or while ujimad was down."
-  [mounts-dir]
-  (doseq [m     (when (fs/directory? mounts-dir) (fs/list-dir mounts-dir))
-          :when (not (contains? @partitions* (fs/file-name m)))]
-    (release-mount! (str m))))
+  "MOUNTS-DIR holds one point per known partition, PEERS-DIR one per peer and root; every
+   other one is released — a device that left this run, or while ujimad was down."
+  [mounts-dir peers-dir]
+  (doseq [m (remove (partial known-partition? @partitions*) (list-dir mounts-dir))]
+    (release-mount! (str m)))
+
+  (doseq [peer-dir (list-dir peers-dir)]
+    (let [peer (fs/file-name peer-dir)]
+      (doseq [m (remove (partial known-root? @peers* peer) (list-dir peer-dir))]
+        (release-mount! (str m)))
+      (when (empty? (list-dir peer-dir))
+        (fs/delete-if-exists peer-dir)))))
 
 
 (defn- act!
-  "The world made to match the known partitions: departed mount points released, a mount
-   task per detected partition. A mount lands on its own thread, which acts and converges
-   again."
+  "The world made to match what is known: departed mount points released, a mount task per
+   detected partition and peer root. A mount lands on its own thread, which acts and
+   converges again."
   []
-  (release-departed! (:mounts-dir @cfg*))
-  (doseq [[uuid {:keys [facts task]}] @partitions*]
-    (when (= :detected (task->state task))
-      (start-mount! uuid facts))))
+
+  (release-departed! (:mounts-dir @cfg*) (:peers-dir @cfg*))
+
+  (doseq [[uuid {:keys [facts]}] (filter detected? @partitions*)]
+    (start-mount! uuid facts))
+
+  (doseq [[name known] (filter detected? @peers*)]
+    (start-peer-mount! name known)))
 
 
 (defn- converge! []
@@ -215,6 +273,19 @@
     (observe! partitions)
     (act!)
     (converge!)))
+
+
+(defn mount!
+  "A peer's Samba root, asked for with all a mount needs — nothing is looked up:
+     (mount! {:peer \"87f6…\" :access :rw :host \"10.0.0.5\" :credentials \"/ujima/run/smb/credentials\"})
+   Known and in flight or mounted, it is left alone; failed, it is tried again. The outcome
+   is the entry [:peer \"87f6…/rw\"] in the snapshot."
+  [request]
+  (locking lock
+    (observe-request! request)
+    (act!)
+    (converge!))
+  nil)
 
 
 ;; --- wiring + read side -----------------------------------------------------
@@ -235,14 +306,16 @@
                    (assoc base :state :mounted :tokens {})))))
 
 
-(defn init! [{:keys [mounts-dir places]}]
-  (let [mounts-dir (or mounts-dir default-mounts-dir)]
-    (reset! partitions* {})
-    (reset! prev*       nil)
-    (reset! builtin-places* (mapv builtin-entry places))
-    (reset! cfg*        {:mounts-dir mounts-dir :targets []})
-    (locking lock (act!) (converge!))
-    nil))
+(defn init! [{:keys [mounts-dir peers-dir places]}]
+  (reset! partitions* {})
+  (reset! peers*      {})
+  (reset! prev*       nil)
+  (reset! builtin-places* (mapv builtin-entry places))
+  (reset! cfg*        {:mounts-dir (or mounts-dir default-mounts-dir)
+                       :peers-dir  (or peers-dir default-peers-dir)
+                       :targets    []})
+  (locking lock (act!) (converge!))
+  nil)
 
 
 (defn on-converge!

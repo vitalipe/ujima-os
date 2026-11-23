@@ -46,6 +46,11 @@
             places))))
 
 
+(defn- peer-mount?
+  "A peer's root mounted is an entry, not a place: its shares are the places."
+  [entry]
+  (= :peer (:kind entry)))
+
 (defn places->ui
   "Entries, shares -> the wire blob: each place with its own shares as
    [{:name \"math\" :path \"Grade 5/math\" :access :rw}]."
@@ -54,7 +59,7 @@
    (let [by-place (group-by :place shares)]
      {:places (mapv (fn [{:keys [id] :as place}]
                       (assoc place :shares (mapv #(select-keys % [:name :path :access]) (by-place id))))
-                    (number-sticks (mapv entry->place entries)))})))
+                    (number-sticks (mapv entry->place (remove peer-mount? entries))))})))
 
 
 ;; --- home: the Places screen on disk -----------------------------------------
@@ -88,7 +93,7 @@
 (defn- by-id
   "Storage entries -> {kind {id storage-root}}, the mounted ones."
   [entries]
-  (into {} (for [[kind entries] (group-by :kind entries)]
+  (into {} (for [[kind entries] (group-by :kind (remove peer-mount? entries))]
              [(name kind) (into {} (for [{id :name :keys [state storage]} entries
                                          :when (and (= :mounted state) storage)]
                                      [id (str (fs/path storage))]))])))

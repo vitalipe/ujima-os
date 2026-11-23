@@ -7,6 +7,7 @@
             [lib.task      :as task]
             [lib.task.flow :refer [flow]]
             [ujima.linux.disk.mount :as mount]
+            [ujima.linux.smb :as smb]
             [ujima.storage :as storage]))
 
 
@@ -98,13 +99,13 @@
                 (task/run!!))]
     (is (= {:uuid "U" :disk "sda" :fstype "vfat" :kind :usb :name "U" :state :mounted
             :mount "/ujima/run/storage/U" :tokens {:circle/secret {:key "abc"}}}
-           (->entry {:facts facts :task t})))))
+           (->entry (assoc facts :kind :usb :name "U") t)))))
 
 
 (deftest an-invalid-entry-carries-why
   (let [t (doto (flow :t (throw (ex-info "mount: unknown filesystem type 'exfat'" {})))
             (task/run!!))
-        e (->entry {:facts {:uuid "U"} :task t})]
+        e (->entry {:uuid "U" :kind :usb :name "U"} t)]
     (is (= :invalid (:state e)))
     (is (= "mount: unknown filesystem type 'exfat'" (:reason e))
         "the reason comes off the task timeline, not a hand-maintained field")))
@@ -162,3 +163,58 @@
                :state :mounted :tokens {}}]
              (storage/snapshot))
           "ephemeral by contract — no check, always ready"))))
+
+
+;; --- a peer's root, on request ------------------------------------------------
+
+(defn- settle [pred]
+  (let [deadline (+ (System/currentTimeMillis) 3000)]
+    (while (and (not (pred)) (< (System/currentTimeMillis) deadline))
+      (Thread/sleep 10))
+    (pred)))
+
+(defn- peer-entries [] (filterv #(= :peer (:kind %)) (storage/snapshot)))
+
+(def ^:private a-request
+  {:peer "87f6" :access :rw :host "10.0.0.5" :credentials "/run/smb/credentials"})
+
+
+(deftest a-peer-root-is-mounted-on-request-and-once
+  (let [peers  (str (fs/create-temp-dir))
+        mounts (atom [])]
+    (with-redefs [smb/mount! (fn [& args] (swap! mounts conj (into [] args)))]
+      (storage/init! {:mounts-dir (str (fs/create-temp-dir)) :peers-dir peers :places []})
+      (storage/mount! a-request)
+      (is (settle #(= :mounted (:state (first (peer-entries))))))
+      (is (= [{:kind :peer :name "87f6/rw" :peer "87f6" :access :rw :host "10.0.0.5" :state :mounted
+               :mount (str peers "/87f6/rw") :storage (str peers "/87f6/rw")}]
+             (peer-entries))
+          "an entry like a stick's; the credentials path stays out of it")
+      (is (= [["/run/smb/credentials" "10.0.0.5" :rw (str peers "/87f6/rw")]] @mounts)
+          "all the mount needs came in the request")
+      (storage/mount! a-request)
+      (storage/handle-event! {:partitions {}})
+      (is (= 1 (count @mounts)) "asked again while mounted, or a udev pass: left alone"))))
+
+
+(deftest a-failed-peer-mount-is-tried-again-only-when-asked
+  (let [mounts (atom 0)]
+    (with-redefs [smb/mount! (fn [& _] (swap! mounts inc) (throw (ex-info "mount error(113): No route to host" {})))]
+      (storage/init! {:mounts-dir (str (fs/create-temp-dir)) :peers-dir (str (fs/create-temp-dir)) :places []})
+      (storage/mount! a-request)
+      (is (settle #(= :invalid (:state (first (peer-entries))))))
+      (is (= "mount error(113): No route to host" (:reason (first (peer-entries)))))
+      (storage/handle-event! {:partitions {}})
+      (is (= 1 @mounts) "a pass never retries on its own")
+      (storage/mount! a-request)
+      (is (settle #(= 2 @mounts)) "the request is the retry"))))
+
+
+(deftest a-peer-point-without-an-entry-is-released
+  (let [peers    (str (fs/create-temp-dir))
+        released (atom [])]
+    (fs/create-dirs (fs/path peers "gone" "rw"))
+    (with-redefs [mount/umount-lazy! (fn [mnt] (swap! released conj (str mnt)) true)]
+      (storage/init! {:mounts-dir (str (fs/create-temp-dir)) :peers-dir peers :places []})
+      (is (= [(str (fs/path peers "gone" "rw"))] @released) "a point left from the last run")
+      (is (not (fs/exists? (fs/path peers "gone"))) "its point and the peer's dir are gone"))))

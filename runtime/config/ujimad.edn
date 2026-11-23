@@ -5,6 +5,7 @@
            :tmp     "/ujima/run/session"}
 
  :storage {:mounts-dir "/ujima/run/storage"
+           :peers-dir  "/ujima/run/peer"
            :places     [{:kind :local   :name "storage" :mount "/ujima/storage"
                          :provides {:storage "files/"} :label "UJSTORE" :fstype "ext4"}
                         {:kind :session :name "files"   :mount "/home/ujima/Temporary"
