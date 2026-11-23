@@ -39,14 +39,15 @@
 
 ;; ── what a peer publishes ────────────────────────────────────────────────────
 
+(defn- answered? [[_path {:keys [status]}]] (= :ok status))
+
 (defn- ->read-task
   "PEER's name and shares off its tree: {:name \"Mvule\" :shares [{:name \"math\" :access :rw}]}."
   [peer]
   (flow :circle/read
     ;; FIXME: two requests until the http side can pick fields
     (let [answers (into {} (for [path ["system/name" "shares"]] [path (client/node peer path)]))]
-      (doseq [[path {:keys [status data]}] answers
-              :when (not= :ok status)]
+      (doseq [[path {:keys [data]}] (remove answered? answers)]
         (error! :circle/unread (str path ": " (pr-str (:reason data)))))
 
       {:name   (get-in answers ["system/name" :data :name])
@@ -98,12 +99,13 @@
 
 (defn- wanted?
   "Not offline, and nothing asked of this beat yet, or the ask failed more than retry-ms ago."
-  [now {:keys [seen-ms] :as peer} {:keys [args probe]}]
-  (and (not= :offline (peers/state-of seen-ms now))
-       (or (nil? probe)
-           (not= args (ask peer))
-           (and (= :error (probe/probe->state probe))
-                (<= (+ (failed-at (probe/probe->task probe)) retry-ms) now)))))
+  [now reads [id {:keys [seen-ms] :as peer}]]
+  (let [{:keys [args probe]} (reads id)]
+    (and (not= :offline (peers/state-of seen-ms now))
+         (or (nil? probe)
+             (not= args (ask peer))
+             (and (= :error (probe/probe->state probe))
+                  (<= (+ (failed-at (probe/probe->task probe)) retry-ms) now))))))
 
 (defn- profiles []
   (into {} (for [[id {:keys [probe]}] @reads*
@@ -125,8 +127,7 @@
   []
   (let [now (now) peers @peers*]
     (swap! reads* select-keys (keys peers))
-    (doseq [[id peer] peers
-            :when (wanted? now peer (@reads* id))]
+    (doseq [[id peer] (filter (partial wanted? now @reads*) peers)]
       (start-read! id peer))))
 
 (defn- converge!
