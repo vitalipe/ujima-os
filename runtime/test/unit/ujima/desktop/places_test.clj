@@ -168,7 +168,7 @@
   (let [roots (atom {})
         under (fn [place path] (str (places/place-path place) "/" path))]
     (places/init! {})
-    (with-redefs [links/reconcile! (fn [root wanted] (swap! roots assoc root wanted))]
+    (with-redefs [links/converge! (fn [root wanted] (swap! roots assoc root wanted))]
       (places/converge-shares! {:shares shares} nil))
     (is (= {"/ujima/run/shares/rw" {"math"  (under [:usb "6962-5E15"] "Grade 5/math")}
             "/ujima/run/shares/ro" {"Books" (under [:local "storage"] "Books")

@@ -41,23 +41,23 @@
     (is (= [] (:unlink plan)) "a plain file is not ours to remove")))
 
 
-(deftest reconcile-makes-and-unmakes-links-on-a-real-dir
+(deftest converge-makes-and-unmakes-links-on-a-real-dir
   (let [dir    (str (fs/create-temp-dir))
         home   (str dir "/home")
         target (str (fs/create-temp-dir))]
     (try
       (testing "the root is made, links appear"
-        (links/reconcile! home {"This Computer" target})
+        (links/converge! home {"This Computer" target})
         (is (fs/sym-link? (fs/path home "This Computer")))
         (is (= target (str (fs/read-link (fs/path home "This Computer"))))))
       (testing "a real dir with a link's name survives a conflict"
         (fs/create-dirs (fs/path home "USB Stick"))
         (fs/create-file (fs/path home "USB Stick" "keep.txt"))
-        (links/reconcile! home {"This Computer" target "USB Stick" "/nowhere"})
+        (links/converge! home {"This Computer" target "USB Stick" "/nowhere"})
         (is (fs/exists? (fs/path home "USB Stick" "keep.txt"))))
       (testing "an unwanted link goes, its target untouched"
         (fs/create-file (fs/path target "data.txt"))
-        (links/reconcile! home {})
+        (links/converge! home {})
         (is (not (fs/exists? (fs/path home "This Computer") {:nofollow-links true})))
         (is (fs/exists? (fs/path target "data.txt"))))
       (finally

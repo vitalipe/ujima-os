@@ -39,7 +39,7 @@
   catalog)
 
 
-(defn on-converge!
+(defn on-project!
   "Attach a target: F gets (snapshot, previous) after every pass."
   [f]
   (swap! targets* conj f)
@@ -60,7 +60,7 @@
    :catalog    (catalog/current)})
 
 
-(defn- converge! [snapshot]
+(defn- project! [snapshot]
   (let [prv @prev*]
     (reset! prev* snapshot)
     (doseq [t @targets*] (t snapshot prv))))
@@ -75,7 +75,7 @@
 
 (defn- settle!
   "Shared world-maintenance after a mode acts: re-observe, un-float stray app windows, route
-   orphans to their workspace. Returns that world for project!."
+   orphans to their workspace. Returns that world for the projection."
   []
   (let [w (observe!)]
     (act/settle-floaters! w)
@@ -135,46 +135,46 @@
 ;; --- itself as it enters — Locked captures the app to return to on exit.
 
 (defprotocol Mode
-  (enter!   [m]       "set up on entering; returns the mode to store (may enrich itself)")
-  (exit!    [m]       "tear down on leaving")
-  (act!     [m ev]    "run this mode's handler for EV, if it admits one")
-  (project! [m world] "the base projection stamped with this mode's data"))
+  (enter!     [m]       "set up on entering; returns the mode to store (may enrich itself)")
+  (exit!      [m]       "tear down on leaving")
+  (act!       [m ev]    "run this mode's handler for EV, if it admits one")
+  (projection [m world] "the base projection stamped with this mode's data"))
 
 
 (defrecord Multi []
   Mode
-  (enter!   [m]       m)
-  (exit!    [_]       nil)
-  (act!     [_ ev]    (dispatch multi-handlers ev))
-  (project! [_ world] (snapshot :multi world)))
+  (enter!     [m]       m)
+  (exit!      [_]       nil)
+  (act!       [_ ev]    (dispatch multi-handlers ev))
+  (projection [_ world] (snapshot :multi world)))
 
 
 (defrecord Solo [app]
   Mode
-  (enter!   [m]       (pin! app) m)
-  (exit!    [_]       nil)
-  (act!     [_ ev]    (dispatch (keep-alive-handlers app) ev))
-  (project! [_ world] (snapshot :solo world)))
+  (enter!     [m]       (pin! app) m)
+  (exit!      [_]       nil)
+  (act!       [_ ev]    (dispatch (keep-alive-handlers app) ev))
+  (projection [_ world] (snapshot :solo world)))
 
 
 (defrecord Locked [app-to-focus]
   Mode
-  (enter!   [m]       (let [w     (observe!) ; before the switch moves us
-                            focus (proj/app-of-ws w (:focused-ws w))]
+  (enter!     [m]       (let [w     (observe!) ; before the switch moves us
+                              focus (proj/app-of-ws w (:focused-ws w))]
 
-                        (act/show-lock!)
-                        (assoc m :app-to-focus focus))) ; remember it for exit!
+                          (act/show-lock!)
+                          (assoc m :app-to-focus focus))) ; remember it for exit!
 
-  (exit!    [m]       (let [w    (observe!)
-                            back (:app-to-focus m)]
+  (exit!      [m]       (let [w    (observe!)
+                              back (:app-to-focus m)]
 
-                        (i3/switch-workspace!
-                          (if (and back (seq (get (:ws->wins w) (name back))))
-                            (name back)                            ; the app is still open
-                            home-ws))))                            ; gone (or was home)
+                          (i3/switch-workspace!
+                            (if (and back (seq (get (:ws->wins w) (name back))))
+                              (name back)                            ; the app is still open
+                              home-ws))))                            ; gone (or was home)
 
-  (act!     [_ ev]    (dispatch {} ev))    ; no handlers: every verb refused
-  (project! [_ world] (snapshot :locked world)))
+  (act!       [_ ev]    (dispatch {} ev))    ; no handlers: every verb refused
+  (projection [_ world] (snapshot :locked world)))
 
 
 (defn- event->mode [ev]
@@ -186,15 +186,15 @@
 
 (defn handle-event!
   "One pass under the lock: a :mode/* event transitions (exit! old, then enter! the new and
-   store what it returns — always paired); then the mode acts on EV, settle! reconciles, and
-   the mode projects for converge."
+   store what it returns — always paired); then the mode acts on EV, settle! converges the windows, and
+   project! hands the mode's projection to the targets."
   [ev]
   (locking lock*
     (when (= "mode" (namespace (:type ev)))
       (exit! @state*)
       (reset! state* (enter! (event->mode ev))))
     (act! @state* ev)
-    (converge! (project! @state* (settle!)))))
+    (project! (projection @state* (settle!)))))
 
 
 ;; --- verbs: validate, then one pass ---

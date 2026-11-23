@@ -5,7 +5,7 @@
             [ujima.linux.sudo :refer [sudo$! sudo$?]]))
 
 
-;; One NetworkManager profile, `ujima`, is all ujimad owns — one thing to reconcile, and a
+;; One NetworkManager profile, `ujima`, is all ujimad owns — one thing to converge, and a
 ;; human's profiles are never touched. It lives in the overlay's tmpfs upper and is gone at
 ;; boot; converge re-asserts it. The regulatory domain stays at world: a client follows the
 ;; AP's channel, and any country code only narrows what a client may join.

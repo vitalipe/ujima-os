@@ -1,6 +1,6 @@
 (ns ujima.events.token
   "Admin-token policy: the console app follows a circle token on removable storage.
-   Decisions only — the projection arrives as a ujima.storage converge target, and storage
+   Decisions only — the projection arrives as a ujima.storage target, and storage
    reports markers without interpreting them, so the token's SHAPE is known only here.
 
    EDGE-triggered on purpose: app/run! switches workspace unconditionally, so a
@@ -91,7 +91,7 @@
 
 
 (defn on-storage!
-  "Storage converge target. Returns the transition — the decision, for tests."
+  "Storage target. Returns the transition — the decision, for tests."
   [next prev]
   (let [seen   (circle-token next)
         before (our-token prev)

@@ -1,15 +1,15 @@
-(ns ujima.desktop.http.converge-test
+(ns ujima.desktop.http.streams-test
   (:require [clojure.test :refer [deftest is]]
             [lib.http.ndjson :as ndjson]
             [ujima.circle :as circle]
             [ujima.circle.self :as self]
             [ujima.desktop.app :as app]
-            [ujima.desktop.http.converge :as converge]
+            [ujima.desktop.http.streams :as streams]
             [ujima.storage :as storage]))
 
 
 (defn- ui [settings]
-  (converge/settings->ui (update-vals settings #(hash-map :effective %)) "af3c"))
+  (streams/settings->ui (update-vals settings #(hash-map :effective %)) "af3c"))
 
 
 (def ^:private settings
@@ -44,7 +44,7 @@
 (deftest settings->ui-locks-what-an-activity-holds
   (let [held  (fn [m k] (assoc m k (assoc (get m k) :via :activity)))
         recs  (update-vals settings #(hash-map :effective % :via :session))
-        ui*   #(converge/settings->ui % "af3c")]
+        ui*   #(streams/settings->ui % "af3c")]
     (is (false? (get-in (ui* recs) [:audio :volume :locked]))
         "a session value is the user's own")
     (is (true?  (get-in (ui* (held recs [:audio :usb :volume])) [:audio :volume :locked])))
@@ -72,14 +72,14 @@
 
 (deftest pinned-is-the-system-apps-that-are-not-hidden
   (is (= [{:id :files :label "Files" :icon "files.svg" :category :system}]
-         (:pinned (converge/apps->ui {:running [] :catalog catalog :current nil})))
+         (:pinned (streams/apps->ui {:running [] :catalog catalog :current nil})))
       "files pins though nothing runs; console ships hidden; an ordinary app never pins"))
 
 
 (deftest unhiding-puts-an-app-in-the-dock
   (let [shown (mapv #(cond-> % (= :console (:id %)) (assoc :hidden false)) catalog)]
     (is (= [:files :console]
-           (mapv :id (:pinned (converge/apps->ui {:running [] :catalog shown :current nil}))))
+           (mapv :id (:pinned (streams/apps->ui {:running [] :catalog shown :current nil}))))
         "declared order, NOT catalog order: a token arriving must not shift the Files icon")))
 
 
@@ -88,12 +88,12 @@
   (let [shown (conj (mapv #(cond-> % (= :console (:id %)) (assoc :hidden false)) catalog)
                     {:id :zzz :label "Z" :icon "z.svg" :category :system :hidden false})]
     (is (= [:files :console :zzz]
-           (mapv :id (:pinned (converge/apps->ui {:running [] :catalog shown :current nil})))))))
+           (mapv :id (:pinned (streams/apps->ui {:running [] :catalog shown :current nil})))))))
 
 
 (deftest the-wire-shape-is-exactly-five-keys
-  (let [out (converge/apps->ui {:mode :multi :bars-hidden? false :running [{:id :paint}]
-                                :catalog catalog :current {:id :paint}})]
+  (let [out (streams/apps->ui {:mode :multi :bars-hidden? false :running [{:id :paint}]
+                               :catalog catalog :current {:id :paint}})]
     (is (= #{:mode :bars-hidden :running :pinned :current} (set (keys out)))
         "spelled out, so an internal projection key can never leak to the shell")
     (is (= :multi (:mode out)))
@@ -103,15 +103,15 @@
 
 
 (deftest the-shell-reads-the-bars-visibility-off-the-wire
-  (is (true? (:bars-hidden (converge/apps->ui {:mode :solo :bars-hidden? true :running [] :catalog catalog}))))
-  (is (false? (:bars-hidden (converge/apps->ui {:running [] :catalog catalog})))
+  (is (true? (:bars-hidden (streams/apps->ui {:mode :solo :bars-hidden? true :running [] :catalog catalog}))))
+  (is (false? (:bars-hidden (streams/apps->ui {:running [] :catalog catalog})))
       "a snapshot that never said keeps the bars"))
 
 
 (deftest a-token-on-a-catalog-entry-never-reaches-the-wire
   ;; :env holds UJIMA_CIRCLE_TOKEN — the projection carries the LISTING for this reason
   (let [leaky (mapv #(assoc % :env {"UJIMA_CIRCLE_TOKEN" "s3cret"} :exec ["x"]) catalog)
-        out   (converge/apps->ui {:running [] :catalog leaky :current nil})]
+        out   (streams/apps->ui {:running [] :catalog leaky :current nil})]
     (is (not (re-find #"s3cret" (pr-str out)))
         "pinned select-keys the entry — assert over the WHOLE blob, not one field")))
 
@@ -128,7 +128,7 @@
                   self/snapshot    (constantly {:shares [{:place [:local "storage"] :path "Books" :name "Books" :access :ro}]})
                   circle/nearby    (constantly [{:peer-id "87f6" :address {:host "10.0.0.5" :port 1337} :host "Mvule" :label "math" :access :rw}])
                   ndjson/publish!  (fn [topic blob] (reset! published [topic blob]))]
-      (converge/converge-places! nil nil)
+      (streams/publish-places! nil nil)
       (is (= [:ui/places
               {:places [{:id [:local "storage"] :kind :local :name "This Computer" :state :ready :label "UJSTORE" :fstype "ext4"
                          :storage "/ujima/storage/files" :mount "/ujima/storage" :tokens []

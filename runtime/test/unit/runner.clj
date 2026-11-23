@@ -45,7 +45,7 @@
             [ujima.linux.disk.mount-test]
             [lib.http-test]
             [ujima.desktop.http-test]
-            [ujima.desktop.http.converge-test]
+            [ujima.desktop.http.streams-test]
             [ujima.desktop.places-test]
             [ujima.desktop.app.catalog-test]
             [ujima.desktop.app.catalog.loader-test]
@@ -103,7 +103,7 @@
     ujima.linux.disk.mount-test
     lib.http-test
     ujima.desktop.http-test
-    ujima.desktop.http.converge-test
+    ujima.desktop.http.streams-test
     ujima.desktop.places-test
     ujima.desktop.app.catalog-test
     ujima.desktop.app.catalog.loader-test

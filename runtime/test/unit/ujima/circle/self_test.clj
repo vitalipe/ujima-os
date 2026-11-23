@@ -54,14 +54,14 @@
 
 (deftest what-is-published-is-the-name-and-the-shares-whose-place-is-mounted-by-name
   (self/init!)
-  (self/converge-settings! {[:system :name] {:effective "Mvule"}} nil)
+  (self/on-settings! {[:system :name] {:effective "Mvule"}} nil)
   (self/share! {:place stick :path "zed" :access :rw})
   (self/share! {:place stick :path "apple"})
   (self/share! {:place [:local "storage"] :path "Books"})
   (is (= {:name "Mvule" :published [] :hash (beat/digest {:name "Mvule" :shares []})}
          (dissoc (self/snapshot) :shares))
       "no place heard of yet: nothing is served, and the hash says so")
-  (self/converge-storage! [mounted] nil)
+  (self/on-storage! [mounted] nil)
   (let [served [{:name "apple" :access :ro} {:name "zed" :access :rw}]]
     (is (= served (:published (self/snapshot)))
         "by name, whatever order they were shared in — the hash must not move when nothing did")
@@ -71,8 +71,8 @@
 (deftest every-write-reaches-the-targets-with-next-and-prev
   (self/init!)
   (let [heard (atom [])]
-    (self/on-converge! (fn [next prev] (swap! heard conj [(count (:published prev)) (count (:published next))])))
+    (self/on-project! (fn [next prev] (swap! heard conj [(count (:published prev)) (count (:published next))])))
     (self/share! math)
-    (self/converge-storage! [mounted] nil)
+    (self/on-storage! [mounted] nil)
     (self/unshare! math)
     (is (= [[0 0] [0 1] [1 0]] @heard) "a verb, the storage arrow, a verb: one converge each")))

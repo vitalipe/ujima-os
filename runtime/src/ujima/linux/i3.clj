@@ -65,7 +65,7 @@
 
 (defn watch-windows!
   "Stream window + workspace events on the returned channel. One initial tick forces a first
-   converge; the subscription outlives the session."
+   pass; the subscription outlives the session."
   []
   (let [ch   (async/chan 64)
         proc (shell/sh {:out :stream :err :stream :shutdown p/destroy-tree}

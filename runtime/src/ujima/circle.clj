@@ -5,7 +5,7 @@
    carries the hash of what the machine publishes (ujima.circle.self), so a peer's name and
    shares are read off its tree once when it appears and again when the hash moves, never
    every beat. A pass runs whole under one lock — observe (a beat into the peers), act (a
-   probe per peer, asked again when its beat moved), converge (project, hand (next prev) to
+   probe per peer, asked again when its beat moved), project (hand (next prev) to
    targets when it moved) — on a beat, on the tick, and when a read lands. The datagram is
    ujima.circle.beat, the peers as data ujima.circle.peers; this is the sockets, the
    threads, the clock and the reads."
@@ -72,7 +72,7 @@
                  (:time (timeline/timeline->last-of (task/task->timeline attempt) (:id attempt)))))
 
 
-(declare act! converge!)
+(declare act! project!)
 
 (defn- start-read!
   "The read runs off the lock, the pass after it under it. Same boot, same probe; a new
@@ -93,7 +93,7 @@
                (log/warn "circle: could not read a peer"
                          {:id id :host (:host args) :error (ex-message (:error (:child-error (ex-data e))))})))
 
-        (try (locking lock (act!) (converge!))
+        (try (locking lock (act!) (project!))
              (catch Throwable e
                (log/error "circle: the pass after a read failed" {:id id :error (ex-message e)})))))))
 
@@ -124,14 +124,14 @@
 
 (defn- act!
   "A read for every peer that wants one, none for a peer no longer known. A read lands on
-   its own thread, which acts and converges again."
+   its own thread, which acts and projects again."
   []
   (let [now (now) peers @peers*]
     (swap! reads* select-keys (keys peers))
     (doseq [[id peer] (filter (partial wanted? now @reads*) peers)]
       (start-read! id peer))))
 
-(defn- converge!
+(defn- project!
   "Targets hear (next prev) only when the projection moved: a beat with nothing new, and the
    tick, project the same value."
   []
@@ -141,7 +141,7 @@
     (when (not= next prev)
       (doseq [t @targets*] (t next prev)))))
 
-(defn- tick! [] (locking lock (act!) (converge!)))
+(defn- tick! [] (locking lock (act!) (project!)))
 
 
 ;; ── the peers ───────────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@
   [id]
   (locking lock
     (swap! peers* dissoc id)
-    (act!) (converge!))
+    (act!) (project!))
   nil)
 
 (defn- heard!
@@ -174,7 +174,7 @@
         (locking lock
           (observe! beat)
           (act!)
-          (converge!))))))
+          (project!))))))
 
 
 ;; ── the wire ────────────────────────────────────────────────────────────────
@@ -236,7 +236,7 @@
 
 ;; ── wiring ──────────────────────────────────────────────────────────────────
 
-(defn on-converge!
+(defn on-project!
   "Attach a target: F gets (next prev) under the lock when the peers moved. A target that
    runs another plane's pass is handed off (`watch-peers!`) — two planes waiting on each
    other's lock is a deadlock."
@@ -251,11 +251,11 @@
   []
   (let [ch   (async/chan (async/sliding-buffer 1))
         seen (atom nil)]
-    (on-converge! (fn [next _prev]
-                    (let [present (into #{} (map :id) (peers/present next))]
-                      (when (not= present @seen)
-                        (reset! seen present)
-                        (async/>!! ch {:type :circle/peers :peers present})))))
+    (on-project! (fn [next _prev]
+                   (let [present (into #{} (map :id) (peers/present next))]
+                     (when (not= present @seen)
+                       (reset! seen present)
+                       (async/>!! ch {:type :circle/peers :peers present})))))
     ch))
 
 (defn- reset-state! [cfg]

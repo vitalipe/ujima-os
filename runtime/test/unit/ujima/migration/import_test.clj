@@ -8,7 +8,7 @@
             [schema.ujima.settings :as defs]))
 
 
-;; Same rig as control-test: real temp files, no stubs, no converge targets.
+;; Same rig as control-test: real temp files, no stubs, no targets.
 
 
 (defn- fresh! []

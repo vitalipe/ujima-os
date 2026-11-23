@@ -18,7 +18,7 @@
             [ujima.desktop.app.catalog.loader :as loader]
             [ujima.desktop.app.projection     :as proj]
             [ujima.desktop.http               :as shell-http]
-            [ujima.desktop.http.converge      :as converge]
+            [ujima.desktop.http.streams       :as streams]
             [tools.circle.state :as state]
             [tools.cmd.dev      :as dev]))
 
@@ -114,7 +114,7 @@
 
 (defn- apply-apps! [{:keys [console mode] :as apps}]
   (catalog/merge-app! :console {:hidden (not console)})
-  (converge/converge-apps! (snapshot apps) nil)
+  (streams/publish-apps! (snapshot apps) nil)
   (show-lock! (get-in @facts* [:apps :mode]) mode))
 
 
@@ -258,8 +258,8 @@
     (reset! pi* (dev/ssh-transport (merge {:user "ujima" :password "ujima" :port "22"} opts)))
     (reset! log* [])
     (control/init! {:storage (str (fs/path dir "settings")) :tmp (str (fs/path dir "session"))})
-    (converge/init!)
-    (control/on-converge! converge/converge-ui!)
+    (streams/init!)
+    (control/on-project! streams/publish-ui!)
     (catalog/init! (loader/load-catalog ["os/apps"] "desktop/shell/icons/launcher.svg"))
     (apply-preset! state)
     (let [cfg {:host "0.0.0.0" :port http-port :log (fn [& _])

@@ -1,6 +1,6 @@
 (ns ujima.desktop.places
   "Places, presented: the blob /stream/places carries, and three directories of links, each
-   reconciled on its arrow by ujima.desktop.places.links:
+   converged on its arrow by ujima.desktop.places.links:
      ~/USB Stick                      -> /ujima/run/storage/6962-5E15                 home = the Places screen
      /ujima/run/places/usb/6962-5E15  -> /ujima/run/storage/6962-5E15                 every mounted place, by id
      /ujima/run/shares/rw/math        -> /ujima/run/places/usb/6962-5E15/Grade 5/math  the Samba roots
@@ -137,7 +137,7 @@
   (let [wanted  (by-id entries)
         on-disk (when (fs/directory? places-dir) (map fs/file-name (fs/list-dir places-dir)))]
     (doseq [kind (into #{} (concat (keys wanted) on-disk))]
-      (links/reconcile! (fs/path places-dir kind) (get wanted kind {})))))
+      (links/converge! (fs/path places-dir kind) (get wanted kind {})))))
 
 
 ;; --- the two arrows -----------------------------------------------------------
@@ -152,7 +152,7 @@
            (catch Throwable e
              (log/error "places: by-id root failed" {:root places-dir :error (ex-message e)}))))
     (when home
-      (try (links/reconcile! home (wanted (:places (places->ui entries))))
+      (try (links/converge! home (wanted (:places (places->ui entries))))
            (catch Throwable e
              (log/error "places: home projection failed" {:root home :error (ex-message e)}))))))
 
@@ -162,9 +162,9 @@
    dangling while the stick is out."
   [{:keys [shares]} _prv]
   (doseq [[access root] smb/roots]
-    (links/reconcile! root (into {} (for [{:keys [place path name] :as share} shares
-                                          :when (= access (:access share))]
-                                      [name (str (fs/path (place-path place) path))])))))
+    (links/converge! root (into {} (for [{:keys [place path name] :as share} shares
+                                         :when (= access (:access share))]
+                                     [name (str (fs/path (place-path place) path))])))))
 
 
 ;; --- mounting a peer's share -----------------------------------------------------

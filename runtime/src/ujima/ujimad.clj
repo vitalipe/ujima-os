@@ -13,7 +13,7 @@
 
             [ujima.desktop          :as desktop]
             [ujima.desktop.http     :as shell-http]
-            [ujima.desktop.http.converge :as shell-http-converge]
+            [ujima.desktop.http.streams  :as shell-http-streams]
             [ujima.desktop.places   :as places]
             [ujima.circle           :as circle]
             [ujima.circle.self      :as self]
@@ -40,7 +40,7 @@
     (device/init! disk)   ; machine reality first: the disk stamp
 
     ;; the planes; events/init! connects them
-    (shell-http-converge/init!)
+    (shell-http-streams/init!)
 
     (places/init!  (get-in env [:desktop] {}))
     (self/init!)

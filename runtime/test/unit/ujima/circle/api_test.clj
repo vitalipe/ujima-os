@@ -74,7 +74,7 @@
   (fresh!)
   (self/share! {:place [:usb "U"] :path "a/b" :access :rw})
   (is (= [] (GET "/api/query/machine/shares")) "the stick is out: nothing is served")
-  (self/converge-storage! [{:kind :usb :name "U" :state :mounted :storage "/ujima/run/storage/U"}] nil)
+  (self/on-storage! [{:kind :usb :name "U" :state :mounted :storage "/ujima/run/storage/U"}] nil)
   (is (= [{:name "b" :access :rw}] (GET "/api/query/machine/shares"))
       "where a share lives on this machine is nobody else's business"))
 

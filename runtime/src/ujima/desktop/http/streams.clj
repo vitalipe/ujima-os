@@ -1,5 +1,5 @@
-(ns ujima.desktop.http.converge
-  "The GUI's converge ports and the streams they feed. control hands it the
+(ns ujima.desktop.http.streams
+  "The GUI's ports and the streams they feed. control hands it the
    whole settings plane, so this projects; the app layer projects before its
    targets run, so that one republishes as-is."
   (:require [lib.http.ndjson        :as ndjson]
@@ -52,14 +52,12 @@
                      (sort-by #(pinned-app-order (:id %) 99)))})
 
 
-(defn- publish-places! []
-  (ndjson/publish! :ui/places (places/places->ui (storage/snapshot) (:shares (self/snapshot)) (circle/nearby))))
-
-(defn converge-ui!     [settings _prv] (ndjson/publish! :ui/state (settings->ui settings @serial-tail)))
-(defn converge-apps!   [snapshot _prv] (ndjson/publish! :ui/apps  (apps->ui snapshot)))
+(defn publish-ui!   [settings _prv] (ndjson/publish! :ui/state (settings->ui settings @serial-tail)))
+(defn publish-apps! [snapshot _prv] (ndjson/publish! :ui/apps  (apps->ui snapshot)))
 ;; the places blob is storage x self's shares x the circle's nearby; self hears storage, so
 ;; self's arrow and the circle's carry all three
-(defn converge-places! [_nxt _prv] (publish-places!))
+(defn publish-places! [_nxt _prv]
+  (ndjson/publish! :ui/places (places/places->ui (storage/snapshot) (:shares (self/snapshot)) (circle/nearby))))
 
 (defn stream-ui     [req] (ndjson/subscribe! :ui/state  req))
 (defn stream-apps   [req] (ndjson/subscribe! :ui/apps   req))
@@ -67,7 +65,7 @@
 
 
 (defn init!
-  "Declare the topics before anything serves or converges."
+  "Declare the topics before anything serves or publishes."
   []
   (ndjson/topic! :ui/state)
   (ndjson/topic! :ui/apps   {:running [] :pinned [] :current nil})

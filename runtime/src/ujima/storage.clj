@@ -32,7 +32,7 @@
 (defonce ^:private peers*      (atom {}))   ; "<peer id>/<rw|ro>" -> {:facts f :credentials path :task t}
 (defonce ^:private builtin-places* (atom []))  ; declared in config, resolved at init — always ahead of removable partitions
 (defonce ^:private prev*       (atom nil))  ; last projection, the prev of (next prev)
-(defonce ^:private cfg*        (atom {}))   ; :mounts-dir by init!, :targets by on-converge!
+(defonce ^:private cfg*        (atom {}))   ; :mounts-dir by init!, :targets by on-project!
 (defonce ^:private lock        (Object.))   ; every write path holds this
 
 
@@ -252,7 +252,7 @@
 (defn- act!
   "EVENT folded into what is known, then the world made to match: departed mount points
    released, a mount task per detected partition and peer root. A mount lands on its own
-   thread, which acts and converges again."
+   thread, which acts and projects again."
   [{:keys [type] :as event}]
   (let [partitions @partitions*
         peers      @peers*]
@@ -273,7 +273,7 @@
       (start-peer-mount! root known))))
 
 
-(defn- converge! []
+(defn- project! []
   (let [next (projection)
         prev @prev*]
     (reset! prev* next)
@@ -281,7 +281,7 @@
 
 
 (defn handle-event!
-  "One pass, whole, under the lock: `act!`'s check-then-act and `converge!`'s read-then-reset of
+  "One pass, whole, under the lock: `act!`'s check-then-act and `project!`'s read-then-reset of
    prev are only guards while a pass cannot interleave. An event of a type not known here is
    refused. The events:
      {:type :storage/partitions :partitions {uuid facts}}      linux's removable partitions
@@ -291,7 +291,7 @@
   [event]
   (locking lock
     (act! event)
-    (converge!)))
+    (project!)))
 
 
 (defn mount!
@@ -334,7 +334,7 @@
   nil)
 
 
-(defn on-converge!
+(defn on-project!
   "Attach a target: F gets (next, prev) after every pass, under the lock."
   [f]
   (swap! cfg* update :targets conj f)

@@ -73,7 +73,7 @@
   (reset! fx*     [])
   (reset! pushed* [])
   (app/init! {:catalog test-catalog})
-  (app/on-converge! (fn [next _] (swap! pushed* conj next))))
+  (app/on-project! (fn [next _] (swap! pushed* conj next))))
 
 (defn- stubbed [f]
   (with-redefs [i3/get-tree!          (fn [] (tree (:wins @world*)))

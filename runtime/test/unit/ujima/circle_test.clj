@@ -70,7 +70,7 @@
   (let [tree  (atom (a-tree "Mvule" [{:name "math" :access :rw}]))
         reads (atom 0)
         heard (atom [])]
-    (circle/on-converge! (fn [next prev] (swap! heard conj [(mapv :name next) (mapv :name prev)])))
+    (circle/on-project! (fn [next prev] (swap! heard conj [(mapv :name next) (mapv :name prev)])))
     (with-redefs [client/node (fn [peer path] (swap! reads inc) (@tree peer path))]
       (#'circle/heard! "10.0.0.5" (a-beat "x" "10.0.0.5" 1337 0 "h1"))
       (is (settle #(= "Mvule" (:name (first (circle/snapshot))))))

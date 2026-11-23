@@ -18,7 +18,7 @@
             [ujima.desktop.app           :as app]
             [ujima.desktop.guard         :as guard]
             [ujima.desktop.places        :as places]
-            [ujima.desktop.http.converge :as shell-http-converge]
+            [ujima.desktop.http.streams  :as shell-http-streams]
 
             [ujima.events.audio  :as audio-events]
             [ujima.events.clock  :as clock-events]
@@ -53,7 +53,7 @@
 
 
 (defn init!
-  "Ports and policies first — a tap's first event may converge — then the taps."
+  "Ports and policies first — a tap's first event may project — then the taps."
   [{:keys [audio-poll-ms scope-poll-ms clock-save-ms pressure-poll-ms pressure-limit]
     :or   {audio-poll-ms 1000 scope-poll-ms 1000 clock-save-ms 600000
            pressure-poll-ms 1000 pressure-limit 15.0}}]
@@ -63,28 +63,28 @@
 
 
   ;; settings -> OS, UI, this machine's name as the circle sees it
-  (control/on-converge! linux/converge!)
-  (control/on-converge! shell-http-converge/converge-ui!)
-  (control/on-converge! self/converge-settings!)
+  (control/on-project! linux/converge!)
+  (control/on-project! shell-http-streams/publish-ui!)
+  (control/on-project! self/on-settings!)
 
   ;; what this machine offers the circle -> the share roots, the places stream
-  (self/on-converge! places/converge-shares!)
-  (self/on-converge! shell-http-converge/converge-places!)
+  (self/on-project! places/converge-shares!)
+  (self/on-project! shell-http-streams/publish-places!)
 
   ;; what the circle offers this machine -> the places stream
-  (circle/on-converge! shell-http-converge/converge-places!)
+  (circle/on-project! shell-http-streams/publish-places!)
 
   ;; apps -> UI (the shell reads the bars' visibility off it too)
-  (app/on-converge! shell-http-converge/converge-apps!)
+  (app/on-project! shell-http-streams/publish-apps!)
 
   ;; circle token on a stick -> console
-  (storage/on-converge! token-events/on-storage!)
+  (storage/on-project! token-events/on-storage!)
 
   ;; places (machine + removable) -> the by-id root and home, then self (a share's place came or went)
-  (storage/on-converge! places/converge!)
-  (storage/on-converge! self/converge-storage!)
+  (storage/on-project! places/converge!)
+  (storage/on-project! self/on-storage!)
   (places/converge! (storage/snapshot) nil)
-  (self/converge-storage! (storage/snapshot) nil)
+  (self/on-storage! (storage/snapshot) nil)
 
   ;; plugged sinks -> [:audio :active]
   (listen! :audio-sinks

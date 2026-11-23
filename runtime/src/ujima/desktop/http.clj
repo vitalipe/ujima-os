@@ -8,7 +8,7 @@
             [ujima.circle.self           :as self]
             [ujima.control.commands      :as effects]
             [ujima.desktop.app           :as app]
-            [ujima.desktop.http.converge :as converge]
+            [ujima.desktop.http.streams  :as streams]
             [ujima.desktop.places        :as places]
             [ujima.control               :as control]
             [ujima.control.queries       :as queries]
@@ -94,9 +94,9 @@
      (routes/commands {:base "commands" :commands verbs})
 
      ;; the authoritative projections, pushed
-     {"GET  /stream/state"  (fn [req] (converge/stream-ui   req))
-      "GET  /stream/apps"   (fn [req] (converge/stream-apps req))
-      "GET  /stream/places" (fn [req] (converge/stream-places req))
+     {"GET  /stream/state"  (fn [req] (streams/stream-ui   req))
+      "GET  /stream/apps"   (fn [req] (streams/stream-apps req))
+      "GET  /stream/places" (fn [req] (streams/stream-places req))
 
       ;; a read the stream doesn't carry, for a keybind
       "GET  /ui/keyboard/layout/next"  (fn [_] {:status 200

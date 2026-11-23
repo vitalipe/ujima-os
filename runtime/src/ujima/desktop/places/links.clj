@@ -1,5 +1,5 @@
 (ns ujima.desktop.places.links
-  "A directory of symlinks, reconciled to a wanted {name target}: missing links made, stale
+  "A directory of symlinks, converged to a wanted {name target}: missing links made, stale
    links removed, and nothing that is not a symlink is ever touched — a real file or dir where
    a link belongs is a conflict, logged and left alone."
   (:require [clojure.string :as str]
@@ -51,10 +51,10 @@
   (doseq [entry conflict]
     (log/error "links: something that is not a link sits where one belongs — left alone" entry))
   (when (or (seq link) (seq unlink))
-    (log/info "links: reconciled" {:root (str root) :linked (vec (keys link)) :unlinked unlink})))
+    (log/info "links: converged" {:root (str root) :linked (vec (keys link)) :unlinked unlink})))
 
 
-(defn reconcile!
+(defn converge!
   "ROOT, created if missing, holds exactly the links WANTED."
   [root wanted]
   (fs/create-dirs root)

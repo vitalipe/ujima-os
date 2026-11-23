@@ -1,7 +1,7 @@
 (ns ujima.control
   "Control plane for the appliance: a pure settings machine — scopes, merge,
-   persistence — that notifies its converge targets (the OS port, the GUI port;
-   attached by ujima.events via on-converge!) after every converge. It knows no port."
+   persistence — that projects to its targets (the OS port, the GUI port;
+   attached by ujima.events via on-project!) after every pass. It knows no port."
 
   (:require [lib.util    :refer [index-by map-vals map-kv-vals]]
             [babashka.fs :refer [path]]
@@ -49,15 +49,15 @@
 ;; ---------------------------------------------------------------------------
 
 
-(defn- notify-converged! [settings prv]
+(defn- project! [settings prv]
   (doseq [f @targets*]
     (try (f settings prv)
          (catch Throwable e
-           (log/error "control: converge target failed" {:error (ex-message e)})))))
+           (log/error "control: target failed" {:error (ex-message e)})))))
 
 
 (defn init!
-  "A fresh machine: registry + scope files; ports come by on-converge!."
+  "A fresh machine: registry + scope files; ports come by on-project!."
   [{storage :storage tmp :tmp}]
   (reset! targets* [])
   (reset! registry* (->registry {:settings defs/settings
@@ -69,9 +69,9 @@
                      (map-kv-vals (fn [k v] (path v (str (name k) ".edn")))))))
 
 
-(defn on-converge!
-  "Attach a port: F gets (effective, previous) after every converge, inside the lock,
-   in attach order; previous is nil on external converges. Ports never write settings."
+(defn on-project!
+  "Attach a port: F gets (effective, previous) after every pass, inside the lock,
+   in attach order; previous is nil on converge-fresh!. Ports never write settings."
   [f]
   (swap! targets* conj f)
   nil)
@@ -117,7 +117,7 @@
 
 (defn update-settings!
   "The primitive. `swap!`-style: atomically apply `f` to scope `scope`'s current
-   map and converge. Under the lock: read scope.
+   map and project. Under the lock: read scope.
 
    `f` MUST be pure over the passed map -- it must not read disk, other
    scopes, or the lock, or the atomicity guarantee breaks.
@@ -137,7 +137,7 @@
         (spit-scope! scope))
 
       (let [effective (settings)]
-        (notify-converged! effective prv)
+        (project! effective prv)
         effective))))
 
 
@@ -157,6 +157,6 @@
   []
   (locking lock*
     (let [effective (settings)]
-      (notify-converged! effective nil)
+      (project! effective nil)
       effective)))
   

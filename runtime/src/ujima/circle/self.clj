@@ -2,7 +2,7 @@
   "This machine as the circle sees it: its name, the folders it shares, the hash its beat
    carries. A share is session state with verbs, not a setting: share! and unshare! write the
    list, the settings arrow brings the name, the storage arrow the places; every write
-   converges, and targets hear (next prev):
+   projects, and targets hear (next prev):
      {:name      \"Mvule\"
       :shares    [{:place [:usb \"6962-5E15\"] :path \"Grade 5/math\" :name \"math\" :access :rw}]
       :published [{:name \"math\" :access :rw}]        served now — the share's place is mounted
@@ -42,7 +42,7 @@
      :published published
      :hash      (beat/digest {:name name :shares published})}))
 
-(defn- converge! []
+(defn- project! []
   (let [next (projection @state*)
         prev @prev*]
     (reset! prev* next)
@@ -84,7 +84,7 @@
       (when (some #(= (:name share) (:name %)) others)
         (throw (ex-info "a share by that name exists" {:error :shares/name-taken :name (:name share)})))
       (swap! state* assoc :shares (conj others share))
-      (converge!)
+      (project!)
       share)))
 
 (defn unshare!
@@ -96,27 +96,27 @@
       (when-not (some (partial same-folder? place path) own)
         (throw (ex-info "no such share" {:error :shares/unknown-share :place place :path path})))
       (swap! state* assoc :shares (into [] (remove (partial same-folder? place path)) own))
-      (converge!)
+      (project!)
       {:removed [place path]})))
 
 
 ;; --- the arrows in, the arrow out ---------------------------------------------
 
-(defn converge-settings!
+(defn on-settings!
   "The settings arrow: the name."
   [settings _prv]
   (locking lock
     (swap! state* assoc :name (:effective (get settings [:system :name])))
-    (converge!)))
+    (project!)))
 
-(defn converge-storage!
+(defn on-storage!
   "The storage arrow: a share's place came or went."
   [entries _prv]
   (locking lock
     (swap! state* assoc :entries entries)
-    (converge!)))
+    (project!)))
 
-(defn on-converge!
+(defn on-project!
   "Attach a target: F gets (next, prev) after every write, under the lock."
   [f]
   (swap! targets* conj f)
