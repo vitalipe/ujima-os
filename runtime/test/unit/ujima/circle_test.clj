@@ -106,7 +106,8 @@
   (fresh!)
   (let [bad [{:name "../../../../../etc" :access :ro} {:name "/etc" :access :rw} {:name ".." :access :ro}
              {:name "a/b" :access :ro} {:name "" :access :ro} {:name "math\n" :access :ro}
-             {:name (apply str (repeat 65 "a")) :access :ro} {:name "art" :access "rw"} {:access :ro} "junk"]]
+             {:name (apply str (repeat 65 "a")) :access :ro} {:name "art" :access "rw"} {:access :ro} "junk"
+             {:name "con:colon" :access :ro} {:name "trail." :access :ro}]]
     (with-redefs [client/node (a-tree "Mvule" (into [{:name "math" :access :rw}] bad))]
       (#'circle/heard! "10.0.0.5" (a-beat "x" "10.0.0.5" 1337 0 "h1"))
       (is (settle #(= "Mvule" (:name (first (circle/snapshot))))))

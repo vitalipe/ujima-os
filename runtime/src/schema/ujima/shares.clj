@@ -4,8 +4,8 @@
 
 
 (def place-id   [:tuple [:enum :local :usb :session] :string])
-(def share-name [:re {:error/message "1-64 characters, no slash, not starting with a dot"}
-                 #"^[^./\p{Cntrl}][^/\p{Cntrl}]{0,63}\z"])
+(def share-name [:re {:error/message "1-64 characters, none of / \\ : * ? \" < > |, not starting with a dot, not ending in a dot or a space"}
+                 #"^(?!\.)(?!.*[. ]\z)[^/\\:*?\"<>|\p{Cntrl}]{1,64}\z"])
 (def share-path [:re {:error/message "a relative path inside the place, no .. segments"}
                  #"^(?!.*(^|/)\.\.(/|$))[^/].*$"])
 (def share      [:map

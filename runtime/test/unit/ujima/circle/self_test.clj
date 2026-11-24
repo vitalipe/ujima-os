@@ -39,6 +39,16 @@
       "the folder's own entry is not a clash with itself"))
 
 
+(deftest a-name-smb-cannot-carry-is-malformed
+  (self/init!)
+  (doseq [name ["con:colon" "trail." "trail " "a\\b" "what?" "a*" "\"q\"" "<b>" "a|b" ".hidden" "a/b" "" (apply str (repeat 65 "a"))]]
+    (is (= :request/malformed (refused #(self/share! {:place stick :path "Photos" :name name}))) (pr-str name)))
+  (is (= :request/malformed (refused #(self/share! {:place stick :path "x/con:colon"}))) "the folder's own name too")
+  (doseq [name ["math" " led by a space" "a.b" "Photos — sports day" "Ünïcödé محتوى 内容" "it's (2) & more!" (apply str (repeat 64 "a"))]]
+    (self/init!)
+    (is (= name (:name (self/share! {:place stick :path "Photos" :name name}))) (pr-str name))))
+
+
 (deftest a-path-out-of-the-place-is-malformed
   (self/init!)
   (doseq [path ["../etc" "a/../../etc" "/etc" ".." "."]]
