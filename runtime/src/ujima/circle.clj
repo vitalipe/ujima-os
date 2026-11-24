@@ -15,6 +15,8 @@
             [lib.task.flow       :refer [flow <join!]]
             [lib.task.probe      :as probe]
             [lib.task.timeline   :as timeline]
+            [malli.core          :as m]
+            [schema.ujima.shares :as schema]
             [ujima.circle.beat   :as beat]
             [ujima.circle.client :as client]
             [ujima.circle.peers  :as peers]
@@ -42,6 +44,16 @@
 
 (defn- answered? [[_path {:keys [status]}]] (= :ok status))
 
+(defn- offered
+  "The shares PEER answered with, less every one that is not a name and an access."
+  [peer answer]
+  (let [rows (if (sequential? answer) answer (some-> answer list))
+        {kept true dropped false} (group-by (partial m/validate schema/offered) rows)]
+    (when dropped
+      (log/warn "circle: a peer's shares were dropped"
+                {:id (:id peer) :dropped (count dropped) :first (apply str (take 80 (pr-str (first dropped))))}))
+    (into [] kept)))
+
 (defn- ->read-task
   "PEER's name and shares off its tree: {:name \"Mvule\" :shares [{:name \"math\" :access :rw}]}."
   [peer]
@@ -52,7 +64,7 @@
         (error! :circle/unread (str path ": " (pr-str (:reason data)))))
 
       {:name   (get-in answers ["system/name" :data :name])
-       :shares (into [] (get-in answers ["shares" :data]))})))
+       :shares (offered peer (get-in answers ["shares" :data]))})))
 
 (defn- ->read-probe
   "The probe that reads peer ID, asked with where to: {:host \"10.0.0.5\" :port 1337 …}."

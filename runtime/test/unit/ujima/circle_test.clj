@@ -102,6 +102,21 @@
           "and knows nothing of x until it lands: the session that was read is over"))))
 
 
+(deftest a-share-that-is-not-a-plain-name-is-dropped-on-read
+  (fresh!)
+  (let [bad [{:name "../../../../../etc" :access :ro} {:name "/etc" :access :rw} {:name ".." :access :ro}
+             {:name "a/b" :access :ro} {:name "" :access :ro} {:name "math\n" :access :ro}
+             {:name (apply str (repeat 65 "a")) :access :ro} {:name "art" :access "rw"} {:access :ro} "junk"]]
+    (with-redefs [client/node (a-tree "Mvule" (into [{:name "math" :access :rw}] bad))]
+      (#'circle/heard! "10.0.0.5" (a-beat "x" "10.0.0.5" 1337 0 "h1"))
+      (is (settle #(= "Mvule" (:name (first (circle/snapshot))))))
+      (is (= [{:name "math" :access :rw}] (:shares (first (circle/snapshot)))))
+      (is (= ["math"] (mapv :label (circle/nearby)))))
+    (with-redefs [client/node (fn [_ path] {:status :ok :data (case path "system/name" {:name "Mvule"} "shares" {:name "math"})})]
+      (#'circle/heard! "10.0.0.5" (a-beat "x" "10.0.0.5" 1337 1 "h2"))
+      (is (settle #(= [] (:shares (first (circle/snapshot))))) "an answer that is not a list offers nothing"))))
+
+
 (deftest a-read-that-failed-is-tried-again-later-not-every-beat
   (fresh!)
   (let [reads (atom 0)]
