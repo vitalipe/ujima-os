@@ -18,14 +18,27 @@ Window {
         property bool openingStale: false // asked of a share that had failed: its :invalid is the old outcome until it mounts again
         property var path: []             // folder names below the place root
         property string selected: ""
-        property string dialog: ""        // "" | mkdir | rename | delete
-        property var held: null           // the one item in your hand: {path, dir, name, type, isDir, from, placeId}; outlives the place
+        property string dialog: ""        // "" | mkdir | rename | delete | share | unshare
+        property var shareTarget: null    // the folder the share dialogs are about: {kind, wire, path, folder, name, access, existing}
+        property var held: null           // the one item in your hand: {path, dir, name, type, isDir, from, placeId, kind, wire, rel}; outlives the place
         property string putting: ""       // where the running put lands, for the toast
+        property var putTo: null          // and as a place: {kind, wire, rel}
         property bool menuOpen: false
         property point menuAt: Qt.point(0, 0)
         property var menuItems: []
         readonly property var meta: !place ? null : place.kind === "peer" ? Theme.peerMeta(place.access, place.host) : Theme.meta(place.kind, place.label)
         readonly property bool canWrite: !place || place.kind !== "peer" || place.access === "rw"
+        readonly property bool canShare: !!place && place.kind !== "peer"
+        // count is read so this follows the rows as they land, not only the selection
+        readonly property bool selDir: listing.count > 0 && selected !== "" && !!listing.get(listing.indexOf(selected)).isDir
+        readonly property bool selShared: !!place && selected !== "" && sharesUnder(place.id, rel(selected)).length > 0
+        // this place's shares, by path
+        readonly property var shares: {
+            const out = {}
+            if (place) for (const s of places.shared) if (s.place === place.id) out[s.path] = s
+            return out
+        }
+        function rel(name) { return path.concat([name]).join("/") }
         readonly property string folderName: path.length ? path[path.length - 1] : ""
         readonly property string dir: place ? (path.length ? place.root + "/" + path.join("/") : place.root) : ""
         // the pocket shows everywhere but where the item still is; while a put runs, only where it lands
@@ -44,7 +57,10 @@ Window {
             if (share.state === "ready") { opening = ""; enterPlace(share); return }
             opening = share.id
             openingStale = share.state === "invalid"
-            if (share.state !== "mounting") commands.post("places/mount", { place: ["peer", share.wire] })
+            if (share.state !== "mounting")
+                commands.post("places/mount", { place: ["peer", share.wire] }, (status) => {
+                    if ((status < 200 || status >= 300) && opening === share.id) { opening = ""; toast.show("That folder can't be opened right now", "warn") }
+                })
         }
         function opened() {
             const share = places.peer(opening)
@@ -64,18 +80,72 @@ Window {
         function openSelected() { const i = listing.indexOf(selected); if (i >= 0) open(i) }
         function ask(kind) { if (canWrite && (kind === "mkdir" || selected !== "")) dialog = kind }
         function confirm(value) {
+            if (dialog === "share")   { share(dialogBox.naming ? value.trim() : ""); return }
+            if (dialog === "unshare") { unshare(); return }
+            const next = value.trim()
+            const mine = dialog === "mkdir" ? [] : sharesUnder(place.id, rel(selected))
             let err = ""
-            if (dialog === "mkdir")       err = files.mkdir(place.root, dir, value.trim())
-            else if (dialog === "rename") err = files.rename(place.root, dir, selected, value.trim())
+            if (dialog === "mkdir")       err = files.mkdir(place.root, dir, next)
+            else if (dialog === "rename") err = files.rename(place.root, dir, selected, next)
             else if (dialog === "delete") err = files.remove(place.root, dir, selected)
             if (err !== "") { dialogBox.error = err; return }
+            if (dialog === "rename")      reshare(mine, rel(selected), rel(next), place, selected, next)
+            else if (dialog === "delete") for (const s of mine) commands.post("shares/remove", { place: [s.kind, s.wire], path: s.path })
             dialog = ""; selected = ""; listing.refresh()
         }
+
+        // --- sharing: the list is ujimad's; every change is a verb, and the places stream brings it back
+        function askShare() {
+            if (!canShare || !selDir) return
+            const s = shares[rel(selected)]
+            shareTarget = { kind: place.kind, wire: place.wire, path: rel(selected), folder: selected,
+                            name: s ? s.name : selected, access: s ? s.access : "ro", existing: !!s }
+            dialog = "share"
+        }
+        function askShared(s, kind) {   // from the Shared from here tab: share | unshare
+            shareTarget = { kind: s.kind, wire: s.wire, path: s.path, folder: s.name, name: s.name, access: s.access, existing: true }
+            dialog = kind
+        }
+        function share(name) {
+            const t = shareTarget
+            const params = { place: [t.kind, t.wire], path: t.path, access: dialogBox.access }
+            if (name !== "") params.name = name
+            commands.post("shares/add", params, (status) => {
+                if (dialog !== "share") return
+                if (status >= 200 && status < 300) { dialog = ""; toast.show(t.existing ? "Sharing updated" : "“" + (name || t.name) + "” is now shared with computers nearby", "share") }
+                else if (status === 409) dialogBox.askName("Another shared folder already has that name. Give this one a name of its own.")
+                else if (status === 400) dialogBox.askName("That name can't be used. Try a shorter one, without “/”.")
+                else dialogBox.error = "Couldn't share it. Try again."
+            })
+        }
+        function unshare() {
+            const t = shareTarget
+            commands.post("shares/remove", { place: [t.kind, t.wire], path: t.path }, (status) => {
+                if (dialog !== "unshare") return
+                if (status >= 200 && status < 300 || status === 404) { dialog = ""; toast.show("Stopped sharing “" + t.name + "”", "share") }
+                else dialogBox.error = "Couldn't stop sharing it. Try again."
+            })
+        }
+        function sharesUnder(placeId, at) {
+            return places.shared.filter((s) => s.place === placeId && (s.path === at || s.path.startsWith(at + "/")))
+        }
+        // a folder renamed or moved takes its shares along: each leaves the old path, then joins at the new one.
+        // A share named after the folder follows its new name, unless another share has it
+        function reshare(list, from, to, dest, oldName, newName) {
+            for (const s of list) {
+                const name = s.path === from && s.name === oldName ? newName : s.name
+                const add = (n, then) => commands.post("shares/add", { place: [dest.kind, dest.wire], path: to + s.path.slice(from.length), access: s.access, name: n }, then)
+                commands.post("shares/remove", { place: [s.kind, s.wire], path: s.path },
+                              () => add(name, (status) => { if (status === 409 && name !== s.name) add(s.name) }))
+            }
+        }
+
         function take() {
             const i = listing.indexOf(selected)
             if (i < 0 || transfer.busy) return
             const e = listing.get(i)
-            held = { path: e.path, dir: dir, name: e.name, type: e.type, isDir: e.isDir, from: place.name, placeId: place.id }
+            held = { path: e.path, dir: dir, name: e.name, type: e.type, isDir: e.isDir, from: place.name, placeId: place.id,
+                     kind: place.kind, wire: place.wire, rel: rel(e.name) }
             toast.show("Holding “" + e.name + "” — open the folder you want it in", "hand")
         }
         function putBack() { if (held && !transfer.busy) { toast.show("Put “" + held.name + "” back", "hand"); held = null } }
@@ -87,10 +157,16 @@ Window {
             if (err === "That item is gone.") held = null
             if (err !== "") { toast.show(err, "close"); return }
             putting = folderName !== "" ? folderName : place.name
+            putTo = { kind: place.kind, wire: place.wire, rel: path.join("/") }
         }
         function placed(error, inDir, name, moved) {
             if (error !== "") { toast.show(error, "close"); return }   // still in your hand
             const what = held ? held.name : name
+            if (moved && held && held.isDir && putTo) {
+                const mine = sharesUnder(held.placeId, held.rel)
+                if (putTo.kind === "peer") for (const s of mine) commands.post("shares/remove", { place: [s.kind, s.wire], path: s.path })
+                else reshare(mine, held.rel, (putTo.rel !== "" ? putTo.rel + "/" : "") + name, putTo, held.name, name)
+            }
             held = null
             if (dir === inDir) { listing.refresh(); selected = name; toast.show((moved ? "Moved “" : "Copied “") + what + "” here", moved ? "down" : "copy") }
             else toast.show((moved ? "Moved “" : "Copied “") + what + "” to " + putting, moved ? "down" : "copy")
@@ -99,10 +175,12 @@ Window {
             menuAt = at
             menuItems = onTile
                 ? [{ act: "open",   label: "Open",   glyph: "open",   hint: "Enter" },
-                   { act: "take",   label: "Take",   glyph: "hand",   hint: "Ctrl+C" },
+                   { act: "take",   label: "Take",   glyph: "hand",   hint: "Ctrl+C" }]
+                  .concat(canShare && selDir ? [{ act: "share", label: "Share", glyph: "share" }] : [])
+                  .concat([
                    { sep: true },
                    { act: "rename", label: "Rename", glyph: "rename", hint: "F2", enabled: canWrite },
-                   { act: "delete", label: "Delete", glyph: "delete", hint: "Del", danger: true, enabled: canWrite }]
+                   { act: "delete", label: "Delete", glyph: "delete", hint: "Del", danger: true, enabled: canWrite }])
                 : [{ act: "mkdir",  label: "New folder", glyph: "newfolder", enabled: canWrite }]
                   .concat(pocket ? [{ sep: true },
                                     { act: "copy", label: "Copy here", glyph: "copy", hint: "Ctrl+V" },
@@ -116,6 +194,7 @@ Window {
             else if (a === "copy") copyHere()
             else if (a === "move") moveHere()
             else if (a === "putback") putBack()
+            else if (a === "share") askShare()
             else ask(a)
         }
     }
@@ -133,18 +212,13 @@ Window {
             if (nav.opening !== "") nav.opened()
         }
     }
-    Connections {
-        target: commands
-        function onRefused(verb, params, status) {
-            if (verb === "places/mount" && nav.opening !== "") { nav.opening = ""; toast.show("That folder can't be opened right now", "warn") }
-        }
-    }
     Connections { target: transfer; function onFinished(error, dir, placed, moved) { nav.placed(error, dir, placed, moved) } }
 
     Binding { target: listing; property: "lead"; value: nav.pocket ? 2 : 0 }
 
     PlacesHome { id: home; anchors.fill: parent; visible: !nav.place; opening: nav.opening
-                 onEnter: (row) => nav.enter(row); onOpenShare: (share) => nav.openShare(share) }
+                 onEnter: (row) => nav.enter(row); onOpenShare: (share) => nav.openShare(share)
+                 onChangeShare: (share) => nav.askShared(share, "share"); onStopShare: (share) => nav.askShared(share, "unshare") }
     PlaceView  { anchors.fill: parent; visible: !!nav.place; nav: nav }
 
     InPageDialog { id: dialogBox; nav: nav; onConfirm: (v) => nav.confirm(v); onCancel: nav.dialog = "" }

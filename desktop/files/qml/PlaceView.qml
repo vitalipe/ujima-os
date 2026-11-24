@@ -20,11 +20,12 @@ Item {
             Row {
                 anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: 26 }
                 spacing: 12
-                ActionButton { label: "Back"; glyph: "back"; tone: "plain"; weight: Font.DemiBold; onClicked: nav.goBack() }
+                ActionButton { id: back; label: "Back"; glyph: "back"; tone: "plain"; weight: Font.DemiBold; onClicked: nav.goBack() }
                 Row {
                     spacing: 10
                     anchors.verticalCenter: parent.verticalCenter
                     Rectangle {
+                        id: root
                         height: 40; width: chip.implicitWidth + 30; radius: 11
                         color: Qt.rgba(1, 1, 1, nav.path.length ? .05 : .09)
                         Row {
@@ -40,17 +41,21 @@ Item {
                         spacing: 10
                         anchors.verticalCenter: parent.verticalCenter
                         Glyph { name: "crumb"; color: Theme.faint; size: 16; stroke: 2; anchors.verticalCenter: parent.verticalCenter }
-                        Text { text: nav.folderName; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font; elide: Text.ElideRight; width: Math.min(implicitWidth, 320) }
+                        Text { text: nav.folderName; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font; elide: Text.ElideRight
+                               // what the buttons on the right leave free
+                               width: Math.min(implicitWidth, 320, Math.max(0, view.width - actions.width - back.width - root.width - 126)) }
                     }
                 }
             }
             Row {
+                id: actions
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: 26 }
                 spacing: 9
                 ActionButton { label: "Open";       glyph: "open";      tone: "primary"; enabled: view.hasSel; onClicked: nav.openSelected() }
                 ActionButton { label: transfer.busy ? (transfer.moving ? "Moving…" : "Copying…") : view.holding ? "Holding 1" : "Take"
                                glyph: "hand"; tone: view.holding ? "held" : "plain"
                                enabled: !transfer.busy && (view.holding || view.hasSel); onClicked: view.holding ? nav.putBack() : nav.take() }
+                ActionButton { visible: nav.canShare; label: "Share"; glyph: "share"; tone: "plain"; enabled: nav.selDir; onClicked: nav.askShare() }
                 ActionButton { label: "New folder"; glyph: "newfolder"; tone: "plain";   enabled: nav.canWrite; onClicked: nav.ask("mkdir") }
                 ActionButton { label: "Rename";     glyph: "rename";    tone: "plain";   enabled: view.hasSel && nav.canWrite; onClicked: nav.ask("rename") }
                 ActionButton { label: "Delete";     glyph: "delete";    tone: "danger";  enabled: view.hasSel && nav.canWrite; onClicked: nav.ask("delete") }
@@ -129,6 +134,7 @@ Item {
                         Tile {
                             name: cell.name; type: cell.type; meta: cell.meta
                             selected: nav.selected === cell.name
+                            shared: !!nav.shares[nav.rel(cell.name)]
                             onSelect: nav.selected = cell.name
                             onOpen: nav.open(cell.index)
                         }

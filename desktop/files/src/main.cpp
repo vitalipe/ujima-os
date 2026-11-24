@@ -8,6 +8,7 @@
 #include "dirmodel.h"
 #include "files.h"
 #include "glyphs.h"
+#include "machine.h"
 #include "places.h"
 #include "picker.h"
 #include "prefs.h"
@@ -31,12 +32,14 @@ int main(int argc, char** argv) {
     cli.addOption({"single-click", "Open on a single click"});
     cli.addOption({"qml",          "QML directory", "dir", QCoreApplication::applicationDirPath() + "/../qml"});
     cli.addOption({"places",       "Places stream URL", "url", "http://127.0.0.1:1336/ujima-desktop/stream/places"});
+    cli.addOption({"state",        "State stream URL", "url", "http://127.0.0.1:1336/ujima-desktop/stream/state"});
     cli.addOption({"commands",     "ujimad's desktop verbs", "url", "http://127.0.0.1:1336/ujima-desktop/commands"});
     cli.addOption({"pick",         "Run as a portal file dialog: the request JSON file", "file"});
     cli.process(app);
 
     Prefs       prefs(cli.value("text-size"), cli.isSet("single-click"));
     PlacesModel places(QUrl(cli.value("places")));
+    Machine     machine(QUrl(cli.value("state")));
     Commands    commands(QUrl(cli.value("commands")));
     DirModel    dir;
     Files       files;
@@ -46,6 +49,7 @@ int main(int argc, char** argv) {
     engine.addImageProvider("glyph", new Glyphs);
     engine.rootContext()->setContextProperty("prefs",   &prefs);
     engine.rootContext()->setContextProperty("places",  &places);
+    engine.rootContext()->setContextProperty("machine", &machine);
     engine.rootContext()->setContextProperty("commands", &commands);
     engine.rootContext()->setContextProperty("listing", &dir);
     engine.rootContext()->setContextProperty("files",   &files);

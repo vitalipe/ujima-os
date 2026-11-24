@@ -8,6 +8,7 @@ Rectangle {
     property string type: "file"
     property string meta: ""
     property bool selected: false
+    property bool shared: false
     signal select()
     signal open()
 
@@ -33,7 +34,15 @@ Rectangle {
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
         }
-        Text { width: parent.width; text: tile.meta; color: Theme.dim; font.pixelSize: prefs.en; horizontalAlignment: Text.AlignHCenter; font.family: Theme.font }
+        Text { width: parent.width; text: tile.meta + (tile.shared ? " · Shared" : ""); color: Theme.dim; font.pixelSize: prefs.en; horizontalAlignment: Text.AlignHCenter; font.family: Theme.font }
+    }
+    Rectangle {
+        visible: tile.shared
+        anchors { top: parent.top; right: parent.right; margins: 10 }
+        width: 30; height: 30; radius: 9
+        color: Theme.tint(Theme.peerRgb, .18)
+        border.width: 1; border.color: Theme.tint(Theme.peerRgb, .42)
+        Glyph { anchors.centerIn: parent; name: "share"; color: "#c9a9d8"; size: 16; stroke: 2 }
     }
     HoverHandler { cursorShape: Qt.PointingHandCursor }
     TapHandler {

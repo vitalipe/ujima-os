@@ -2,15 +2,17 @@ import QtQuick
 import QtQuick.Shapes
 import "."
 
-// HOME: "Where are your files?" — two tabs: this computer's ready places, one card each, and the
-// folders nearby computers share, one card per computer
+// HOME: "Where are your files?" — three tabs: this computer's ready places, one card each; the
+// folders nearby computers share, one card per computer; the folders this computer shares
 Flickable {
     id: home
     signal enter(int row)
     signal openShare(var share)
+    signal changeShare(var share)
+    signal stopShare(var share)
     property string opening: ""       // the place id of the nearby share being opened
-    property string tab: "local"      // local | nearby
-    readonly property string tabLabel: tab === "nearby" ? "Nearby" : "This computer"
+    property string tab: "local"      // local | nearby | mine
+    readonly property string tabLabel: tab === "nearby" ? "Nearby" : tab === "mine" ? "Shared from here" : "This computer"
 
     component SectionHead: Row {
         property string glyph: ""
@@ -64,6 +66,8 @@ Flickable {
                             count: places.count; on: home.tab === "local"; onClicked: home.tab = "local" }
                 TabButton { label: "Nearby"; glyph: "network"; tint: Theme.peer; rgb: Theme.peerRgb
                             count: places.nearbyCount; on: home.tab === "nearby"; onClicked: home.tab = "nearby" }
+                TabButton { label: "Shared from here"; glyph: "share"; tint: "#8ab07c"; rgb: [138, 176, 124]
+                            count: places.shared.length; on: home.tab === "mine"; onClicked: home.tab = "mine" }
             }
         }
 
@@ -201,6 +205,82 @@ Flickable {
                         Text { width: parent.width; text: "No shared folders nearby"; color: "#c2cad6"; font.pixelSize: prefs.name + 2.5; font.weight: Font.Bold; font.family: Theme.font }
                         Text { width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.4; color: Theme.dim; font.pixelSize: prefs.sub - 1; font.family: Theme.font
                                text: "When another computer nearby shares a folder, it shows up here." }
+                    }
+                }
+            }
+        }
+
+        Column {
+            visible: home.tab === "mine"
+            width: parent.width
+            spacing: 14
+
+            SectionHead { glyph: "share"; tint: Theme.peer; title: "Shared from this computer"; sub: "Computers nearby see these on " + machine.name }
+
+            Item {
+                id: nothing
+                visible: places.shared.length === 0
+                width: parent.width; height: nothingText.implicitHeight + 44
+                Shape {
+                    anchors.fill: parent
+                    ShapePath {
+                        strokeColor: Qt.rgba(1, 1, 1, .12); strokeWidth: 1.5; fillColor: "transparent"
+                        strokeStyle: ShapePath.DashLine; dashPattern: [4, 3]
+                        PathRectangle { x: 0.75; y: 0.75; width: nothing.width - 1.5; height: nothing.height - 1.5; radius: 16 }
+                    }
+                }
+                Text {
+                    id: nothingText
+                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; verticalCenterOffset: 3; leftMargin: 24; rightMargin: 24 }
+                    textFormat: Text.StyledText; wrapMode: Text.WordWrap; lineHeight: 1.4
+                    color: Theme.dim; font.pixelSize: prefs.btn; font.family: Theme.font
+                    text: "You're not sharing anything. Open <font color=\"#e7eaef\"><b>This Computer</b></font>, pick a folder, then choose <font color=\"#e7eaef\"><b>Share</b></font>."
+                }
+            }
+
+            Rectangle {
+                visible: places.shared.length > 0
+                width: parent.width; height: mine.implicitHeight; radius: 16
+                color: Qt.rgba(1, 1, 1, .025)
+                border.width: 1; border.color: Qt.rgba(1, 1, 1, .07)
+                Column {
+                    id: mine
+                    width: parent.width
+                    Repeater {
+                        model: places.shared
+                        delegate: Item {
+                            id: row
+                            required property var modelData
+                            required property int index
+                            readonly property var access: Theme.accessChip(modelData.access)
+                            width: mine.width; height: Math.max(48, names.implicitHeight) + 30
+                            Rectangle { visible: row.index > 0; width: parent.width; height: 1; color: Theme.brd }
+                            Rectangle {
+                                id: icon
+                                anchors { left: parent.left; leftMargin: 20; verticalCenter: parent.verticalCenter }
+                                width: 48; height: 48; radius: 13
+                                color: Qt.rgba(1, 1, 1, .05)
+                                Glyph { anchors.centerIn: parent; name: "folder"; color: Theme.colorOf("folder"); size: 25; stroke: 1.6 }
+                            }
+                            Row {
+                                id: actions
+                                anchors { right: parent.right; rightMargin: 20; verticalCenter: parent.verticalCenter }
+                                spacing: 8
+                                ActionButton { compact: true; label: "Change"; glyph: "rename"; tone: "plain"; onClicked: home.changeShare(row.modelData) }
+                                ActionButton { compact: true; label: "Stop sharing"; glyph: "close"; tone: "danger"; onClicked: home.stopShare(row.modelData) }
+                            }
+                            Chip { id: chip; anchors { right: actions.left; rightMargin: 16; verticalCenter: parent.verticalCenter }
+                                   text: row.access.text; glyph: row.access.glyph; tone: row.access.tone }
+                            Column {
+                                id: names
+                                anchors { left: icon.right; leftMargin: 16; right: chip.left; rightMargin: 16; verticalCenter: parent.verticalCenter }
+                                spacing: 3
+                                Text { width: parent.width; text: row.modelData.name; color: Theme.text; elide: Text.ElideRight
+                                       font.pixelSize: prefs.name + .5; font.weight: Font.Bold; font.family: Theme.font }
+                                Text { width: parent.width; color: Theme.dim; elide: Text.ElideMiddle; font.pixelSize: prefs.en + .5; font.family: Theme.font
+                                       text: row.modelData.placeName + " › " + row.modelData.path.split("/").join(" › ") }
+                            }
+                        }
                     }
                 }
             }

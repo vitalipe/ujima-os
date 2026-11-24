@@ -10,6 +10,8 @@ find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Qml Quick Network Svg)
 add_executable(ujima-files
   src/main.cpp
   src/glyphs.h   src/glyphs.cpp
+  src/stream.h   src/stream.cpp
+  src/machine.h
   src/places.h   src/places.cpp
   src/commands.h src/commands.cpp
   src/dirmodel.h src/dirmodel.cpp

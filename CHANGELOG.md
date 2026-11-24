@@ -33,7 +33,9 @@ version truth; branch names and build labels may disagree.
   writable, under its own name, for the session; served over SMB, away while its stick is out.
   The shares of nearby computers are places too: one opens on request, and is gone when its
   computer leaves the network. Files lists them on a Nearby tab, a card per computer; a
-  view-only share opens with New folder, Rename and Delete off.
+  view-only share opens with New folder, Rename and Delete off. Files shares a folder from its
+  Share button and lists this computer's shares on a Shared from here tab; a shared folder
+  that is renamed or moved stays shared, and a deleted one stops.
 
 ### Changed
 

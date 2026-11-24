@@ -6,40 +6,9 @@
 #include <algorithm>
 
 PlacesModel::PlacesModel(const QUrl& streamUrl, QObject* parent)
-    : QAbstractListModel(parent), m_url(streamUrl) {
-    m_retry.setSingleShot(true);
-    m_retry.setInterval(1000);
-    connect(&m_retry, &QTimer::timeout, this, &PlacesModel::connectStream);
-    connectStream();
-}
-
-void PlacesModel::connectStream() {
-    if (m_reply) { m_reply->deleteLater(); m_reply = nullptr; }
-    m_buf.clear();
-    QNetworkRequest req(m_url);
-    req.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
-    m_reply = m_nam.get(req);
-    connect(m_reply, &QNetworkReply::readyRead, this, &PlacesModel::readLines);
-    connect(m_reply, &QNetworkReply::finished,  this, &PlacesModel::ended);
-}
-
-void PlacesModel::readLines() {
-    m_buf += m_reply->readAll();
-    int nl;
-    while ((nl = m_buf.indexOf('\n')) >= 0) {
-        const QByteArray line = m_buf.left(nl).trimmed();
-        m_buf.remove(0, nl + 1);
-        if (line.isEmpty()) continue;
-        const QJsonDocument doc = QJsonDocument::fromJson(line);
-        if (!doc.isObject()) continue;
-        if (!m_connected) { m_connected = true; emit connectedChanged(); }
-        apply(doc.object().value("places").toArray());
-    }
-}
-
-void PlacesModel::ended() {
-    if (m_connected) { m_connected = false; emit connectedChanged(); }
-    m_retry.start();
+    : QAbstractListModel(parent), m_stream(streamUrl) {
+    connect(&m_stream, &Stream::snapshot, this, [this](const QJsonObject& blob) { apply(blob.value("places").toArray()); });
+    connect(&m_stream, &Stream::connectedChanged, this, &PlacesModel::connectedChanged);
 }
 
 static qint64 usedOf(const QString& root, qint64* total) {
@@ -90,9 +59,10 @@ void PlacesModel::apply(const QJsonArray& places) {
         if (o.value("kind").toString() == "peer") { peers.push_back(peerOf(o)); continue; }
         if (o.value("state").toString() != "ready") continue;
         Place p;
-        const QJsonArray id = o.value("id").toArray();
         p.kind   = o.value("kind").toString();
-        p.id     = p.kind + "/" + id.at(1).toString();
+        p.wire   = o.value("id").toArray().at(1).toString();
+        p.id     = p.kind + "/" + p.wire;
+        p.shares = o.value("shares").toArray().toVariantList();
         p.state  = o.value("state").toString();
         p.name   = o.value("name").toString();
         p.label  = o.value("label").toString();
@@ -112,12 +82,24 @@ void PlacesModel::apply(const QJsonArray& places) {
     std::stable_sort(peers.begin(), peers.end(), [](const PeerShare& a, const PeerShare& b) { return a.hostId < b.hostId; });
     const QVariantList nearby = byComputer(peers);
 
+    QVariantList shared;
+    for (const Place& p : next)
+        for (const QVariant& v : p.shares) {
+            QVariantMap s = v.toMap();
+            s.insert("place", p.id); s.insert("kind", p.kind); s.insert("wire", p.wire); s.insert("placeName", p.name);
+            shared << s;
+        }
+    std::stable_sort(shared.begin(), shared.end(), [](const QVariant& a, const QVariant& b) {
+        return a.toMap().value("name").toString().localeAwareCompare(b.toMap().value("name").toString()) < 0;
+    });
+
     beginResetModel();
     m_places = next;
     endResetModel();
     emit countChanged();
     m_peers = peers;
     if (nearby != m_nearby) { m_nearby = nearby; emit nearbyChanged(); }
+    if (shared != m_shared) { m_shared = shared; emit sharedChanged(); }
     emit placesChanged();
 }
 
@@ -143,6 +125,7 @@ QVariant PlacesModel::data(const QModelIndex& idx, int role) const {
     case FreeRole:   return double(std::max<qint64>(0, p.total - p.used));
     case PctRole:    return p.total > 0 ? int(std::min<qint64>(100, (p.used * 100) / p.total)) : 0;
     case TokensRole: return p.tokens;
+    case WireRole:   return p.wire;
     }
     return {};
 }
@@ -150,7 +133,7 @@ QVariant PlacesModel::data(const QModelIndex& idx, int role) const {
 QHash<int, QByteArray> PlacesModel::roleNames() const {
     return {{IdRole, "id"}, {KindRole, "kind"}, {StateRole, "state"}, {NameRole, "name"},
             {LabelRole, "label"}, {FstypeRole, "fstype"}, {RootRole, "root"}, {UsedRole, "used"},
-            {TotalRole, "total"}, {FreeRole, "free"}, {PctRole, "pct"}, {TokensRole, "tokens"}};
+            {TotalRole, "total"}, {FreeRole, "free"}, {PctRole, "pct"}, {TokensRole, "tokens"}, {WireRole, "wire"}};
 }
 
 QVariantMap PlacesModel::get(int row) const {
