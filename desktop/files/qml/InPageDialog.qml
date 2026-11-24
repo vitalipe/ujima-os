@@ -1,7 +1,8 @@
 import QtQuick
 import "."
 
-// mkdir | rename | delete | share | unshare, over a dimmed surface, as designed
+// mkdir | rename | delete | share | unshare | quit, over a dimmed surface, as designed. While its answer
+// is being carried out it stays; an answer that takes more than a second is said, and the buttons give way
 Rectangle {
     id: dlg
     property var nav
@@ -12,19 +13,28 @@ Rectangle {
     property bool naming: false      // share: the name was refused, so ask for one
     readonly property var target: nav.shareTarget ? nav.shareTarget : ({ folder: "", name: "", access: "ro", existing: false })
     readonly property bool sharing: kind === "share" || kind === "unshare"
-    readonly property bool danger: kind === "delete" || kind === "unshare"
+    readonly property bool danger: kind === "delete" || kind === "unshare" || kind === "quit"
+    readonly property bool working: nav.working
+    property bool slow: false
+    readonly property string doing: kind === "mkdir" ? "Creating the folder…" : kind === "rename" ? "Renaming…"
+                                  : kind === "delete" ? "Deleting “" + nav.selected + "”…" : "Stopping…"
+    onWorkingChanged: { slow = false; if (working) late.restart(); else late.stop() }
+    Timer { id: late; interval: 1000; onTriggered: dlg.slow = true }
     readonly property bool hasInput: kind === "mkdir" || kind === "rename" || (kind === "share" && naming)
     readonly property string title: kind === "mkdir" ? "New folder" : kind === "rename" ? "Rename"
                                   : kind === "share" ? (target.existing ? "Sharing settings" : "Share with computers nearby")
-                                  : kind === "unshare" ? "Stop sharing?" : "Delete this?"
+                                  : kind === "unshare" ? "Stop sharing?"
+                                  : kind === "quit" ? (transfer.moving ? "Still moving" : "Still copying") : "Delete this?"
     readonly property string body: kind === "mkdir" ? "Give the new folder a name."
                                  : kind === "rename" ? "Choose a new name for “" + nav.selected + "”."
                                  : kind === "share" ? "Other computers nearby will see “" + target.name + "” on " + machine.name + ". What can people there do with it?"
                                  : kind === "unshare" ? "Computers nearby won't see “" + target.name + "” any more. It stays on this computer."
+                                 : kind === "quit" ? "“" + nav.puttingName + "” is still being " + (transfer.moving ? "moved" : "copied") + ". Closing Files now stops it: what was copied so far is removed, and the original stays where it is."
                                  : "“" + nav.selected + "” will be deleted. This cannot be undone." + (nav.selShared ? " It will also stop being shared." : "")
     readonly property string confirmLabel: kind === "mkdir" ? "Create" : kind === "rename" ? "Save"
                                          : kind === "share" ? (target.existing ? "Save" : "Share")
-                                         : kind === "unshare" ? "Stop sharing" : "Delete"
+                                         : kind === "unshare" ? "Stop sharing" : kind === "quit" ? "Stop and close" : "Delete"
+    readonly property string cancelLabel: kind === "quit" ? (transfer.moving ? "Keep moving" : "Keep copying") : "Cancel"
     signal confirm(string value)
     signal cancel()
     function askName(why) { naming = true; input = target.name; error = why; field.forceActiveFocus(); field.selectAll() }
@@ -53,7 +63,7 @@ Rectangle {
                 width: 52; height: 52; radius: 15
                 color: dlg.danger ? Theme.tint(Theme.dangerRgb, .14) : Theme.tint(Theme.frostRgb, .14)
                 Glyph { anchors.centerIn: parent; size: 26; stroke: 1.8
-                        name: dlg.kind === "mkdir" ? "newfolder" : dlg.kind === "rename" ? "rename" : dlg.sharing ? "share" : "delete"
+                        name: dlg.kind === "mkdir" ? "newfolder" : dlg.kind === "rename" ? "rename" : dlg.sharing ? "share" : dlg.kind === "quit" ? "copy" : "delete"
                         color: dlg.danger ? Theme.dangerText : Theme.frost }
             }
             Column {
@@ -61,7 +71,7 @@ Rectangle {
                 spacing: 0
                 Text { textFormat: Text.PlainText; text: dlg.title; color: Theme.text; font.pixelSize: prefs.title; font.weight: Font.Bold; font.letterSpacing: -.2; font.family: Theme.font }
                 Item { width: 1; height: 14 }
-                Text { textFormat: Text.PlainText; width: parent.width; text: dlg.body; color: Theme.dim; font.pixelSize: prefs.btn; wrapMode: Text.WordWrap; lineHeight: 1.45; font.family: Theme.font }
+                Text { textFormat: Text.PlainText; width: parent.width; text: dlg.slow ? dlg.doing : dlg.body; color: dlg.slow ? Theme.frostText : Theme.dim; font.pixelSize: prefs.btn; wrapMode: Text.WordWrap; lineHeight: 1.45; font.family: Theme.font }
                 Item { width: 1; height: dlg.kind === "share" ? 18 : 0 }
                 Column {
                     visible: dlg.kind === "share"
@@ -113,6 +123,7 @@ Rectangle {
                         verticalAlignment: TextInput.AlignVCenter
                         color: Theme.text; selectionColor: Theme.tint(Theme.frostRgb, .35)
                         font.pixelSize: prefs.btn; font.family: Theme.font
+                        readOnly: dlg.working
                         text: dlg.input
                         onTextChanged: { dlg.input = text; dlg.error = "" }
                         Keys.onReturnPressed: dlg.confirm(dlg.input)
@@ -145,11 +156,13 @@ Rectangle {
             Row {
                 anchors { right: parent.right; rightMargin: 30; verticalCenter: parent.verticalCenter }
                 spacing: 11
+                opacity: dlg.slow ? .35 : 1
+                Behavior on opacity { NumberAnimation { duration: 160 } }
                 Rectangle {
                     height: 50; width: cancelT.implicitWidth + 44; radius: 11
                     color: Qt.rgba(1, 1, 1, ch.hovered ? .11 : .07)
                     Behavior on color { ColorAnimation { duration: 160 } }
-                    Text { id: cancelT; anchors.centerIn: parent; text: "Cancel"; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.DemiBold; font.family: Theme.font }
+                    Text { id: cancelT; anchors.centerIn: parent; text: dlg.cancelLabel; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.DemiBold; font.family: Theme.font }
                     HoverHandler { id: ch; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: dlg.cancel() }
                 }

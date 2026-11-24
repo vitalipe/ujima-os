@@ -144,7 +144,7 @@ Item {
                         PocketTile {
                             held: nav.held
                             busy: transfer.busy; moving: transfer.moving
-                            progress: transfer.total > 0 ? transfer.done / transfer.total : (transfer.busy ? 1 : 0)
+                            progress: transfer.total > 0 ? transfer.done / transfer.total : 0
                             onCopy: nav.copyHere(); onMove: nav.moveHere(); onPutBack: nav.putBack()
                         }
                     }

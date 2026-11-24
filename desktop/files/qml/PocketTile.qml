@@ -70,7 +70,8 @@ Rectangle {
                 spacing: 8
                 Text {
                     textFormat: Text.PlainText
-                    text: (pocket.moving ? "Moving here… " : "Copying here… ") + Math.round(pocket.progress * 100) + "%"
+                    text: transfer.stage === "cancel" ? "Cancelling…" : transfer.stage === "finish" ? "Finishing…"
+                        : (pocket.moving ? "Moving here… " : "Copying here… ") + Math.round(pocket.progress * 100) + "%"
                     color: Theme.frostText; font.pixelSize: prefs.en + 1.5; font.weight: Font.DemiBold; font.family: Theme.font
                 }
                 Rectangle {

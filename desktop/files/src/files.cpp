@@ -30,7 +30,31 @@ bool Files::open(const QString& path) {
     return QProcess::startDetached("xdg-open", {path});
 }
 
-QString Files::mkdir(const QString& root, const QString& dir, const QString& name) {
+void Files::run(std::function<QString()> work, const QJSValue& then) {
+    const quint64 id = ++m_seq;
+    m_then.insert(id, then);
+    m_pool.start([this, id, work] {
+        const QString err = work();
+        QMetaObject::invokeMethod(this, [this, id, err] {
+            QJSValue then = m_then.take(id);
+            if (then.isCallable()) then.call({QJSValue(err)});
+        }, Qt::QueuedConnection);
+    });
+}
+
+void Files::mkdir(const QString& root, const QString& dir, const QString& name, const QJSValue& then) {
+    run([=] { return makeDir(root, dir, name); }, then);
+}
+
+void Files::rename(const QString& root, const QString& dir, const QString& name, const QString& next, const QJSValue& then) {
+    run([=] { return moveTo(root, dir, name, next); }, then);
+}
+
+void Files::remove(const QString& root, const QString& dir, const QString& name, const QJSValue& then) {
+    run([=] { return erase(root, dir, name); }, then);
+}
+
+QString Files::makeDir(const QString& root, const QString& dir, const QString& name) {
     if (const QString e = badName(name); !e.isEmpty()) return e;
     if (!insideRoot(root, dir)) return "That folder isn't in this place.";
     const QDir d(dir);
@@ -38,7 +62,7 @@ QString Files::mkdir(const QString& root, const QString& dir, const QString& nam
     return d.mkdir(name) ? "" : "Couldn't create the folder here.";
 }
 
-QString Files::rename(const QString& root, const QString& dir, const QString& name, const QString& next) {
+QString Files::moveTo(const QString& root, const QString& dir, const QString& name, const QString& next) {
     if (const QString e = badName(next); !e.isEmpty()) return e;
     if (!insideRoot(root, dir)) return "That folder isn't in this place.";
     QDir d(dir);
@@ -48,10 +72,10 @@ QString Files::rename(const QString& root, const QString& dir, const QString& na
     return d.rename(name, next) ? "" : "Couldn't rename it.";
 }
 
-QString Files::remove(const QString& root, const QString& dir, const QString& name) {
+QString Files::erase(const QString& root, const QString& dir, const QString& name) {
     if (const QString e = badName(name); !e.isEmpty()) return e;
     if (!insideRoot(root, dir)) return "That folder isn't in this place.";
-    const QString target = join(dir, name);
+    const QString target = dir.endsWith('/') ? dir + name : dir + "/" + name;
     const QFileInfo fi(target);
     if (!fi.exists() && !fi.isSymLink()) return "That item is gone.";
     if (fi.isDir() && !fi.isSymLink()) return QDir(target).removeRecursively() ? "" : "Couldn't delete the folder.";

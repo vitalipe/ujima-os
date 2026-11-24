@@ -10,6 +10,12 @@ Window {
     width: 1280; height: 720
     color: Theme.bg
     title: "Files — " + (nav.place ? (nav.folderName ? nav.place.name + " / " + nav.folderName : nav.place.name) : home.tabLabel)
+    // closing in the middle of a copy asks first; the answer stops the copy and closes when it has cleaned up
+    onClosing: (close) => {
+        if (!transfer.busy) return
+        close.accepted = false
+        if (!nav.quitting) { ++nav.op; nav.working = false; nav.dialog = "quit" }
+    }
 
     QtObject {
         id: nav
@@ -18,10 +24,14 @@ Window {
         property bool openingStale: false // asked of a share that had failed: its :invalid is the old outcome until it mounts again
         property var path: []             // folder names below the place root
         property string selected: ""
-        property string dialog: ""        // "" | mkdir | rename | delete | share | unshare
+        property string dialog: ""        // "" | mkdir | rename | delete | share | unshare | quit
+        property bool working: false      // the dialog's answer is being carried out: it stays, and says so after a second
+        property int op: 0                // which answer that is; one that lands after its dialog was let go is dropped
+        property bool quitting: false     // the window closes when the copy has stopped
         property var shareTarget: null    // the folder the share dialogs are about: {kind, wire, path, folder, name, access, existing}
         property var held: null           // the one item in your hand: {path, dir, name, type, isDir, from, placeId, kind, wire, rel}; outlives the place
         property string putting: ""       // where the running put lands, for the toast
+        property string puttingName: ""   // and what it is
         property var putTo: null          // and as a place: {kind, wire, rel}
         property bool menuOpen: false
         property point menuAt: Qt.point(0, 0)
@@ -87,7 +97,10 @@ Window {
             const parent = held.rel.split("/").slice(0, -1).join("/")
             held = Object.assign({}, held, { path: now.root + "/" + held.rel, dir: parent !== "" ? now.root + "/" + parent : now.root, from: now.name })
         }
-        function goHome()   { place = null; path = []; selected = ""; listing.path = ""; places.refreshSpace() }
+        function goHome() {
+            place = null; path = []; selected = ""; listing.path = ""; places.refreshSpace()
+            if (dialog !== "quit") { ++op; working = false; dialog = "" }
+        }
         function goRoot()   { if (path.length) { path = []; selected = ""; sync() } }
         function goBack()   { if (path.length) { path = path.slice(0, -1); selected = ""; sync() } else goHome() }
         function open(row) {
@@ -98,18 +111,25 @@ Window {
         function openSelected() { const i = listing.indexOf(selected); if (i >= 0) open(i) }
         function ask(kind) { if (canWrite && (kind === "mkdir" || selected !== "")) dialog = kind }
         function confirm(value) {
+            if (working) return
+            if (dialog === "quit")    { quitting = true; working = true; transfer.cancel(); return }
             if (dialog === "share")   { share(dialogBox.naming ? value.trim() : ""); return }
             if (dialog === "unshare") { unshare(); return }
-            const next = value.trim()
-            const mine = dialog === "mkdir" ? [] : sharesUnder(place.id, rel(selected))
-            let err = ""
-            if (dialog === "mkdir")       err = files.mkdir(place.root, dir, next)
-            else if (dialog === "rename") err = files.rename(place.root, dir, selected, next)
-            else if (dialog === "delete") err = files.remove(place.root, dir, selected)
-            if (err !== "") { dialogBox.error = err; return }
-            if (dialog === "rename")      reshare(mine, rel(selected), rel(next), place, selected, next)
-            else if (dialog === "delete") for (const s of mine) commands.post("shares/remove", { place: [s.kind, s.wire], path: s.path })
-            dialog = ""; selected = ""; listing.refresh()
+            const kind = dialog, at = place, name = selected, next = value.trim(), id = ++op
+            const mine = kind === "mkdir" ? [] : sharesUnder(at.id, rel(name))
+            const from = rel(name), to = rel(next)
+            const then = (err) => {
+                if (id !== op) return
+                working = false
+                if (err !== "") { dialogBox.error = err; return }
+                if (kind === "rename")      reshare(mine, from, to, at, name, next)
+                else if (kind === "delete") for (const s of mine) commands.post("shares/remove", { place: [s.kind, s.wire], path: s.path })
+                dialog = ""; selected = ""; listing.refresh()
+            }
+            working = true; dialogBox.error = ""
+            if (kind === "mkdir")       files.mkdir(at.root, dir, next, then)
+            else if (kind === "rename") files.rename(at.root, dir, name, next, then)
+            else                        files.remove(at.root, dir, name, then)
         }
 
         // --- sharing: the list is ujimad's; every change is a verb, and the places stream brings it back
@@ -172,12 +192,14 @@ Window {
         function put(move) {
             if (!pocket || transfer.busy) return
             const err = transfer.put(place.root, dir, held.path, move, place.kind === "usb")
-            if (err === "That item is gone.") held = null
             if (err !== "") { toast.show(err, "close"); return }
             putting = folderName !== "" ? folderName : place.name
+            puttingName = held.name
             putTo = { kind: place.kind, wire: place.wire, rel: path.join("/") }
         }
-        function placed(error, inDir, name, moved) {
+        function placed(error, inDir, name, moved, cancelled) {
+            if (cancelled) { toast.show(moved ? "Move cancelled" : "Copy cancelled", "close"); return }
+            if (error === "That item is gone.") held = null
             if (error !== "") { toast.show(error, "close"); return }   // still in your hand
             const what = held ? held.name : name
             if (moved && held && held.isDir && putTo) {
@@ -232,16 +254,25 @@ Window {
             if (nav.opening !== "") nav.opened()
         }
     }
-    Connections { target: transfer; function onFinished(error, dir, placed, moved) { nav.placed(error, dir, placed, moved) } }
+    Connections {
+        target: transfer
+        function onFinished(error, dir, placed, moved, cancelled) {
+            if (nav.quitting) { Qt.quit(); return }
+            if (nav.dialog === "quit") nav.dialog = ""
+            nav.placed(error, dir, placed, moved, cancelled)
+        }
+    }
 
     Binding { target: listing; property: "lead"; value: nav.pocket ? 2 : 0 }
 
-    PlacesHome { id: home; anchors.fill: parent; visible: !nav.place; opening: nav.opening
+    TransferBar { id: bar; what: nav.puttingName; where: nav.putting }
+
+    PlacesHome { id: home; anchors { fill: parent; topMargin: bar.height } visible: !nav.place; opening: nav.opening
                  onEnter: (row) => nav.enter(row); onOpenShare: (share) => nav.openShare(share)
                  onChangeShare: (share) => nav.askShared(share, "share"); onStopShare: (share) => nav.askShared(share, "unshare") }
-    PlaceView  { anchors.fill: parent; visible: !!nav.place; nav: nav }
+    PlaceView  { anchors { fill: parent; topMargin: bar.height } visible: !!nav.place; nav: nav }
 
-    InPageDialog { id: dialogBox; nav: nav; onConfirm: (v) => nav.confirm(v); onCancel: nav.dialog = "" }
+    InPageDialog { id: dialogBox; nav: nav; onConfirm: (v) => nav.confirm(v); onCancel: if (!nav.working) nav.dialog = "" }
 
     Toast {
         id: toast

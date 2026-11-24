@@ -24,7 +24,9 @@ version truth; branch names and build labels may disagree.
 - The desktop itself (X, i3, ujimad, the shell, the file-dialog portal) keeps its memory under
   pressure: apps are pushed into swap, the desktop stays responsive.
 - Files: an item can be taken and put down in another folder or place, as a copy or a move; a
-  right-click menu on an item and on the folder offers the toolbar's actions.
+  right-click menu on an item and on the folder offers the toolbar's actions. A copy or move
+  that takes more than a second shows a bar on every screen with Cancel; it is written under a
+  hidden name until it is whole, and closing Files in the middle of one asks first.
 - The launcher names the app under the pointer and shows its one-line description under the machine
   name, for launcher and dock tiles alike; an app declares it in app.edn as `:description`.
 - Every mounted place has one fixed path by its id, `/ujima/run/places/<kind>/<id>`, for as long
@@ -57,6 +59,8 @@ version truth; branch names and build labels may disagree.
   joins is on every other's roster within seconds, one that goes quiet reads off within seven, and
   the Console reads its own machine's roster. A machine can be removed from the roster; it
   returns when heard again.
+- Files: New folder, Rename and Delete no longer hold the window while they run; one that
+  takes more than a second says so in its dialog.
 
 ### Fixed
 
