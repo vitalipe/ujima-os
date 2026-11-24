@@ -64,10 +64,28 @@ Window {
         }
         function opened() {
             const share = places.peer(opening)
-            if (!share.id) { opening = ""; toast.show("That folder isn't shared any more", "warn") }
+            if (!share.id) { opening = ""; if (place) goHome(); toast.show("That folder isn't shared any more", "warn") }
             else if (share.state === "ready") { opening = ""; if (!place) enterPlace(share) }
             else if (share.state === "mounting") openingStale = false
-            else if (share.state === "invalid" && !openingStale) { opening = ""; toast.show("Couldn't open “" + share.label + "” on " + share.host, "warn") }
+            else if (share.state === "invalid" && !openingStale) { opening = ""; if (place) goHome(); toast.show("Couldn't open “" + share.label + "” on " + share.host, "warn") }
+        }
+        // the open share follows what its computer says of it now. A change of access is the same folder
+        // under that computer's other root, opened if it is not yet
+        function follow() {
+            const now = places.peer(place.id)
+            if (!now.id || now.access === place.access && now.host === place.host) return
+            const changed = now.access !== place.access
+            if (now.state === "ready") {
+                opening = ""; place = now; sync()
+                if (changed) toast.show(now.access === "rw" ? "“" + now.label + "” can now be changed" : "“" + now.label + "” is now view only", now.access === "rw" ? "pencil" : "eye")
+            } else if (changed && opening !== now.id) openShare(now)
+        }
+        // what is in your hand from a share is found under the root that share has now
+        function rehold() {
+            const now = places.peer(held.placeId)
+            if (now.state !== "ready" || held.path === now.root + "/" + held.rel) return
+            const parent = held.rel.split("/").slice(0, -1).join("/")
+            held = Object.assign({}, held, { path: now.root + "/" + held.rel, dir: parent !== "" ? now.root + "/" + parent : now.root, from: now.name })
         }
         function goHome()   { place = null; path = []; selected = ""; listing.path = ""; places.refreshSpace() }
         function goRoot()   { if (path.length) { path = []; selected = ""; sync() } }
@@ -203,8 +221,10 @@ Window {
     Connections {
         target: places
         function onPlacesChanged() {
-            if (nav.held && !places.hasReady(nav.held.placeId)) { toast.show("“" + nav.held.name + "” went away with its place", "hand"); nav.held = null }
-            if (nav.place && !places.hasReady(nav.place.id)) {
+            if (nav.place && nav.place.kind === "peer") nav.follow()
+            if (nav.held && nav.held.kind === "peer") nav.rehold()
+            if (nav.held && !places.hasReady(nav.held.placeId) && nav.opening !== nav.held.placeId) { toast.show("“" + nav.held.name + "” went away with its place", "hand"); nav.held = null }
+            if (nav.place && !places.hasReady(nav.place.id) && nav.opening !== nav.place.id) {
                 const peer = nav.place.kind === "peer"
                 nav.goHome()
                 toast.show(peer ? "That shared folder went away, so we brought you back" : "That place was unplugged", peer ? "warn" : "open")
