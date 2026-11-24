@@ -102,7 +102,7 @@
           "and knows nothing of x until it lands: the session that was read is over"))))
 
 
-(deftest a-share-that-is-not-a-plain-name-is-dropped-on-read
+(deftest a-share-that-is-not-a-plain-name-or-repeats-one-is-dropped-on-read
   (fresh!)
   (let [bad [{:name "../../../../../etc" :access :ro} {:name "/etc" :access :rw} {:name ".." :access :ro}
              {:name "a/b" :access :ro} {:name "" :access :ro} {:name "math\n" :access :ro}
@@ -112,8 +112,13 @@
       (is (settle #(= "Mvule" (:name (first (circle/snapshot))))))
       (is (= [{:name "math" :access :rw}] (:shares (first (circle/snapshot)))))
       (is (= ["math"] (mapv :label (circle/nearby)))))
-    (with-redefs [client/node (fn [_ path] {:status :ok :data (case path "system/name" {:name "Mvule"} "shares" {:name "math"})})]
+    (with-redefs [client/node (a-tree "Mvule" [{:name "Math" :access :ro} {:name "art" :access :rw} {:name "Math" :access :rw}
+                                               {:name "math" :access :ro} {:name "ART" :access :rw}])]
       (#'circle/heard! "10.0.0.5" (a-beat "x" "10.0.0.5" 1337 1 "h2"))
+      (is (settle #(= [{:name "Math" :access :ro} {:name "art" :access :rw}] (:shares (first (circle/snapshot)))))
+          "one share per name, whatever its case: the first stays"))
+    (with-redefs [client/node (fn [_ path] {:status :ok :data (case path "system/name" {:name "Mvule"} "shares" {:name "math"})})]
+      (#'circle/heard! "10.0.0.5" (a-beat "x" "10.0.0.5" 1337 2 "h3"))
       (is (settle #(= [] (:shares (first (circle/snapshot))))) "an answer that is not a list offers nothing"))))
 
 

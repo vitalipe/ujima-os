@@ -33,6 +33,8 @@
   (self/init!)
   (self/share! math)
   (is (= :shares/name-taken (refused #(self/share! {:place stick :path "Photos" :name "math"}))))
+  (is (= :shares/name-taken (refused #(self/share! {:place stick :path "Grade 6/Math"})))
+      "a name that differs only in case is the same name")
   (is (= "math" (:name (self/share! {:place stick :path "Grade 5/math"})))
       "the folder's own entry is not a clash with itself"))
 

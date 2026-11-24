@@ -18,3 +18,8 @@
                 [:map
                  [:name   share-name]
                  [:access [:enum :ro :rw]]])
+
+(defn name-key
+  "Names that differ only in case are one name: \"Math\" -> \"math\"."
+  [name]
+  (.toLowerCase ^String name java.util.Locale/ROOT))

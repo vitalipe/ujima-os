@@ -81,7 +81,7 @@
                  :name   (or wanted-name (:name before) (last (str/split path #"/")))
                  :access (or access (:access before) :ro)}]
       (valid! share)
-      (when (some #(= (:name share) (:name %)) others)
+      (when (some #(= (schema/name-key (:name share)) (schema/name-key (:name %))) others)
         (throw (ex-info "a share by that name exists" {:error :shares/name-taken :name (:name share)})))
       (swap! state* assoc :shares (conj others share))
       (project!)

@@ -45,14 +45,21 @@
 (defn- answered? [[_path {:keys [status]}]] (= :ok status))
 
 (defn- offered
-  "The shares PEER answered with, less every one that is not a name and an access."
+  "The shares PEER answered with: each a name and an access, the first of a name whatever its case."
   [peer answer]
   (let [rows (if (sequential? answer) answer (some-> answer list))
-        {kept true dropped false} (group-by (partial m/validate schema/offered) rows)]
-    (when dropped
+        {:keys [kept dropped]}
+        (reduce (fn [{:keys [names] :as acc} row]
+                  (let [k (when (m/validate schema/offered row) (schema/name-key (:name row)))]
+                    (if (and k (not (names k)))
+                      (-> acc (update :names conj k) (update :kept conj row))
+                      (update acc :dropped conj row))))
+                {:names #{} :kept [] :dropped []}
+                rows)]
+    (when (seq dropped)
       (log/warn "circle: a peer's shares were dropped"
                 {:id (:id peer) :dropped (count dropped) :first (apply str (take 80 (pr-str (first dropped))))}))
-    (into [] kept)))
+    kept))
 
 (defn- ->read-task
   "PEER's name and shares off its tree: {:name \"Mvule\" :shares [{:name \"math\" :access :rw}]}."
