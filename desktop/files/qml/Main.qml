@@ -114,7 +114,7 @@ Window {
                 if (dialog !== "share") return
                 if (status >= 200 && status < 300) { dialog = ""; toast.show(t.existing ? "Sharing updated" : "“" + (name || t.name) + "” is now shared with computers nearby", "share") }
                 else if (status === 409) dialogBox.askName("Another shared folder already has that name. Give this one a name of its own.")
-                else if (status === 400) dialogBox.askName("That name can't be used. Try a shorter one, without “/”.")
+                else if (status === 400) dialogBox.askName("That name can't be used. Try a shorter one, without marks like “/” or “:”.")
                 else dialogBox.error = "Couldn't share it. Try again."
             })
         }
@@ -130,13 +130,13 @@ Window {
             return places.shared.filter((s) => s.place === placeId && (s.path === at || s.path.startsWith(at + "/")))
         }
         // a folder renamed or moved takes its shares along: each leaves the old path, then joins at the new one.
-        // A share named after the folder follows its new name, unless another share has it
+        // A share named after the folder follows its new name, unless another share has it or it can't be a share's name
         function reshare(list, from, to, dest, oldName, newName) {
             for (const s of list) {
                 const name = s.path === from && s.name === oldName ? newName : s.name
                 const add = (n, then) => commands.post("shares/add", { place: [dest.kind, dest.wire], path: to + s.path.slice(from.length), access: s.access, name: n }, then)
                 commands.post("shares/remove", { place: [s.kind, s.wire], path: s.path },
-                              () => add(name, (status) => { if (status === 409 && name !== s.name) add(s.name) }))
+                              () => add(name, (status) => { if ((status === 409 || status === 400) && name !== s.name) add(s.name) }))
             }
         }
 
