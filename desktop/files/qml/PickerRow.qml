@@ -38,9 +38,9 @@ Rectangle {
         anchors { fill: parent; leftMargin: 20; rightMargin: 16 }
         spacing: 12
         Glyph { name: row.isDir ? "folder" : row.type; color: row.isDir ? Theme.frost : Theme.faint; size: 20; stroke: 2; anchors.verticalCenter: parent.verticalCenter }
-        Text { width: parent.width - 20 - 12 - 90 - 12 - 132 - 12; text: row.name; color: Theme.text; font.pixelSize: 14; font.family: Theme.font; elide: Text.ElideRight; anchors.verticalCenter: parent.verticalCenter }
-        Text { width: 90; text: row.isDir ? "" : row.fmtSize(row.size); color: Theme.dim; font.pixelSize: 13; font.family: Theme.font; horizontalAlignment: Text.AlignRight; anchors.verticalCenter: parent.verticalCenter }
-        Text { width: 132; text: row.fmtDate(row.mtime); color: Theme.dim; font.pixelSize: 13; font.family: Theme.font; horizontalAlignment: Text.AlignRight; anchors.verticalCenter: parent.verticalCenter }
+        Text { textFormat: Text.PlainText; width: parent.width - 20 - 12 - 90 - 12 - 132 - 12; text: row.name; color: Theme.text; font.pixelSize: 14; font.family: Theme.font; elide: Text.ElideRight; anchors.verticalCenter: parent.verticalCenter }
+        Text { textFormat: Text.PlainText; width: 90; text: row.isDir ? "" : row.fmtSize(row.size); color: Theme.dim; font.pixelSize: 13; font.family: Theme.font; horizontalAlignment: Text.AlignRight; anchors.verticalCenter: parent.verticalCenter }
+        Text { textFormat: Text.PlainText; width: 132; text: row.fmtDate(row.mtime); color: Theme.dim; font.pixelSize: 13; font.family: Theme.font; horizontalAlignment: Text.AlignRight; anchors.verticalCenter: parent.verticalCenter }
     }
     MouseArea {
         id: ma

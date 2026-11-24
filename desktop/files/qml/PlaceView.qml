@@ -31,7 +31,7 @@ Item {
                         Row {
                             id: chip; anchors.centerIn: parent; spacing: 9
                             Rectangle { width: 9; height: 9; radius: 3; color: m.color; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: nav.place ? nav.place.name : ""; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font }
+                            Text { textFormat: Text.PlainText; text: nav.place ? nav.place.name : ""; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font }
                         }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                         TapHandler { onTapped: nav.goRoot() }
@@ -41,7 +41,7 @@ Item {
                         spacing: 10
                         anchors.verticalCenter: parent.verticalCenter
                         Glyph { name: "crumb"; color: Theme.faint; size: 16; stroke: 2; anchors.verticalCenter: parent.verticalCenter }
-                        Text { text: nav.folderName; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font; elide: Text.ElideRight
+                        Text { textFormat: Text.PlainText; text: nav.folderName; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font; elide: Text.ElideRight
                                // what the buttons on the right leave free
                                width: Math.min(implicitWidth, 320, Math.max(0, view.width - actions.width - back.width - root.width - 126)) }
                     }
@@ -72,7 +72,7 @@ Item {
                 anchors { left: parent.left; leftMargin: 26; verticalCenter: parent.verticalCenter }
                 spacing: 11
                 Glyph { name: m.noticeGlyph || m.glyph; color: m.color; size: 17; stroke: 1.9; anchors.verticalCenter: parent.verticalCenter }
-                Text { text: m.notice; color: m.color; font.pixelSize: prefs.btn; font.weight: Font.DemiBold; font.family: Theme.font
+                Text { textFormat: Text.PlainText; text: m.notice; color: m.color; font.pixelSize: prefs.btn; font.weight: Font.DemiBold; font.family: Theme.font
                        width: Math.min(implicitWidth, view.width - 80); elide: Text.ElideRight }
             }
         }
@@ -102,7 +102,7 @@ Item {
                 Item { width: 1; height: 22 }
                 Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Nothing here yet"; color: Theme.text; font.pixelSize: prefs.title; font.weight: Font.Bold; font.family: Theme.font }
                 Item { width: 1; height: 9 }
-                Text { anchors.horizontalCenter: parent.horizontalCenter; width: 420; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
+                Text { textFormat: Text.PlainText; anchors.horizontalCenter: parent.horizontalCenter; width: 420; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                        text: m.emptyHint; color: Theme.dim; font.pixelSize: prefs.btn; lineHeight: 1.4; font.family: Theme.font }
             }
 

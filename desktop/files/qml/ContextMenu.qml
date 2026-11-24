@@ -52,9 +52,10 @@ Item {
                         anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
                         spacing: 10
                         Glyph { name: row.modelData.glyph || "file"; color: row.fg; size: 18; stroke: 1.8; anchors.verticalCenter: parent.verticalCenter }
-                        Text { text: row.modelData.label || ""; color: row.fg; font.pixelSize: prefs.btn; font.weight: Font.DemiBold; font.family: Theme.font; anchors.verticalCenter: parent.verticalCenter }
+                        Text { textFormat: Text.PlainText; text: row.modelData.label || ""; color: row.fg; font.pixelSize: prefs.btn; font.weight: Font.DemiBold; font.family: Theme.font; anchors.verticalCenter: parent.verticalCenter }
                     }
                     Text {
+                        textFormat: Text.PlainText
                         visible: !row.sep && !!row.modelData.hint
                         anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
                         text: row.modelData.hint || ""; color: Theme.faint; font.pixelSize: prefs.en; font.family: Theme.font

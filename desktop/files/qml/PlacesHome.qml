@@ -21,8 +21,8 @@ Flickable {
         property string sub: ""
         spacing: 12
         Glyph { name: parent.glyph; color: parent.tint; size: 20; stroke: 1.8; anchors.verticalCenter: parent.verticalCenter }
-        Text { text: parent.title; color: Theme.text; font.pixelSize: prefs.name + 2.5; font.weight: Font.Bold; font.letterSpacing: -.2; font.family: Theme.font; anchors.verticalCenter: parent.verticalCenter }
-        Text { text: parent.sub; color: Theme.faint; font.pixelSize: prefs.sub - 1; font.family: Theme.font; anchors.verticalCenter: parent.verticalCenter }
+        Text { textFormat: Text.PlainText; text: parent.title; color: Theme.text; font.pixelSize: prefs.name + 2.5; font.weight: Font.Bold; font.letterSpacing: -.2; font.family: Theme.font; anchors.verticalCenter: parent.verticalCenter }
+        Text { textFormat: Text.PlainText; text: parent.sub; color: Theme.faint; font.pixelSize: prefs.sub - 1; font.family: Theme.font; anchors.verticalCenter: parent.verticalCenter }
     }
     contentHeight: body.implicitHeight + 64
     clip: true
@@ -97,6 +97,7 @@ Flickable {
             }
 
             Text {
+                textFormat: Text.PlainText
                 visible: places.count === 0
                 width: parent.width
                 text: places.connected ? "No place is ready yet." : "Waiting for ujimad…"
@@ -275,9 +276,9 @@ Flickable {
                                 id: names
                                 anchors { left: icon.right; leftMargin: 16; right: chip.left; rightMargin: 16; verticalCenter: parent.verticalCenter }
                                 spacing: 3
-                                Text { width: parent.width; text: row.modelData.name; color: Theme.text; elide: Text.ElideRight
+                                Text { textFormat: Text.PlainText; width: parent.width; text: row.modelData.name; color: Theme.text; elide: Text.ElideRight
                                        font.pixelSize: prefs.name + .5; font.weight: Font.Bold; font.family: Theme.font }
-                                Text { width: parent.width; color: Theme.dim; elide: Text.ElideMiddle; font.pixelSize: prefs.en + .5; font.family: Theme.font
+                                Text { textFormat: Text.PlainText; width: parent.width; color: Theme.dim; elide: Text.ElideMiddle; font.pixelSize: prefs.en + .5; font.family: Theme.font
                                        text: row.modelData.placeName + " › " + row.modelData.path.split("/").join(" › ") }
                             }
                         }

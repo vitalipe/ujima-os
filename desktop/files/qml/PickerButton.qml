@@ -20,7 +20,7 @@ Rectangle {
     border.color: Theme.brd
     scale: ta.pressed && enabled ? .97 : 1
     Behavior on color { ColorAnimation { duration: 120 } }
-    Text { id: label; anchors.centerIn: parent; text: btn.text; color: tone === "primary" ? "#10222a" : tone === "danger" ? "#ffffff" : Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold; font.family: Theme.font }
+    Text { id: label; textFormat: Text.PlainText; anchors.centerIn: parent; text: btn.text; color: tone === "primary" ? "#10222a" : tone === "danger" ? "#ffffff" : Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold; font.family: Theme.font }
     HoverHandler { id: hh; cursorShape: btn.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
     TapHandler { id: ta; enabled: btn.enabled; onTapped: btn.clicked() }
 }

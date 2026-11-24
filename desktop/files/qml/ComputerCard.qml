@@ -31,9 +31,9 @@ Rectangle {
             Column {
                 anchors { left: icon.right; leftMargin: 14; right: parent.right; verticalCenter: icon.verticalCenter }
                 spacing: 3
-                Text { width: parent.width; text: card.host.name; color: Theme.text; elide: Text.ElideRight
+                Text { textFormat: Text.PlainText; width: parent.width; text: card.host.name; color: Theme.text; elide: Text.ElideRight
                        font.pixelSize: prefs.card; font.weight: Font.Bold; font.letterSpacing: -.3; font.family: Theme.font }
-                Text { width: parent.width; color: Theme.dim; elide: Text.ElideRight; font.pixelSize: prefs.sub; font.family: Theme.font
+                Text { textFormat: Text.PlainText; width: parent.width; color: Theme.dim; elide: Text.ElideRight; font.pixelSize: prefs.sub; font.family: Theme.font
                        text: card.n + (card.n === 1 ? " shared folder" : " shared folders")
                              + (card.host.rw ? " · " + card.host.rw + " you can change" : " · view only") }
             }
@@ -71,12 +71,13 @@ Rectangle {
                         glyph: row.opening ? "open"     : row.failed ? "warn"       : row.access.glyph
                         tone:  row.opening ? "frost"    : row.failed ? "danger"     : row.access.tone
                     }
-                    Text { anchors { left: folder.right; leftMargin: 13; right: chip.left; rightMargin: 13; verticalCenter: parent.verticalCenter }
+                    Text { textFormat: Text.PlainText; anchors { left: folder.right; leftMargin: 13; right: chip.left; rightMargin: 13; verticalCenter: parent.verticalCenter }
                            text: row.modelData.label; color: Theme.text; elide: Text.ElideRight
                            font.pixelSize: prefs.name + 1.5; font.weight: Font.DemiBold; font.family: Theme.font }
                 }
                 Text {
                     id: why
+                    textFormat: Text.PlainText
                     visible: row.failed
                     anchors { left: parent.left; leftMargin: 39; right: parent.right; rightMargin: 2; top: line.bottom; topMargin: -5 }
                     wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight; lineHeight: 1.3

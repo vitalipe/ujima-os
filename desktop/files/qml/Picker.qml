@@ -127,7 +127,7 @@ Window {
                 anchors { left: parent.left; leftMargin: 22; verticalCenter: parent.verticalCenter }
                 spacing: 12
                 Glyph { name: "folder"; color: Theme.frost; size: 22; stroke: 2; anchors.verticalCenter: parent.verticalCenter }
-                Text { text: win.title; color: Theme.text; font.pixelSize: 17; font.weight: Font.DemiBold; font.letterSpacing: -.2; font.family: Theme.font; anchors.verticalCenter: parent.verticalCenter }
+                Text { textFormat: Text.PlainText; text: win.title; color: Theme.text; font.pixelSize: 17; font.weight: Font.DemiBold; font.letterSpacing: -.2; font.family: Theme.font; anchors.verticalCenter: parent.verticalCenter }
             }
         }
 
@@ -168,8 +168,8 @@ Window {
                                 Column {
                                     spacing: 1
                                     anchors.verticalCenter: parent.verticalCenter
-                                    Text { text: modelData.name; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold; font.family: Theme.font }
-                                    Text { text: m.badge; color: active ? m.color : Theme.faint; font.pixelSize: 11; font.weight: Font.DemiBold; font.family: Theme.font }
+                                    Text { textFormat: Text.PlainText; text: modelData.name; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold; font.family: Theme.font }
+                                    Text { textFormat: Text.PlainText; text: m.badge; color: active ? m.color : Theme.faint; font.pixelSize: 11; font.weight: Font.DemiBold; font.family: Theme.font }
                                 }
                             }
                             HoverHandler { id: ph; cursorShape: Qt.PointingHandCursor }
@@ -195,7 +195,7 @@ Window {
                         Row {
                             anchors.centerIn: parent; spacing: 8
                             Rectangle { width: 9; height: 9; radius: 3; color: nav.place ? Theme.meta(nav.place.kind, nav.place.label).color : "transparent"; anchors.verticalCenter: parent.verticalCenter }
-                            Text { id: crumb0; text: nav.place ? nav.place.name : ""; color: nav.path.length ? Theme.dim : Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold; font.family: Theme.font }
+                            Text { id: crumb0; textFormat: Text.PlainText; text: nav.place ? nav.place.name : ""; color: nav.path.length ? Theme.dim : Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold; font.family: Theme.font }
                         }
                         HoverHandler { id: c0h }
                         TapHandler { onTapped: nav.crumb(0) }
@@ -213,7 +213,7 @@ Window {
                                 height: 30; width: ct.implicitWidth + 18; radius: 8
                                 color: ch.hovered && !here ? Qt.rgba(1, 1, 1, .05) : "transparent"
                                 anchors.verticalCenter: parent.verticalCenter
-                                Text { id: ct; anchors.centerIn: parent; text: modelData; color: here ? Theme.text : Theme.dim; font.pixelSize: 13; font.weight: Font.DemiBold; font.family: Theme.font }
+                                Text { id: ct; textFormat: Text.PlainText; anchors.centerIn: parent; text: modelData; color: here ? Theme.text : Theme.dim; font.pixelSize: 13; font.weight: Font.DemiBold; font.family: Theme.font }
                                 HoverHandler { id: ch }
                                 TapHandler { onTapped: if (!here) nav.crumb(index + 1) }
                             }
@@ -261,7 +261,7 @@ Window {
                     anchors.centerIn: rows
                     spacing: 10
                     Glyph { name: "folder"; color: Theme.faint; size: 34; stroke: 1.5; anchors.horizontalCenter: parent.horizontalCenter }
-                    Text { text: nav.place ? "Nothing here yet" : (places.connected ? "Choose a place" : "Waiting for ujimad…"); color: Theme.faint; font.pixelSize: 14; font.family: Theme.font; anchors.horizontalCenter: parent.horizontalCenter }
+                    Text { textFormat: Text.PlainText; text: nav.place ? "Nothing here yet" : (places.connected ? "Choose a place" : "Waiting for ujimad…"); color: Theme.faint; font.pixelSize: 14; font.family: Theme.font; anchors.horizontalCenter: parent.horizontalCenter }
                 }
             }
         }
@@ -285,7 +285,7 @@ Window {
                     anchors.verticalCenter: parent.verticalCenter
                     Row {
                         anchors.centerIn: parent; spacing: 8
-                        Text { id: filterText; text: nav.filter >= 0 ? pick.filters[nav.filter].label : "All files"; color: Theme.dim; font.pixelSize: 13; font.family: Theme.font; elide: Text.ElideRight; width: Math.min(implicitWidth, 190) }
+                        Text { id: filterText; textFormat: Text.PlainText; text: nav.filter >= 0 ? pick.filters[nav.filter].label : "All files"; color: Theme.dim; font.pixelSize: 13; font.family: Theme.font; elide: Text.ElideRight; width: Math.min(implicitWidth, 190) }
                         Glyph { name: "crumb"; color: Theme.faint; size: 12; stroke: 2; rotation: 90; anchors.verticalCenter: parent.verticalCenter }
                     }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
@@ -323,7 +323,8 @@ Window {
             Row {
                 visible: nav.confirming
                 anchors { left: parent.left; leftMargin: 18; verticalCenter: parent.verticalCenter }
-                Text { textFormat: Text.StyledText; text: "<b>" + nameField.text.trim() + "</b> is already here — replace it?"; color: Theme.text; font.pixelSize: 14; font.family: Theme.font }
+                Text { textFormat: Text.PlainText; text: nameField.text.trim(); color: Theme.text; font.pixelSize: 14; font.weight: Font.Bold; font.family: Theme.font }
+                Text { text: " is already here — replace it?"; color: Theme.text; font.pixelSize: 14; font.family: Theme.font }
             }
             Row {
                 visible: nav.confirming
@@ -352,7 +353,7 @@ Window {
                     readonly property int fi: index < pick.filters.length ? index : -1
                     width: parent.width; height: 34; radius: 7
                     color: fi === nav.filter ? Theme.tint(Theme.frostRgb, .12) : (fh.hovered ? Qt.rgba(1, 1, 1, .05) : "transparent")
-                    Text { anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
+                    Text { textFormat: Text.PlainText; anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
                         text: fi >= 0 ? pick.filters[fi].label : "All files"; color: fi === nav.filter ? Theme.frost : Theme.text; font.pixelSize: 13; font.family: Theme.font; elide: Text.ElideRight; width: parent.width - 20 }
                     HoverHandler { id: fh; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: { nav.filter = fi; nav.selected = []; nav.sync(); filterMenu.visible = false } }

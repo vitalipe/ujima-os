@@ -59,9 +59,9 @@ Rectangle {
             Column {
                 width: parent.width - 52 - 18
                 spacing: 0
-                Text { text: dlg.title; color: Theme.text; font.pixelSize: prefs.title; font.weight: Font.Bold; font.letterSpacing: -.2; font.family: Theme.font }
+                Text { textFormat: Text.PlainText; text: dlg.title; color: Theme.text; font.pixelSize: prefs.title; font.weight: Font.Bold; font.letterSpacing: -.2; font.family: Theme.font }
                 Item { width: 1; height: 14 }
-                Text { width: parent.width; text: dlg.body; color: Theme.dim; font.pixelSize: prefs.btn; wrapMode: Text.WordWrap; lineHeight: 1.45; font.family: Theme.font }
+                Text { textFormat: Text.PlainText; width: parent.width; text: dlg.body; color: Theme.dim; font.pixelSize: prefs.btn; wrapMode: Text.WordWrap; lineHeight: 1.45; font.family: Theme.font }
                 Item { width: 1; height: dlg.kind === "share" ? 18 : 0 }
                 Column {
                     visible: dlg.kind === "share"
@@ -92,8 +92,8 @@ Rectangle {
                                 id: optText
                                 anchors { left: optGlyph.right; leftMargin: 14; right: parent.right; rightMargin: 16; verticalCenter: parent.verticalCenter }
                                 spacing: 2
-                                Text { text: opt.modelData.title; color: Theme.text; font.pixelSize: prefs.btn + .5; font.weight: Font.Bold; font.family: Theme.font }
-                                Text { width: parent.width; text: opt.modelData.sub; color: Theme.dim; font.pixelSize: prefs.en + 1; wrapMode: Text.WordWrap; font.family: Theme.font }
+                                Text { textFormat: Text.PlainText; text: opt.modelData.title; color: Theme.text; font.pixelSize: prefs.btn + .5; font.weight: Font.Bold; font.family: Theme.font }
+                                Text { textFormat: Text.PlainText; width: parent.width; text: opt.modelData.sub; color: Theme.dim; font.pixelSize: prefs.en + 1; wrapMode: Text.WordWrap; font.family: Theme.font }
                             }
                             HoverHandler { cursorShape: Qt.PointingHandCursor }
                             TapHandler { onTapped: dlg.access = opt.modelData.access }
@@ -122,7 +122,7 @@ Rectangle {
                     }
                 }
                 Item { width: 1; height: dlg.error !== "" ? 10 : 0 }
-                Text { visible: dlg.error !== ""; width: parent.width; wrapMode: Text.WordWrap; text: dlg.error; color: Theme.dangerText; font.pixelSize: prefs.en; font.weight: Font.DemiBold; font.family: Theme.font }
+                Text { textFormat: Text.PlainText; visible: dlg.error !== ""; width: parent.width; wrapMode: Text.WordWrap; text: dlg.error; color: Theme.dangerText; font.pixelSize: prefs.en; font.weight: Font.DemiBold; font.family: Theme.font }
             }
         }
 
@@ -156,7 +156,7 @@ Rectangle {
                 Rectangle {
                     height: 50; width: okT.implicitWidth + 48; radius: 11
                     color: dlg.danger ? Theme.tint(Theme.dangerRgb, .9) : Theme.tint(Theme.frostRgb, .92)
-                    Text { id: okT; anchors.centerIn: parent; text: dlg.confirmLabel; color: dlg.danger ? Theme.bg : Theme.ink; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font }
+                    Text { id: okT; textFormat: Text.PlainText; anchors.centerIn: parent; text: dlg.confirmLabel; color: dlg.danger ? Theme.bg : Theme.ink; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: dlg.confirm(dlg.input) }
                 }

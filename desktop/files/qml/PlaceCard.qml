@@ -53,15 +53,15 @@ Rectangle {
                 Row {
                     width: parent.width
                     spacing: 10
-                    Text { text: place.name; color: Theme.text; font.pixelSize: prefs.card; font.weight: Font.Bold; font.letterSpacing: -.3; font.family: Theme.font }
+                    Text { textFormat: Text.PlainText; text: place.name; color: Theme.text; font.pixelSize: prefs.card; font.weight: Font.Bold; font.letterSpacing: -.3; font.family: Theme.font }
                     Rectangle {
                         height: badge.implicitHeight + 8; width: badge.implicitWidth + 20; radius: 999
                         color: Theme.tint(m.rgb, .14); border.width: 1; border.color: Theme.tint(m.rgb, .28)
                         anchors.verticalCenter: parent.verticalCenter
-                        Text { id: badge; anchors.centerIn: parent; text: m.badge; color: m.color; font.pixelSize: prefs.badge; font.weight: Font.Bold; font.letterSpacing: .2; font.family: Theme.font }
+                        Text { id: badge; textFormat: Text.PlainText; anchors.centerIn: parent; text: m.badge; color: m.color; font.pixelSize: prefs.badge; font.weight: Font.Bold; font.letterSpacing: .2; font.family: Theme.font }
                     }
                 }
-                Text { width: parent.width; text: m.desc; color: Theme.dim; font.pixelSize: prefs.sub; wrapMode: Text.WordWrap; lineHeight: 1.35; font.family: Theme.font }
+                Text { textFormat: Text.PlainText; width: parent.width; text: m.desc; color: Theme.dim; font.pixelSize: prefs.sub; wrapMode: Text.WordWrap; lineHeight: 1.35; font.family: Theme.font }
                 // chips: the stick's label (never for this computer / temporary) + the token types it carries
                 Item { width: 1; height: chips.visible ? 7 : 0 }
                 Flow {
@@ -96,9 +96,9 @@ Rectangle {
             }
             Item {
                 width: parent.width; height: spaceLabel.implicitHeight
-                Text { id: spaceLabel; anchors.left: parent.left; color: nearlyFull ? Theme.dangerText : Theme.text; font.pixelSize: prefs.btn; font.weight: Font.DemiBold; font.family: Theme.font
+                Text { id: spaceLabel; textFormat: Text.PlainText; anchors.left: parent.left; color: nearlyFull ? Theme.dangerText : Theme.text; font.pixelSize: prefs.btn; font.weight: Font.DemiBold; font.family: Theme.font
                        text: nearlyFull ? "Nearly full — " + Theme.fmtBytes(place.free) + " left" : Theme.fmtBytes(place.free) + " free" }
-                Text { anchors.right: parent.right; anchors.baseline: spaceLabel.baseline; color: Theme.dim; font.pixelSize: prefs.en; font.family: Theme.font
+                Text { textFormat: Text.PlainText; anchors.right: parent.right; anchors.baseline: spaceLabel.baseline; color: Theme.dim; font.pixelSize: prefs.en; font.family: Theme.font
                        text: Theme.fmtBytes(place.used) + " of " + Theme.fmtBytes(place.total) + " used" }
             }
         }

@@ -19,6 +19,6 @@ Rectangle {
         anchors.centerIn: parent
         spacing: 6
         Glyph { name: glyph; color: fg; size: 13; stroke: 2; anchors.verticalCenter: parent.verticalCenter }
-        Text { id: label; text: parent.parent.text; color: fg; font.pixelSize: prefs.en; font.weight: Font.DemiBold; font.family: Theme.font }
+        Text { id: label; textFormat: Text.PlainText; text: parent.parent.text; color: fg; font.pixelSize: prefs.en; font.weight: Font.DemiBold; font.family: Theme.font }
     }
 }

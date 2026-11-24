@@ -28,13 +28,14 @@ Rectangle {
             Glyph { anchors.centerIn: parent; name: tile.type; color: Theme.colorOf(tile.type); size: 42; stroke: 1.6 }
         }
         Text {
+            textFormat: Text.PlainText
             width: parent.width
             text: tile.name; color: Theme.text
             font.pixelSize: prefs.name; font.weight: Font.DemiBold; font.family: Theme.font
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
         }
-        Text { width: parent.width; text: tile.meta + (tile.shared ? " · Shared" : ""); color: Theme.dim; font.pixelSize: prefs.en; horizontalAlignment: Text.AlignHCenter; font.family: Theme.font }
+        Text { textFormat: Text.PlainText; width: parent.width; text: tile.meta + (tile.shared ? " · Shared" : ""); color: Theme.dim; font.pixelSize: prefs.en; horizontalAlignment: Text.AlignHCenter; font.family: Theme.font }
     }
     Rectangle {
         visible: tile.shared

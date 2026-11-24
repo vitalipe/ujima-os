@@ -25,12 +25,12 @@ Rectangle {
         anchors.centerIn: parent
         spacing: 10
         Glyph { name: tab.glyph; color: tab.on ? tab.tint : Theme.dim; size: 20; stroke: 1.8; anchors.verticalCenter: parent.verticalCenter }
-        Text { text: tab.label; color: tab.on ? Theme.text : Theme.dim; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font; anchors.verticalCenter: parent.verticalCenter }
+        Text { textFormat: Text.PlainText; text: tab.label; color: tab.on ? Theme.text : Theme.dim; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font; anchors.verticalCenter: parent.verticalCenter }
         Rectangle {
             height: 24; width: Math.max(24, n.implicitWidth + 14); radius: 999
             color: tab.on ? Theme.tint(tab.rgb, .32) : Qt.rgba(1, 1, 1, .07)
             anchors.verticalCenter: parent.verticalCenter
-            Text { id: n; anchors.centerIn: parent; text: tab.count; color: tab.on ? Theme.text : Theme.dim; font.pixelSize: 12; font.weight: Font.Bold; font.family: Theme.font }
+            Text { id: n; textFormat: Text.PlainText; anchors.centerIn: parent; text: tab.count; color: tab.on ? Theme.text : Theme.dim; font.pixelSize: 12; font.weight: Font.Bold; font.family: Theme.font }
         }
     }
     HoverHandler { cursorShape: Qt.PointingHandCursor }
