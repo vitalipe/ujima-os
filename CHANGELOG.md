@@ -37,7 +37,8 @@ version truth; branch names and build labels may disagree.
   computer leaves the network. Files lists them on a Nearby tab, a card per computer, all one
   size (up to three folders, or two and a count of the rest): a row opens that folder, the
   card opens the computer's full list, and Back from a folder returns to whichever it was
-  opened from. Folders that can't be opened are reported once per computer, with Try again. A
+  opened from. A folder slow to open holds the window, with Cancel. Folders that can't be
+  opened are reported once per computer, with Try again. A
   view-only share opens with New folder, Rename and Delete off. Files shares a folder from its
   Share button and lists this computer's shares on a Shared from here tab; a shared folder
   that is renamed or moved stays shared, and a deleted one stops.

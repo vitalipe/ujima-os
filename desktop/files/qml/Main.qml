@@ -31,6 +31,7 @@ Window {
         property bool retryStale: false   // its :invalid is the old outcome until it mounts again
         property string opening: ""       // the nearby share asked for: its place id, until the stream says how it went
         property bool openingStale: false // asked of a share that had failed: its :invalid is the old outcome until it mounts again
+        readonly property bool waiting: opening !== "" && !place   // asked from a list: the window is held until it is in, or let go
         property var path: []             // folder names below the place root
         property string selected: ""
         property string dialog: ""        // "" | mkdir | rename | delete | share | unshare | quit
@@ -115,8 +116,7 @@ Window {
         function opened() {
             const share = places.peer(opening)
             if (!share.id) { opening = ""; if (place) goHome(); toast.show("That folder isn't shared any more", "warn") }
-            // a late open lands only where its folder is still in view: the Nearby tab, or its own computer's list
-            else if (share.state === "ready") { opening = ""; if (!place && (computer === "" ? home.tab === "nearby" : computer === share.hostId)) enterPlace(share) }
+            else if (share.state === "ready") { opening = ""; if (!place) enterPlace(share) }
             else if (share.state === "mounting") openingStale = false
             else if (share.state === "invalid" && !openingStale) { opening = ""; if (place) goHome(); toast.show("Couldn't open “" + share.label + "” on " + share.host, "warn") }
         }
@@ -334,6 +334,9 @@ Window {
     ComputerView { anchors { fill: parent; topMargin: bar.height } visible: !nav.place && !!nav.host; nav: nav }
     PlaceView  { anchors { fill: parent; topMargin: bar.height } visible: !!nav.place; nav: nav }
 
+    // letting go only stops the waiting: the folder goes on opening, and is in at once when asked again
+    OpeningBox { on: nav.waiting; share: on ? places.peer(nav.opening) : ({}); onCancel: nav.opening = "" }
+
     InPageDialog { id: dialogBox; nav: nav; onConfirm: (v) => nav.confirm(v); onCancel: if (!nav.working) nav.dialog = "" }
 
     Toast {
@@ -346,6 +349,7 @@ Window {
         focus: nav.dialog === ""
         Keys.onPressed: (ev) => {
             const ctrl = ev.modifiers & Qt.ControlModifier
+            if (nav.waiting) { if (ev.key === Qt.Key_Escape) nav.opening = ""; ev.accepted = true; return }
             if (ev.key === Qt.Key_Escape) { if (nav.menuOpen) nav.menuOpen = false; else nav.putBack(); ev.accepted = true }
             else if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter) { nav.openSelected(); ev.accepted = true }
             else if (ev.key === Qt.Key_Backspace && (nav.place || nav.host)) { nav.goBack(); ev.accepted = true }
