@@ -22,7 +22,7 @@ Window {
     QtObject {
         id: nav
         property var place: null          // a row of the places model or a nearby share, copied on enter
-        property string computer: ""      // the nearby computer whose folders are listed, by machine id; a folder of its keeps it, so Back lands there
+        property string computer: ""      // the nearby computer whose folders are listed, by machine id; a folder opened from that list keeps it, so Back lands there
         property string computerName: ""
         readonly property var host: computer === "" ? null : (places.nearby.find((c) => c.id === computer) || null)
         property string selShare: ""      // the folder picked on that list: its place id
@@ -68,12 +68,14 @@ Window {
             listing.watch = !place || place.kind !== "peer"
             listing.path = dir
         }
-        function enterPlace(p) {
-            const peer = p.kind === "peer"
-            place = p; computer = peer ? p.hostId : ""; computerName = peer ? p.host : ""; selShare = peer ? p.id : ""
-            path = []; selected = ""; sync()
-        }
+        function enterPlace(p) { place = p; path = []; selected = ""; sync() }
         function openComputer(c) { computer = c.id; computerName = c.name; selShare = "" }
+        // the trail's computer: its list, however this folder was reached
+        function toComputer() {
+            if (!place || place.kind !== "peer") return
+            computer = place.hostId; computerName = place.host; selShare = place.id
+            leave()
+        }
         // folders of one access ride one connection, so asking for one of each asks for all that failed
         function retry(c) {
             retrying = c.id; retryStale = true; giveUp.restart()
@@ -113,7 +115,8 @@ Window {
         function opened() {
             const share = places.peer(opening)
             if (!share.id) { opening = ""; if (place) goHome(); toast.show("That folder isn't shared any more", "warn") }
-            else if (share.state === "ready") { opening = ""; if (!place) enterPlace(share) }
+            // a late open lands only where its folder is still in view: the Nearby tab, or its own computer's list
+            else if (share.state === "ready") { opening = ""; if (!place && (computer === "" ? home.tab === "nearby" : computer === share.hostId)) enterPlace(share) }
             else if (share.state === "mounting") openingStale = false
             else if (share.state === "invalid" && !openingStale) { opening = ""; if (place) goHome(); toast.show("Couldn't open “" + share.label + "” on " + share.host, "warn") }
         }
@@ -141,9 +144,12 @@ Window {
         }
         function goHome()   { computer = ""; selShare = ""; leave() }
         function goRoot()   { if (path.length) { path = []; selected = ""; sync() } }
-        // up one level: a folder, then the place; a nearby folder's place is its computer, then home
-        function goUp()     { if (place && place.kind === "peer" && host) leave(); else goHome() }
-        function goBack()   { if (path.length) { path = path.slice(0, -1); selected = ""; sync() } else goUp() }
+        // the way in, backwards: a folder, then the place, then the computer's list if that is where it was opened
+        function goBack() {
+            if (path.length) { path = path.slice(0, -1); selected = ""; sync() }
+            else if (place && host) leave()
+            else goHome()
+        }
         function open(row) {
             const e = listing.get(row)
             if (e.isDir) { path = path.concat([e.name]); selected = ""; sync() }

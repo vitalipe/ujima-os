@@ -49,7 +49,7 @@ Item {
                                        elide: Text.ElideRight; width: view.compW }
                             }
                             HoverHandler { cursorShape: Qt.PointingHandCursor }
-                            TapHandler { onTapped: nav.goUp() }
+                            TapHandler { onTapped: nav.toComputer() }
                         }
                         Glyph { name: "crumb"; color: Theme.faint; size: 16; stroke: 2; anchors.verticalCenter: parent.verticalCenter }
                     }
