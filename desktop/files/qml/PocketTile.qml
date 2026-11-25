@@ -56,7 +56,7 @@ Rectangle {
                 width: parent.width
                 spacing: 2
                 Text { textFormat: Text.PlainText; width: parent.width - 30; text: pocket.held ? pocket.held.name : ""; color: Theme.text; font.pixelSize: prefs.name; font.weight: Font.Bold; font.family: Theme.font; elide: Text.ElideRight }
-                Text { textFormat: Text.PlainText; text: pocket.held ? "In your hand · from " + pocket.held.from : ""; color: Theme.frostText; font.pixelSize: prefs.en; font.family: Theme.font }
+                Text { textFormat: Text.PlainText; width: parent.width; text: pocket.held ? "In your hand · from " + pocket.held.from : ""; color: Theme.frostText; font.pixelSize: prefs.en; font.family: Theme.font; elide: Text.ElideRight }
             }
             Row {
                 visible: !pocket.busy

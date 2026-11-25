@@ -134,7 +134,7 @@ Rectangle {
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
             spacing: 6
             Chip { text: card.retrying ? "Trying again…" : "Can't open"; glyph: card.retrying ? "retry" : "warn"; tone: card.retrying ? "frost" : "danger" }
-            Text { textFormat: Text.PlainText; width: parent.width; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; lineHeight: 1.3
+            Text { textFormat: Text.PlainText; width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight; lineHeight: 1.3
                    text: card.retrying ? "Asking " + card.host.name + " for its folders again." : Theme.cantOpen(card.host.name, card.failed.length === card.n)
                    color: Theme.text; font.pixelSize: prefs.en + 1; font.family: Theme.font }
             Text { textFormat: Text.PlainText; visible: !card.retrying && text !== ""; width: parent.width; elide: Text.ElideRight

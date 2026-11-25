@@ -16,6 +16,7 @@ Rectangle {
     Row {
         id: row; anchors.centerIn: parent; spacing: 10
         Glyph { name: toast.glyph; color: Theme.frost; size: 20; stroke: 1.9; anchors.verticalCenter: parent.verticalCenter }
-        Text { textFormat: Text.PlainText; text: toast.text; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.DemiBold; font.family: Theme.font }
+        Text { textFormat: Text.PlainText; text: toast.text; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.DemiBold; font.family: Theme.font
+               width: Math.min(implicitWidth, toast.parent.width - 130); elide: Text.ElideMiddle }
     }
 }

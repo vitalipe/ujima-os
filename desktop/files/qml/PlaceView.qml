@@ -130,7 +130,7 @@ Item {
                 Item { width: 1; height: 22 }
                 Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Nothing here yet"; color: Theme.text; font.pixelSize: prefs.title; font.weight: Font.Bold; font.family: Theme.font }
                 Item { width: 1; height: 9 }
-                Text { textFormat: Text.PlainText; anchors.horizontalCenter: parent.horizontalCenter; width: 420; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
+                Text { textFormat: Text.PlainText; anchors.horizontalCenter: parent.horizontalCenter; width: 420; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap
                        text: m.emptyHint; color: Theme.dim; font.pixelSize: prefs.btn; lineHeight: 1.4; font.family: Theme.font }
             }
 

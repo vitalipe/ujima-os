@@ -71,7 +71,7 @@ Rectangle {
                 spacing: 0
                 Text { textFormat: Text.PlainText; text: dlg.title; color: Theme.text; font.pixelSize: prefs.title; font.weight: Font.Bold; font.letterSpacing: -.2; font.family: Theme.font }
                 Item { width: 1; height: 14 }
-                Text { textFormat: Text.PlainText; width: parent.width; text: dlg.slow ? dlg.doing : dlg.body; color: dlg.slow ? Theme.frostText : Theme.dim; font.pixelSize: prefs.btn; wrapMode: Text.WordWrap; lineHeight: 1.45; font.family: Theme.font }
+                Text { textFormat: Text.PlainText; width: parent.width; text: dlg.slow ? dlg.doing : dlg.body; color: dlg.slow ? Theme.frostText : Theme.dim; font.pixelSize: prefs.btn; wrapMode: Text.Wrap; lineHeight: 1.45; font.family: Theme.font }
                 Item { width: 1; height: dlg.kind === "share" ? 18 : 0 }
                 Column {
                     visible: dlg.kind === "share"
@@ -121,6 +121,7 @@ Rectangle {
                         id: field
                         anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
                         verticalAlignment: TextInput.AlignVCenter
+                        clip: true
                         color: Theme.text; selectionColor: Theme.tint(Theme.frostRgb, .35)
                         font.pixelSize: prefs.btn; font.family: Theme.font
                         readOnly: dlg.working

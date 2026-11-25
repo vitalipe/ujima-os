@@ -54,7 +54,7 @@ Item {
                 spacing: 12
                 Text { textFormat: Text.PlainText; width: parent.width; elide: Text.ElideRight; text: "Opening “" + (box.share.label || "") + "”"
                        color: Theme.text; font.pixelSize: prefs.title; font.weight: Font.Bold; font.letterSpacing: -.2; font.family: Theme.font }
-                Text { textFormat: Text.PlainText; width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.45
+                Text { textFormat: Text.PlainText; width: parent.width; wrapMode: Text.Wrap; lineHeight: 1.45
                        text: "Waiting for " + (box.share.host || "") + " to answer. This can take a moment."
                        color: Theme.dim; font.pixelSize: prefs.btn; font.family: Theme.font }
             }

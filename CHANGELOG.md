@@ -75,6 +75,8 @@ version truth; branch names and build labels may disagree.
 - Files: saving a name that already exists shows the error instead of closing the dialog.
 - Files: a file, folder or computer name with markup in it (`<h1>…`) is shown as written, not
   drawn as formatted text.
+- Files: a long name with no spaces in it stays inside dialogs, messages and the name field
+  instead of running out of them.
 
 ### Removed
 

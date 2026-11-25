@@ -65,7 +65,7 @@ Item {
                 id: said
                 anchors { left: sign.right; leftMargin: 12; right: again.visible ? again.left : parent.right; rightMargin: 20; verticalCenter: parent.verticalCenter }
                 spacing: 3
-                Text { textFormat: Text.PlainText; width: parent.width; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                Text { textFormat: Text.PlainText; width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
                        text: view.retrying ? "Asking " + view.host.name + " for its folders again…" : Theme.cantOpen(view.host.name, view.failed.length === view.host.shares.length)
                        color: view.retrying ? Theme.frostText : Theme.dangerText; font.pixelSize: prefs.btn; font.weight: Font.DemiBold; font.family: Theme.font }
                 Text { textFormat: Text.PlainText; visible: !view.retrying && text !== ""; width: parent.width; elide: Text.ElideRight
