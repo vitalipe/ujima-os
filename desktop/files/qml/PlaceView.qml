@@ -9,6 +9,18 @@ Item {
     readonly property var m: nav.meta ? nav.meta : ({ glyph: "folder", color: "transparent", rgb: [0, 0, 0], notice: "", emptyHint: "" })
     readonly property bool hasSel: nav.selected !== ""
     readonly property bool holding: !!nav.held
+    readonly property bool peer: !!nav.place && nav.place.kind === "peer"
+    // the trail's room, shared out: where you are first, then the place, then a nearby folder's computer
+    readonly property real room: Math.max(0, view.width - actions.width - back.width - 90)
+    readonly property real fixed: (peer ? 123 : 48) + (nav.path.length ? 36 : 0)
+    readonly property real folderW: nav.path.length ? Math.min(wide(folderM), 320, Math.max(0, room - fixed - (peer ? 100 : 60))) : 0
+    readonly property real rootW: Math.min(wide(rootM), Math.max(40, room - fixed - folderW - (peer ? 40 : 0)))
+    readonly property real compW: Math.min(wide(compM), Math.max(0, room - fixed - folderW - rootW))
+    // measured apart from the labels: one cut to nothing no longer says how wide it would be
+    TextMetrics { id: compM;   font: compT.font;   text: compT.text }
+    TextMetrics { id: rootM;   font: rootT.font;   text: rootT.text }
+    TextMetrics { id: folderM; font: folderT.font; text: folderT.text }
+    function wide(m) { return Math.ceil(m.advanceWidth) + 2 }
 
     Column {
         anchors.fill: parent
@@ -24,14 +36,31 @@ Item {
                 Row {
                     spacing: 10
                     anchors.verticalCenter: parent.verticalCenter
+                    Row {
+                        visible: view.peer
+                        spacing: 10
+                        Rectangle {
+                            height: 40; width: comp.implicitWidth + 30; radius: 11
+                            color: Qt.rgba(1, 1, 1, .05)
+                            Row {
+                                id: comp; anchors.centerIn: parent; spacing: 9
+                                Glyph { name: "computer"; color: Theme.peer; size: 18; stroke: 1.8; anchors.verticalCenter: parent.verticalCenter }
+                                Text { id: compT; textFormat: Text.PlainText; text: view.peer ? nav.place.host : ""; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font
+                                       elide: Text.ElideRight; width: view.compW }
+                            }
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: nav.goUp() }
+                        }
+                        Glyph { name: "crumb"; color: Theme.faint; size: 16; stroke: 2; anchors.verticalCenter: parent.verticalCenter }
+                    }
                     Rectangle {
-                        id: root
                         height: 40; width: chip.implicitWidth + 30; radius: 11
                         color: Qt.rgba(1, 1, 1, nav.path.length ? .05 : .09)
                         Row {
                             id: chip; anchors.centerIn: parent; spacing: 9
-                            Rectangle { width: 9; height: 9; radius: 3; color: m.color; anchors.verticalCenter: parent.verticalCenter }
-                            Text { textFormat: Text.PlainText; text: nav.place ? nav.place.name : ""; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font }
+                            Rectangle { visible: !view.peer; width: 9; height: 9; radius: 3; color: m.color; anchors.verticalCenter: parent.verticalCenter }
+                            Text { id: rootT; textFormat: Text.PlainText; text: !nav.place ? "" : view.peer ? nav.place.label : nav.place.name; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font
+                                   elide: Text.ElideRight; width: view.rootW }
                         }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                         TapHandler { onTapped: nav.goRoot() }
@@ -41,9 +70,8 @@ Item {
                         spacing: 10
                         anchors.verticalCenter: parent.verticalCenter
                         Glyph { name: "crumb"; color: Theme.faint; size: 16; stroke: 2; anchors.verticalCenter: parent.verticalCenter }
-                        Text { textFormat: Text.PlainText; text: nav.folderName; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font; elide: Text.ElideRight
-                               // what the buttons on the right leave free
-                               width: Math.min(implicitWidth, 320, Math.max(0, view.width - actions.width - back.width - root.width - 126)) }
+                        Text { id: folderT; textFormat: Text.PlainText; text: nav.folderName; color: Theme.text; font.pixelSize: prefs.btn; font.weight: Font.Bold; font.family: Theme.font
+                               elide: Text.ElideRight; width: view.folderW }
                     }
                 }
             }

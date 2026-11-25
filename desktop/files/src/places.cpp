@@ -1,4 +1,5 @@
 #include "places.h"
+#include <QCollator>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -28,7 +29,7 @@ static PeerShare peerOf(const QJsonObject& o) {
     s.id     = "peer/" + s.wire;
     s.label  = o.value("label").toString();
     s.host   = o.value("host").toString();
-    s.hostId = o.value("host-id").toString();
+    s.hostId = o.value("hostId").toString();
     s.access = o.value("access").toString();
     s.state  = o.value("state").toString();
     s.root   = o.value("storage").toString();
@@ -79,7 +80,15 @@ void PlacesModel::apply(const QJsonArray& places) {
         if (rank(a.kind) != rank(b.kind)) return rank(a.kind) < rank(b.kind);
         return a.name.localeAwareCompare(b.name) < 0;
     });
-    std::stable_sort(peers.begin(), peers.end(), [](const PeerShare& a, const PeerShare& b) { return a.hostId < b.hostId; });
+    // computers by name, each one's folders by name, numbers in counting order
+    QCollator names;
+    names.setNumericMode(true);
+    names.setCaseSensitivity(Qt::CaseInsensitive);
+    std::stable_sort(peers.begin(), peers.end(), [&](const PeerShare& a, const PeerShare& b) {
+        if (a.hostId == b.hostId) return names.compare(a.label, b.label) < 0;
+        const int byName = names.compare(a.host, b.host);
+        return byName != 0 ? byName < 0 : a.hostId < b.hostId;
+    });
     const QVariantList nearby = byComputer(peers);
 
     QVariantList shared;

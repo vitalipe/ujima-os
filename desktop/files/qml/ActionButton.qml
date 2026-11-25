@@ -36,7 +36,7 @@ Rectangle {
         id: row
         anchors.centerIn: parent
         spacing: btn.compact ? 7 : 9
-        Glyph { name: btn.glyph; color: btn.fg; size: btn.compact ? 16 : 19; stroke: btn.compact ? 2 : btn.tone === "primary" ? 1.9 : 1.8; anchors.verticalCenter: parent.verticalCenter }
+        Glyph { visible: btn.glyph !== ""; name: btn.glyph; color: btn.fg; size: btn.compact ? 16 : 19; stroke: btn.compact ? 2 : btn.tone === "primary" ? 1.9 : 1.8; anchors.verticalCenter: parent.verticalCenter }
         Text { textFormat: Text.PlainText; text: btn.label; color: btn.fg; font.pixelSize: btn.compact ? prefs.en + 1.5 : prefs.btn; font.weight: btn.weight; font.family: Theme.font; anchors.verticalCenter: parent.verticalCenter }
     }
     HoverHandler { id: hh; cursorShape: btn.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }

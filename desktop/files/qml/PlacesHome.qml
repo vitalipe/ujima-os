@@ -3,14 +3,19 @@ import QtQuick.Shapes
 import "."
 
 // HOME: "Where are your files?" — three tabs: this computer's ready places, one card each; the
-// folders nearby computers share, one card per computer; the folders this computer shares
+// nearby computers that share folders, one card each; the folders this computer shares
 Flickable {
     id: home
     signal enter(int row)
     signal openShare(var share)
+    signal openComputer(var host)
+    signal retry(var host)
+    signal hush(string id)
     signal changeShare(var share)
     signal stopShare(var share)
     property string opening: ""       // the place id of the nearby share being opened
+    property var hushed: ({})         // computers whose can't-open message was put away, by machine id
+    property string retrying: ""      // the computer being asked again
     property string tab: "local"      // local | nearby | mine
     readonly property string tabLabel: tab === "nearby" ? "Nearby" : tab === "mine" ? "Shared from here" : "This computer"
 
@@ -135,7 +140,12 @@ Flickable {
                         width: nearby.cellW
                         host: modelData
                         opening: home.opening
+                        hushed: !!home.hushed[modelData.id]
+                        retrying: home.retrying === modelData.id
                         onOpen: (share) => home.openShare(share)
+                        onEnter: home.openComputer(modelData)
+                        onRetry: home.retry(modelData)
+                        onHush: home.hush(modelData.id)
                     }
                 }
 

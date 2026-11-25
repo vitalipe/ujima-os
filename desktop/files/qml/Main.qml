@@ -2,14 +2,16 @@ import QtQuick
 import QtQuick.Window
 import "."
 
-// UjimaOS Files — home = places, then one folder at a time. The shell's bars frame this
-// window; the title feeds the top bar, as the mock's "Files — …" strip does.
+// UjimaOS Files — home = places, then one folder at a time; a nearby computer is a level of its own
+// between home and the folders it shares. The shell's bars frame this window; the title feeds the top
+// bar, as the mock's "Files — …" strip does.
 Window {
     id: win
     visible: true
     width: 1280; height: 720
     color: Theme.bg
-    title: "Files — " + (nav.place ? (nav.folderName ? nav.place.name + " / " + nav.folderName : nav.place.name) : home.tabLabel)
+    title: "Files — " + (nav.place ? (nav.place.kind === "peer" ? nav.place.host + " / " + nav.place.label : nav.place.name) + (nav.folderName ? " / " + nav.folderName : "")
+                                   : nav.host ? nav.host.name : home.tabLabel)
     // closing in the middle of a copy asks first; the answer stops the copy and closes when it has cleaned up
     onClosing: (close) => {
         if (!transfer.busy) return
@@ -20,6 +22,13 @@ Window {
     QtObject {
         id: nav
         property var place: null          // a row of the places model or a nearby share, copied on enter
+        property string computer: ""      // the nearby computer whose folders are listed, by machine id; a folder of its keeps it, so Back lands there
+        property string computerName: ""
+        readonly property var host: computer === "" ? null : (places.nearby.find((c) => c.id === computer) || null)
+        property string selShare: ""      // the folder picked on that list: its place id
+        property var hushed: ({})         // computers whose can't-open message was put away, by machine id
+        property string retrying: ""      // the computer asked for its folders again, until the stream says how it went
+        property bool retryStale: false   // its :invalid is the old outcome until it mounts again
         property string opening: ""       // the nearby share asked for: its place id, until the stream says how it went
         property bool openingStale: false // asked of a share that had failed: its :invalid is the old outcome until it mounts again
         property var path: []             // folder names below the place root
@@ -59,7 +68,36 @@ Window {
             listing.watch = !place || place.kind !== "peer"
             listing.path = dir
         }
-        function enterPlace(p) { place = p; path = []; selected = ""; sync() }
+        function enterPlace(p) {
+            const peer = p.kind === "peer"
+            place = p; computer = peer ? p.hostId : ""; computerName = peer ? p.host : ""; selShare = peer ? p.id : ""
+            path = []; selected = ""; sync()
+        }
+        function openComputer(c) { computer = c.id; computerName = c.name; selShare = "" }
+        // folders of one access ride one connection, so asking for one of each asks for all that failed
+        function retry(c) {
+            retrying = c.id; retryStale = true; giveUp.restart()
+            const asked = {}
+            for (const s of c.shares) {
+                if (s.state !== "invalid" || asked[s.access]) continue
+                asked[s.access] = true
+                commands.post("places/mount", { place: ["peer", s.wire] }, (status) => {
+                    if ((status < 200 || status >= 300) && retrying === c.id) { retrying = ""; toast.show("Couldn't ask " + c.name + " again", "warn") }
+                })
+            }
+        }
+        function retried() {
+            const c = places.nearby.find((h) => h.id === retrying)
+            if (c && c.shares.some((s) => s.state === "mounting")) retryStale = false
+            else if (!c || !retryStale || !c.shares.some((s) => s.state === "invalid")) retrying = ""
+        }
+        function hush(id) { const h = Object.assign({}, hushed); h[id] = true; hushed = h }
+        // a message put away stays away only while the failure it was about stands
+        function unhush() {
+            const keep = {}
+            for (const c of places.nearby) if (hushed[c.id] && c.shares.some((s) => s.state === "invalid")) keep[c.id] = true
+            if (Object.keys(keep).length !== Object.keys(hushed).length) hushed = keep
+        }
         function enter(row) { enterPlace(places.get(row)) }
         // a share's root is mounted with its computer's other shares of the same access, so the stream
         // cannot say which one was asked for: `opening` remembers
@@ -97,18 +135,24 @@ Window {
             const parent = held.rel.split("/").slice(0, -1).join("/")
             held = Object.assign({}, held, { path: now.root + "/" + held.rel, dir: parent !== "" ? now.root + "/" + parent : now.root, from: now.name })
         }
-        function goHome() {
+        function leave() {
             place = null; path = []; selected = ""; listing.path = ""; places.refreshSpace()
             if (dialog !== "quit") { ++op; working = false; dialog = "" }
         }
+        function goHome()   { computer = ""; selShare = ""; leave() }
         function goRoot()   { if (path.length) { path = []; selected = ""; sync() } }
-        function goBack()   { if (path.length) { path = path.slice(0, -1); selected = ""; sync() } else goHome() }
+        // up one level: a folder, then the place; a nearby folder's place is its computer, then home
+        function goUp()     { if (place && place.kind === "peer" && host) leave(); else goHome() }
+        function goBack()   { if (path.length) { path = path.slice(0, -1); selected = ""; sync() } else goUp() }
         function open(row) {
             const e = listing.get(row)
             if (e.isDir) { path = path.concat([e.name]); selected = ""; sync() }
             else { files.open(e.path); toast.show("Opening " + e.name, "open") }
         }
-        function openSelected() { const i = listing.indexOf(selected); if (i >= 0) open(i) }
+        function openSelected() {
+            if (!place) { const s = host ? places.peer(selShare) : null; if (s && s.id && s.hostId === computer) openShare(s); return }
+            const i = listing.indexOf(selected); if (i >= 0) open(i)
+        }
         function ask(kind) { if (canWrite && (kind === "mkdir" || selected !== "")) dialog = kind }
         function confirm(value) {
             if (working) return
@@ -252,8 +296,17 @@ Window {
                 toast.show(peer ? "That shared folder went away, so we brought you back" : "That place was unplugged", peer ? "warn" : "open")
             }
             if (nav.opening !== "") nav.opened()
+            if (nav.retrying !== "") nav.retried()
+            nav.unhush()
+            if (nav.host) nav.computerName = nav.host.name
+            else if (nav.computer !== "" && !nav.place) {
+                const name = nav.computerName
+                nav.goHome()
+                toast.show(name + " isn't sharing anything now, so we brought you back", "warn")
+            }
         }
     }
+    Timer { id: giveUp; interval: 60000; onTriggered: nav.retrying = "" }
     Connections {
         target: transfer
         function onFinished(error, dir, placed, moved, cancelled) {
@@ -267,9 +320,12 @@ Window {
 
     TransferBar { id: bar; what: nav.puttingName; where: nav.putting }
 
-    PlacesHome { id: home; anchors { fill: parent; topMargin: bar.height } visible: !nav.place; opening: nav.opening
+    PlacesHome { id: home; anchors { fill: parent; topMargin: bar.height } visible: !nav.place && !nav.host
+                 opening: nav.opening; hushed: nav.hushed; retrying: nav.retrying
                  onEnter: (row) => nav.enter(row); onOpenShare: (share) => nav.openShare(share)
+                 onOpenComputer: (host) => nav.openComputer(host); onRetry: (host) => nav.retry(host); onHush: (id) => nav.hush(id)
                  onChangeShare: (share) => nav.askShared(share, "share"); onStopShare: (share) => nav.askShared(share, "unshare") }
+    ComputerView { anchors { fill: parent; topMargin: bar.height } visible: !nav.place && !!nav.host; nav: nav }
     PlaceView  { anchors { fill: parent; topMargin: bar.height } visible: !!nav.place; nav: nav }
 
     InPageDialog { id: dialogBox; nav: nav; onConfirm: (v) => nav.confirm(v); onCancel: if (!nav.working) nav.dialog = "" }
@@ -286,7 +342,7 @@ Window {
             const ctrl = ev.modifiers & Qt.ControlModifier
             if (ev.key === Qt.Key_Escape) { if (nav.menuOpen) nav.menuOpen = false; else nav.putBack(); ev.accepted = true }
             else if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter) { nav.openSelected(); ev.accepted = true }
-            else if (ev.key === Qt.Key_Backspace && nav.place) { nav.goBack(); ev.accepted = true }
+            else if (ev.key === Qt.Key_Backspace && (nav.place || nav.host)) { nav.goBack(); ev.accepted = true }
             else if (ctrl && (ev.key === Qt.Key_C || ev.key === Qt.Key_X)) { nav.take(); ev.accepted = true }
             else if (ctrl && ev.key === Qt.Key_V) { nav.copyHere(); ev.accepted = true }
             else if (ev.key === Qt.Key_Delete && nav.place) { nav.ask("delete"); ev.accepted = true }

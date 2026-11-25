@@ -72,6 +72,15 @@ QtObject {
                                : { text: "View only",  glyph: "eye",    tone: "plain" }
     }
 
+    // a nearby computer whose folders can't be opened: said once for the computer, with the cause for an admin
+    function cantOpen(name, all) {
+        return (all ? "The folders on " : "Some folders on ") + name + " can't be opened right now. It may be switched off or out of reach."
+    }
+    function forAdmin(failed) {
+        const why = failed.length ? String(failed[0].reason || "").replace(/\s+/g, " ").trim() : ""
+        return why !== "" ? "For an admin: " + why : ""
+    }
+
     // token chips name the TYPE only — values never reach the wire
     function tokenMeta(type) {
         if (type === "circle/secret") return { text: "Admin key", glyph: "key" }

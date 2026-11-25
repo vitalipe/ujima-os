@@ -24,7 +24,7 @@ class PlacesModel : public QAbstractListModel {
     Q_OBJECT
     Q_PROPERTY(bool connected READ connected NOTIFY connectedChanged)
     Q_PROPERTY(int count READ count NOTIFY countChanged)
-    Q_PROPERTY(QVariantList nearby READ nearby NOTIFY nearbyChanged)     // [{id, name, rw, shares: [share]}] by machine id
+    Q_PROPERTY(QVariantList nearby READ nearby NOTIFY nearbyChanged)     // [{id, name, rw, shares: [share]}] by name
     Q_PROPERTY(int nearbyCount READ nearbyCount NOTIFY nearbyChanged)
     Q_PROPERTY(QVariantList shared READ shared NOTIFY sharedChanged)     // [{place, kind, wire, placeName, name, path, access}] by name
 public:
