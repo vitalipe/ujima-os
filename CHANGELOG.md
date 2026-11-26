@@ -66,6 +66,7 @@ version truth; branch names and build labels may disagree.
 - Files: New folder, Rename and Delete no longer hold the window while they run; one that
   takes more than a second says so in its dialog.
 - TurboWarp is 1.17.1, and no longer checks for or offers updates.
+- Write, Calc and Impress show a white page.
 
 ### Fixed
 
