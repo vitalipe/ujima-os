@@ -182,49 +182,62 @@ Window {
             Item {
                 anchors { left: rail.right; right: parent.right; top: parent.top; bottom: parent.bottom }
 
-                // crumbs
-                Row {
-                    id: crumbs
-                    height: 44
-                    anchors { left: parent.left; leftMargin: 18; verticalCenter: undefined; top: parent.top }
-                    spacing: 2
-                    Rectangle {
-                        height: 30; width: crumb0.implicitWidth + 18 + 17; radius: 8
-                        color: c0h.hovered && nav.path.length ? Qt.rgba(1, 1, 1, .05) : "transparent"
-                        anchors.verticalCenter: parent.verticalCenter
-                        Row {
-                            anchors.centerIn: parent; spacing: 8
-                            Rectangle { width: 9; height: 9; radius: 3; color: nav.place ? Theme.meta(nav.place.kind, nav.place.label).color : "transparent"; anchors.verticalCenter: parent.verticalCenter }
-                            Text { id: crumb0; textFormat: Text.PlainText; text: nav.place ? nav.place.name : ""; color: nav.path.length ? Theme.dim : Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold; font.family: Theme.font }
-                        }
-                        HoverHandler { id: c0h }
-                        TapHandler { onTapped: nav.crumb(0) }
-                    }
-                    Repeater {
-                        model: nav.path
-                        delegate: Row {
-                            required property int index
-                            required property string modelData
-                            spacing: 2
+                // crumbs: a long name is cut, and a trail wider than the window keeps its end in view
+                Item {
+                    id: crumbBox
+                    readonly property real cap: Math.min(280, width - 80)
+                    height: 44; clip: true
+                    anchors { left: parent.left; right: parent.right; top: parent.top; leftMargin: 18; rightMargin: 18 }
+                    Row {
+                        id: crumbs
+                        height: parent.height
+                        x: Math.min(0, crumbBox.width - width)
+                        spacing: 2
+                        Rectangle {
+                            height: 30; width: crumb0.width + 18 + 17; radius: 8
+                            color: c0h.hovered && nav.path.length ? Qt.rgba(1, 1, 1, .05) : "transparent"
                             anchors.verticalCenter: parent.verticalCenter
-                            readonly property bool here: index === nav.path.length - 1
-                            Glyph { name: "crumb"; color: Theme.faint; size: 13; stroke: 2; anchors.verticalCenter: parent.verticalCenter }
-                            Rectangle {
-                                height: 30; width: ct.implicitWidth + 18; radius: 8
-                                color: ch.hovered && !here ? Qt.rgba(1, 1, 1, .05) : "transparent"
+                            Row {
+                                anchors.centerIn: parent; spacing: 8
+                                Rectangle { width: 9; height: 9; radius: 3; color: nav.place ? Theme.meta(nav.place.kind, nav.place.label).color : "transparent"; anchors.verticalCenter: parent.verticalCenter }
+                                Text { id: crumb0; textFormat: Text.PlainText; text: nav.place ? nav.place.name : ""; color: nav.path.length ? Theme.dim : Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold; font.family: Theme.font
+                                       width: Math.min(implicitWidth, crumbBox.cap); elide: Text.ElideRight }
+                            }
+                            HoverHandler { id: c0h }
+                            TapHandler { onTapped: nav.crumb(0) }
+                        }
+                        Repeater {
+                            model: nav.path
+                            delegate: Row {
+                                required property int index
+                                required property string modelData
+                                spacing: 2
                                 anchors.verticalCenter: parent.verticalCenter
-                                Text { id: ct; textFormat: Text.PlainText; anchors.centerIn: parent; text: modelData; color: here ? Theme.text : Theme.dim; font.pixelSize: 13; font.weight: Font.DemiBold; font.family: Theme.font }
-                                HoverHandler { id: ch }
-                                TapHandler { onTapped: if (!here) nav.crumb(index + 1) }
+                                readonly property bool here: index === nav.path.length - 1
+                                Glyph { name: "crumb"; color: Theme.faint; size: 13; stroke: 2; anchors.verticalCenter: parent.verticalCenter }
+                                Rectangle {
+                                    height: 30; width: ct.width + 18; radius: 8
+                                    color: ch.hovered && !here ? Qt.rgba(1, 1, 1, .05) : "transparent"
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    Text { id: ct; textFormat: Text.PlainText; anchors.centerIn: parent; text: modelData; color: here ? Theme.text : Theme.dim; font.pixelSize: 13; font.weight: Font.DemiBold; font.family: Theme.font
+                                           width: Math.min(implicitWidth, crumbBox.cap); elide: Text.ElideRight }
+                                    HoverHandler { id: ch }
+                                    TapHandler { onTapped: if (!here) nav.crumb(index + 1) }
+                                }
                             }
                         }
+                    }
+                    Rectangle {
+                        visible: crumbs.x < 0
+                        width: 24; height: parent.height; color: Theme.bg
+                        Text { anchors.centerIn: parent; text: "…"; color: Theme.faint; font.pixelSize: 13; font.weight: Font.DemiBold; font.family: Theme.font }
                     }
                 }
 
                 // column headers
                 Item {
                     id: cols
-                    anchors { left: parent.left; right: parent.right; top: crumbs.bottom }
+                    anchors { left: parent.left; right: parent.right; top: crumbBox.bottom }
                     height: 30
                     Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: brd }
                     Row {
@@ -303,6 +316,7 @@ Window {
                         id: nameField
                         anchors { fill: parent; leftMargin: 14; rightMargin: 14 }
                         verticalAlignment: TextInput.AlignVCenter
+                        clip: true
                         color: Theme.text; selectionColor: Theme.tint(Theme.frostRgb, .35)
                         font.pixelSize: 14; font.family: Theme.font
                         Keys.onReturnPressed: nav.accept()
@@ -319,14 +333,16 @@ Window {
                 PickerButton { text: "Cancel"; onClicked: pick.cancel() }
                 PickerButton { text: win.acceptText; tone: "primary"; enabled: win.acceptEnabled; onClicked: nav.accept() }
             }
-            // "<name> is already here — replace it?"
+            // "<name> is already here — replace it?": a long name is cut in the middle, the question stays whole
             Row {
                 visible: nav.confirming
                 anchors { left: parent.left; leftMargin: 18; verticalCenter: parent.verticalCenter }
-                Text { textFormat: Text.PlainText; text: nameField.text.trim(); color: Theme.text; font.pixelSize: 14; font.weight: Font.Bold; font.family: Theme.font }
-                Text { text: " is already here — replace it?"; color: Theme.text; font.pixelSize: 14; font.family: Theme.font }
+                Text { textFormat: Text.PlainText; text: nameField.text.trim(); color: Theme.text; font.pixelSize: 14; font.weight: Font.Bold; font.family: Theme.font
+                       width: Math.min(implicitWidth, win.width - 18 - ask.width - replaceBtns.width - 18 - 24); elide: Text.ElideMiddle }
+                Text { id: ask; text: " is already here — replace it?"; color: Theme.text; font.pixelSize: 14; font.family: Theme.font }
             }
             Row {
+                id: replaceBtns
                 visible: nav.confirming
                 anchors { right: parent.right; rightMargin: 18; verticalCenter: parent.verticalCenter }
                 spacing: 10

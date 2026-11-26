@@ -16,8 +16,10 @@ Rectangle {
     readonly property bool danger: kind === "delete" || kind === "unshare" || kind === "quit"
     readonly property bool working: nav.working
     property bool slow: false
+    // a name inside a sentence: the longest are cut in the middle, so no dialog outgrows a small screen
+    function cut(name) { const c = Array.from(name); return c.length > 64 ? c.slice(0, 40).join("") + "…" + c.slice(-20).join("") : name }
     readonly property string doing: kind === "mkdir" ? "Creating the folder…" : kind === "rename" ? "Renaming…"
-                                  : kind === "delete" ? "Deleting “" + nav.selected + "”…" : "Stopping…"
+                                  : kind === "delete" ? "Deleting “" + cut(nav.selected) + "”…" : "Stopping…"
     onWorkingChanged: { slow = false; if (working) late.restart(); else late.stop() }
     Timer { id: late; interval: 1000; onTriggered: dlg.slow = true }
     readonly property bool hasInput: kind === "mkdir" || kind === "rename" || (kind === "share" && naming)
@@ -26,11 +28,11 @@ Rectangle {
                                   : kind === "unshare" ? "Stop sharing?"
                                   : kind === "quit" ? (transfer.moving ? "Still moving" : "Still copying") : "Delete this?"
     readonly property string body: kind === "mkdir" ? "Give the new folder a name."
-                                 : kind === "rename" ? "Choose a new name for “" + nav.selected + "”."
-                                 : kind === "share" ? "Other computers nearby will see “" + target.name + "” on " + machine.name + ". What can people there do with it?"
-                                 : kind === "unshare" ? "Computers nearby won't see “" + target.name + "” any more. It stays on this computer."
-                                 : kind === "quit" ? "“" + nav.puttingName + "” is still being " + (transfer.moving ? "moved" : "copied") + ". Closing Files now stops it: what was copied so far is removed, and the original stays where it is."
-                                 : "“" + nav.selected + "” will be deleted. This cannot be undone." + (nav.selShared ? " It will also stop being shared." : "")
+                                 : kind === "rename" ? "Choose a new name for “" + cut(nav.selected) + "”."
+                                 : kind === "share" ? "Other computers nearby will see “" + cut(target.name) + "” on " + machine.name + ". What can people there do with it?"
+                                 : kind === "unshare" ? "Computers nearby won't see “" + cut(target.name) + "” any more. It stays on this computer."
+                                 : kind === "quit" ? "“" + cut(nav.puttingName) + "” is still being " + (transfer.moving ? "moved" : "copied") + ". Closing Files now stops it: what was copied so far is removed, and the original stays where it is."
+                                 : "“" + cut(nav.selected) + "” will be deleted. This cannot be undone." + (nav.selShared ? " It will also stop being shared." : "")
     readonly property string confirmLabel: kind === "mkdir" ? "Create" : kind === "rename" ? "Save"
                                          : kind === "share" ? (target.existing ? "Save" : "Share")
                                          : kind === "unshare" ? "Stop sharing" : kind === "quit" ? "Stop and close" : "Delete"

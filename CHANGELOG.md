@@ -76,8 +76,10 @@ version truth; branch names and build labels may disagree.
 - Files: a file, folder or computer name with markup in it (`<h1>…`) is shown as written, not
   drawn as formatted text.
 - Files: a long name with no spaces in it stays inside dialogs, messages and the name field
-  instead of running out of them.
+  instead of running out of them; a dialog cuts a name over 64 characters in the middle.
 - Files: a click outside a dialog only closes it, instead of also pressing what is under it.
+- The Open/Save dialog cuts a long name in its trail, name field and "replace it?" question
+  instead of letting it run out of them.
 
 ### Removed
 
