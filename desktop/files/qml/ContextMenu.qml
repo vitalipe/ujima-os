@@ -12,7 +12,11 @@ Item {
     onVisibleChanged: if (visible) fade.restart()
     z: 50
 
-    TapHandler { acceptedButtons: Qt.AllButtons; onTapped: nav.menuOpen = false }   // click outside = close
+    // click outside = close; it takes the grab, so nothing under the menu is tapped.
+    // A right-click goes on, and opens the menu where it lands
+    TapHandler { acceptedButtons: Qt.LeftButton | Qt.MiddleButton; gesturePolicy: TapHandler.ReleaseWithinBounds; onTapped: nav.menuOpen = false }
+    TapHandler { acceptedButtons: Qt.RightButton; onTapped: nav.menuOpen = false }
+    HoverHandler { blocking: true }
 
     Rectangle {   // a dark ring where the design would cast a shadow
         x: card.x - 1; y: card.y - 1; width: card.width + 2; height: card.height + 2; radius: 13

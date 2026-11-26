@@ -77,6 +77,7 @@ version truth; branch names and build labels may disagree.
   drawn as formatted text.
 - Files: a long name with no spaces in it stays inside dialogs, messages and the name field
   instead of running out of them.
+- Files: a click outside a dialog only closes it, instead of also pressing what is under it.
 
 ### Removed
 

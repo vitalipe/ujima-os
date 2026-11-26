@@ -44,7 +44,9 @@ Rectangle {
     visible: kind !== ""
     onVisibleChanged: if (visible) { field.forceActiveFocus(); field.selectAll() }
     onKindChanged: if (kind !== "") { input = kind === "rename" ? nav.selected : ""; error = ""; naming = false; access = target.access; field.forceActiveFocus(); field.selectAll() }
-    TapHandler { onTapped: dlg.cancel() }   // click outside = cancel
+    // click outside = cancel; it takes the grab, so nothing under the dialog is tapped
+    TapHandler { gesturePolicy: TapHandler.ReleaseWithinBounds; onTapped: dlg.cancel() }
+    HoverHandler { blocking: true }
 
     Rectangle {
         anchors.centerIn: parent
