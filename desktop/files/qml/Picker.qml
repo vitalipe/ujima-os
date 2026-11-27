@@ -24,8 +24,10 @@ Window {
         const base = pick.acceptLabel !== "" ? pick.acceptLabel : (pick.directory ? "Select" : pick.mode === "save" ? "Save" : "Open")
         return pick.multiple && nav.selected.length > 1 ? base + " (" + nav.selected.length + ")" : base
     }
+    // a place mounted for reading only (an NTFS stick) can be looked in, never saved to
+    readonly property bool viewOnly: pick.mode === "save" && !!nav.place && !!nav.place.readOnly
     readonly property bool acceptEnabled: pick.directory ? !!nav.place
-                                        : pick.mode === "save" ? nameField.text.trim() !== "" && !!nav.place
+                                        : pick.mode === "save" ? nameField.text.trim() !== "" && !!nav.place && !viewOnly
                                         : nav.selected.length > 0
 
     // an app's own folder under /ujima/apps (Godot's res://) lies in no place: for this request it is
@@ -53,6 +55,7 @@ Window {
         readonly property string dir: place ? (path.length ? place.root + "/" + path.join("/") : place.root) : ""
 
         function sync() {
+            confirming = false
             listing.hideTokenDir = !!place && place.kind === "usb" && path.length === 0
             listing.filter = (pick.mode === "open" && !pick.directory && filter >= 0) ? pick.filters[filter].patterns : []
             listing.path = dir
@@ -325,8 +328,20 @@ Window {
                         Text { visible: nameField.text === ""; text: "File name"; color: Theme.faint; font: nameField.font; anchors.verticalCenter: parent.verticalCenter }
                     }
                 }
+                // why Save is off
+                Row {
+                    visible: win.viewOnly
+                    spacing: 9
+                    anchors.verticalCenter: parent.verticalCenter
+                    readonly property color tone: nav.place ? Theme.meta(nav.place.kind, nav.place.label).color : Theme.dim
+                    Glyph { name: "eye"; color: parent.tone; size: 17; stroke: 1.9; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: "View only — nothing can be saved here. Choose another place."; color: parent.tone; font.pixelSize: 13; font.weight: Font.DemiBold; font.family: Theme.font
+                           width: Math.min(implicitWidth, win.width - 18 - 460 - 14 - 26 - actions.width - 18 - 24); wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                           anchors.verticalCenter: parent.verticalCenter }
+                }
             }
             Row {
+                id: actions
                 visible: !nav.confirming
                 anchors { right: parent.right; rightMargin: 18; verticalCenter: parent.verticalCenter }
                 spacing: 10

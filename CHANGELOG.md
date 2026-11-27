@@ -86,6 +86,8 @@ version truth; branch names and build labels may disagree.
   instead of letting it run out of them.
 - Files: a stick mounted read-only (NTFS) opens as view only, with New folder, Rename and Delete
   off and nothing put down in it; before, they were offered and failed.
+- The Save dialog does not save onto a stick mounted read-only (NTFS): Save is off there and the
+  dialog says why; before, the app was handed a path it could not write.
 
 ### Removed
 
