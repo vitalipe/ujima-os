@@ -39,15 +39,18 @@ Window {
         property int op: 0                // which answer that is; one that lands after its dialog was let go is dropped
         property bool quitting: false     // the window closes when the copy has stopped
         property var shareTarget: null    // the folder the share dialogs are about: {kind, wire, path, folder, name, access, existing}
-        property var held: null           // the one item in your hand: {path, dir, name, type, isDir, from, placeId, kind, wire, rel}; outlives the place
+        property var held: null           // the one item in your hand: {path, dir, name, type, isDir, from, placeId, kind, wire, rel, readOnly}; outlives the place
         property string putting: ""       // where the running put lands, for the toast
         property string puttingName: ""   // and what it is
         property var putTo: null          // and as a place: {kind, wire, rel}
         property bool menuOpen: false
         property point menuAt: Qt.point(0, 0)
         property var menuItems: []
-        readonly property var meta: !place ? null : place.kind === "peer" ? Theme.peerMeta(place.access, place.host) : Theme.meta(place.kind, place.label)
-        readonly property bool canWrite: !place || place.kind !== "peer" || place.access === "rw"
+        readonly property var meta: !place ? null : place.kind === "peer" ? Theme.peerMeta(place.access, place.host) : Theme.meta(place.kind, place.label, place.readOnly)
+        // a view-only share and a stick mounted for reading only are the same here: nothing in them can be changed
+        readonly property bool canWrite: !place || !place.readOnly
+        // so what was taken from one can only be copied
+        readonly property bool canMove: !!held && !held.readOnly
         readonly property bool canShare: !!place && place.kind !== "peer"
         // count is read so this follows the rows as they land, not only the selection
         readonly property bool selDir: listing.count > 0 && selected !== "" && !!listing.get(listing.indexOf(selected)).isDir
@@ -136,7 +139,7 @@ Window {
             const now = places.peer(held.placeId)
             if (now.state !== "ready" || held.path === now.root + "/" + held.rel) return
             const parent = held.rel.split("/").slice(0, -1).join("/")
-            held = Object.assign({}, held, { path: now.root + "/" + held.rel, dir: parent !== "" ? now.root + "/" + parent : now.root, from: now.name })
+            held = Object.assign({}, held, { path: now.root + "/" + held.rel, dir: parent !== "" ? now.root + "/" + parent : now.root, from: now.name, readOnly: now.readOnly })
         }
         function leave() {
             place = null; path = []; selected = ""; listing.path = ""; places.refreshSpace()
@@ -233,14 +236,14 @@ Window {
             if (i < 0 || transfer.busy) return
             const e = listing.get(i)
             held = { path: e.path, dir: dir, name: e.name, type: e.type, isDir: e.isDir, from: place.name, placeId: place.id,
-                     kind: place.kind, wire: place.wire, rel: rel(e.name) }
+                     kind: place.kind, wire: place.wire, rel: rel(e.name), readOnly: !!place.readOnly }
             toast.show("Holding “" + e.name + "” — open the folder you want it in", "hand")
         }
         function putBack() { if (held && !transfer.busy) { toast.show("Put “" + held.name + "” back", "hand"); held = null } }
         function copyHere() { put(false) }
         function moveHere() { put(true) }
         function put(move) {
-            if (!pocket || transfer.busy) return
+            if (!pocket || transfer.busy || move && !canMove) return
             const err = transfer.put(place.root, dir, held.path, move, place.kind === "usb")
             if (err !== "") { toast.show(err, "close"); return }
             putting = folderName !== "" ? folderName : place.name
@@ -273,8 +276,8 @@ Window {
                    { act: "delete", label: "Delete", glyph: "delete", hint: "Del", danger: true, enabled: canWrite }])
                 : [{ act: "mkdir",  label: "New folder", glyph: "newfolder", enabled: canWrite }]
                   .concat(pocket ? [{ sep: true },
-                                    { act: "copy", label: "Copy here", glyph: "copy", hint: "Ctrl+V" },
-                                    { act: "move", label: "Move here", glyph: "down" }] : [])
+                                    { act: "copy", label: "Copy here", glyph: "copy", hint: "Ctrl+V" }] : [])
+                  .concat(pocket && canMove ? [{ act: "move", label: "Move here", glyph: "down" }] : [])
                   .concat(held ? [{ act: "putback", label: "Put back", glyph: "close", hint: "Esc" }] : [])
             menuOpen = true
         }

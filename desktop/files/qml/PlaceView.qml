@@ -170,7 +170,7 @@ Item {
                     Component {
                         id: pocketC
                         PocketTile {
-                            held: nav.held
+                            held: nav.held; canMove: nav.canMove
                             busy: transfer.busy; moving: transfer.moving
                             progress: transfer.total > 0 ? transfer.done / transfer.total : 0
                             onCopy: nav.copyHere(); onMove: nav.moveHere(); onPutBack: nav.putBack()

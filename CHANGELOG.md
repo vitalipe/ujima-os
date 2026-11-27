@@ -26,7 +26,9 @@ version truth; branch names and build labels may disagree.
 - Files: an item can be taken and put down in another folder or place, as a copy or a move; a
   right-click menu on an item and on the folder offers the toolbar's actions. A copy or move
   that takes more than a second shows a bar on every screen with Cancel; it is written under a
-  hidden name until it is whole, and closing Files in the middle of one asks first.
+  hidden name until it is whole, and closing Files in the middle of one asks first. An item
+  taken from a place that can't be changed (a view-only share, a read-only stick) is offered as a
+  copy only.
 - The launcher names the app under the pointer and shows its one-line description under the machine
   name, for launcher and dock tiles alike; an app declares it in app.edn as `:description`.
 - Every mounted place has one fixed path by its id, `/ujima/run/places/<kind>/<id>`, for as long
@@ -82,6 +84,8 @@ version truth; branch names and build labels may disagree.
 - Files: a click outside a dialog only closes it, instead of also pressing what is under it.
 - The Open/Save dialog cuts a long name in its trail, name field and "replace it?" question
   instead of letting it run out of them.
+- Files: a stick mounted read-only (NTFS) opens as view only, with New folder, Rename and Delete
+  off and nothing put down in it; before, they were offered and failed.
 
 ### Removed
 

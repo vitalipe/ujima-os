@@ -3,12 +3,13 @@ import QtQuick.Shapes
 import "."
 
 // the item in your hand, at the front of every folder it could land in: its own icon, where it
-// came from, and the two ways to put it down. × puts it back. While it is being put down here,
-// the buttons give way to the bar.
+// came from, and the two ways to put it down — one, a copy, when where it came from can't be
+// changed. × puts it back. While it is being put down here, the buttons give way to the bar.
 Rectangle {
     id: pocket
     property var held
     property bool busy: false
+    property bool canMove: true
     property bool moving: false
     property real progress: 0
     readonly property string type: held ? held.type : "file"
@@ -62,7 +63,7 @@ Rectangle {
                 visible: !pocket.busy
                 spacing: 8
                 ActionButton { compact: true; label: "Copy here"; glyph: "copy"; tone: "primary"; onClicked: pocket.copy() }
-                ActionButton { compact: true; label: "Move here"; glyph: "down"; tone: "plain"; onClicked: pocket.move() }
+                ActionButton { visible: pocket.canMove; compact: true; label: "Move here"; glyph: "down"; tone: "plain"; onClicked: pocket.move() }
             }
             Column {
                 visible: pocket.busy

@@ -12,15 +12,17 @@ PlacesModel::PlacesModel(const QUrl& streamUrl, QObject* parent)
     connect(&m_stream, &Stream::connectedChanged, this, &PlacesModel::connectedChanged);
 }
 
-static qint64 usedOf(const QString& root, qint64* total) {
-    QStorageInfo si(root);
-    *total = si.bytesTotal();
-    return si.bytesTotal() - si.bytesAvailable();
+static void measure(Place& p) {
+    const QStorageInfo si(p.root);
+    p.total    = si.bytesTotal();
+    p.used     = si.bytesTotal() - si.bytesAvailable();
+    p.readOnly = si.isReadOnly();
 }
 
 QVariantMap PeerShare::toMap() const {
     return {{"id", id}, {"wire", wire}, {"kind", "peer"}, {"name", label + " on " + host}, {"label", label},
-            {"host", host}, {"hostId", hostId}, {"access", access}, {"state", state}, {"root", root}, {"reason", reason}};
+            {"host", host}, {"hostId", hostId}, {"access", access}, {"readOnly", access != "rw"}, {"state", state},
+            {"root", root}, {"reason", reason}};
 }
 
 static PeerShare peerOf(const QJsonObject& o) {
@@ -71,7 +73,7 @@ void PlacesModel::apply(const QJsonArray& places) {
         p.root   = o.value("storage").toString();
         for (const QJsonValue& t : o.value("tokens").toArray()) p.tokens << t.toString();
         while (p.root.size() > 1 && p.root.endsWith('/')) p.root.chop(1);
-        p.used   = usedOf(p.root, &p.total);
+        measure(p);
         next.push_back(p);
     }
     // the design's order: the session first, then this computer, then sticks by name
@@ -113,9 +115,9 @@ void PlacesModel::apply(const QJsonArray& places) {
 }
 
 void PlacesModel::refreshSpace() {
-    for (Place& p : m_places) p.used = usedOf(p.root, &p.total);
+    for (Place& p : m_places) measure(p);
     if (!m_places.isEmpty())
-        emit dataChanged(index(0), index(m_places.size() - 1), {UsedRole, TotalRole, FreeRole, PctRole});
+        emit dataChanged(index(0), index(m_places.size() - 1), {UsedRole, TotalRole, FreeRole, PctRole, ReadOnlyRole});
 }
 
 QVariant PlacesModel::data(const QModelIndex& idx, int role) const {
@@ -135,6 +137,7 @@ QVariant PlacesModel::data(const QModelIndex& idx, int role) const {
     case PctRole:    return p.total > 0 ? int(std::min<qint64>(100, (p.used * 100) / p.total)) : 0;
     case TokensRole: return p.tokens;
     case WireRole:   return p.wire;
+    case ReadOnlyRole: return p.readOnly;
     }
     return {};
 }
@@ -142,7 +145,8 @@ QVariant PlacesModel::data(const QModelIndex& idx, int role) const {
 QHash<int, QByteArray> PlacesModel::roleNames() const {
     return {{IdRole, "id"}, {KindRole, "kind"}, {StateRole, "state"}, {NameRole, "name"},
             {LabelRole, "label"}, {FstypeRole, "fstype"}, {RootRole, "root"}, {UsedRole, "used"},
-            {TotalRole, "total"}, {FreeRole, "free"}, {PctRole, "pct"}, {TokensRole, "tokens"}, {WireRole, "wire"}};
+            {TotalRole, "total"}, {FreeRole, "free"}, {PctRole, "pct"}, {TokensRole, "tokens"}, {WireRole, "wire"},
+            {ReadOnlyRole, "readOnly"}};
 }
 
 QVariantMap PlacesModel::get(int row) const {

@@ -5,7 +5,8 @@
 #include "stream.h"
 
 // The places stream (ujimad, NDJSON) as a list model: one row per READY place, Temporary first,
-// then the machine, then sticks. Names come from the wire — the same ones every dialog shows. Space figures come from statvfs on each browse root.
+// then the machine, then sticks. Names come from the wire — the same ones every dialog shows. Space figures and
+// read-only come from statvfs on each browse root; a nearby share's read-only is its access, never asked of the mount.
 // A nearby computer's shares are not rows: they ride `nearby`, one entry per computer, in every state.
 // What this machine shares rides `shared`, each folder with the place it is in.
 struct Place {
@@ -13,6 +14,7 @@ struct Place {
     QVariantList shares;       // [{name, path, access}]
     QStringList tokens;        // token TYPES the stick carries ("circle/secret", "ujima/pack") — never values
     qint64 used = 0, total = 0;
+    bool readOnly = false;     // mounted for reading only (an NTFS stick): nothing here can be changed
 };
 
 struct PeerShare {
@@ -29,7 +31,7 @@ class PlacesModel : public QAbstractListModel {
     Q_PROPERTY(QVariantList shared READ shared NOTIFY sharedChanged)     // [{place, kind, wire, placeName, name, path, access}] by name
 public:
     enum Roles { IdRole = Qt::UserRole + 1, KindRole, StateRole, LabelRole, FstypeRole, RootRole,
-                 NameRole, UsedRole, TotalRole, FreeRole, PctRole, TokensRole, WireRole };
+                 NameRole, UsedRole, TotalRole, FreeRole, PctRole, TokensRole, WireRole, ReadOnlyRole };
     explicit PlacesModel(const QUrl& streamUrl, QObject* parent = nullptr);
 
     int rowCount(const QModelIndex& = {}) const override { return m_places.size(); }

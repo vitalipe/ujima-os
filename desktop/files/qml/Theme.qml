@@ -30,7 +30,7 @@ QtObject {
     function colorOf(type) { return typeColor[type] || typeColor.file }
 
     // one presentation per place kind; the NAME rides on the wire (place.name) — glyph, colour and copy live here
-    function meta(kind, label) {
+    function meta(kind, label, readOnly) {
         if (kind === "session") return {
             glyph: "temp", color: "#cba878", rgb: [203, 168, 120], dashed: true,
             desc: "A scratch space for right now.", badge: "Erased at shutdown",
@@ -41,8 +41,11 @@ QtObject {
             glyph: "usb", color: "#7e9ed6", rgb: [126, 158, 214],
             desc: "Plugged into this computer. Take it with you.",   // the label rides as a chip
             badge: "Removable", dashed: false,
-            notice: "This is a USB stick. Come back to the Places screen before you unplug it.",
-            emptyHint: "Use “New folder” to start organising files." }
+            noticeGlyph: readOnly ? "eye" : "",
+            notice: readOnly ? "View only — this computer can only read this USB stick. You can open files, but not add, rename or delete."
+                             : "This is a USB stick. Come back to the Places screen before you unplug it.",
+            emptyHint: readOnly ? "Nothing can be added here — this computer can only read this USB stick."
+                                : "Use “New folder” to start organising files." }
         if (kind === "app") return {   // never on the wire: the picker's place for an app's own folder
             glyph: "folder", color: frost, rgb: frostRgb, dashed: false,
             desc: "The asking app's own folder.", badge: "This app's folder",
