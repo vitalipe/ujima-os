@@ -8,45 +8,62 @@ version truth; branch names and build labels may disagree.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-28
+
+Sharing files across the circle: a folder is shared from Files, the folders nearby
+computers share open as places, and an item can be taken from one place and put down
+in another. Underneath: machines find each other by a signed heartbeat, the bars and
+the lock join the launcher in one native shell, apps run under memory caps with
+compressed swap behind them, and boot shows an animation.
+
 ### Added
 
+- A folder in This Computer, a stick or Temporary can be shared with the circle, read-only or
+  writable, under its own name, for the session; served over SMB, away while its stick is out.
+- The shares of nearby computers are places too: one opens on request, and is gone when its
+  computer leaves the network.
+- Files lists them on a Nearby tab, a card per computer, all one size (up to three folders, or
+  two and a count of the rest): a row opens that folder, the card opens the computer's full
+  list, and Back from a folder returns to whichever it was opened from.
+- A nearby folder slow to open holds the window, with Cancel; folders that can't be opened are
+  reported once per computer, with Try again. A view-only share opens with New folder, Rename
+  and Delete off.
+- Files shares a folder from its Share button and lists this computer's shares on a Shared from
+  here tab; a shared folder that is renamed or moved stays shared, and a deleted one stops.
+- Files: an item can be taken and put down in another folder or place, as a copy or a move; one
+  taken from a place that can't be changed (a view-only share, a read-only stick) is offered as
+  a copy only.
+- Files: a copy or move that takes more than a second shows a bar on every screen with Cancel;
+  it is written under a hidden name until it is whole, and closing Files in the middle of one
+  asks first.
+- Files: a right-click menu on an item and on the folder offers the toolbar's actions.
+- Every mounted place has one fixed path by its id, `/ujima/run/places/<kind>/<id>`, for as long
+  as it is mounted.
+- The launcher names the app under the pointer and shows its one-line description under the machine
+  name, for launcher and dock tiles alike; an app declares it in app.edn as `:description`.
 - A boot animation: from early boot the UjimaOS mark builds itself, then a glint orbits its ring
   until the desktop is ready and the mark fades into it. Shutdown and reboot show the mark too.
 - Compressed swap in RAM, half the machine's RAM in size (zram, lz4): under memory pressure idle
   app memory is compressed instead of program code being evicted and re-read from the card.
 - Each app runs under a memory cap, half of RAM plus a quarter in swap: an app that outgrows it is
-  closed on its own, the desktop and the other apps are untouched.
+  closed on its own, the desktop and the other apps are untouched. A browser-based app (Web,
+  TurboWarp) is capped and closed whole, with the process the browser keeps outside its scope.
 - When the machine starts thrashing, the app holding the most memory is closed, the one on screen
   spared unless it is alone, and a second app only if the first kill did not help. The kernel's
   own killer never acts on a gradual pile-up.
-- Closing or killing a browser-based app (Web, TurboWarp) takes the process the browser keeps
-  outside its scope; before, it was left behind.
 - The desktop itself (X, i3, ujimad, the shell, the file-dialog portal) keeps its memory under
   pressure: apps are pushed into swap, the desktop stays responsive.
-- Files: an item can be taken and put down in another folder or place, as a copy or a move; a
-  right-click menu on an item and on the folder offers the toolbar's actions. A copy or move
-  that takes more than a second shows a bar on every screen with Cancel; it is written under a
-  hidden name until it is whole, and closing Files in the middle of one asks first. An item
-  taken from a place that can't be changed (a view-only share, a read-only stick) is offered as a
-  copy only.
-- The launcher names the app under the pointer and shows its one-line description under the machine
-  name, for launcher and dock tiles alike; an app declares it in app.edn as `:description`.
-- Every mounted place has one fixed path by its id, `/ujima/run/places/<kind>/<id>`, for as long
-  as it is mounted.
-- A folder in This Computer, a stick or Temporary can be shared with the circle, read-only or
-  writable, under its own name, for the session; served over SMB, away while its stick is out.
-  The shares of nearby computers are places too: one opens on request, and is gone when its
-  computer leaves the network. Files lists them on a Nearby tab, a card per computer, all one
-  size (up to three folders, or two and a count of the rest): a row opens that folder, the
-  card opens the computer's full list, and Back from a folder returns to whichever it was
-  opened from. A folder slow to open holds the window, with Cancel. Folders that can't be
-  opened are reported once per computer, with Try again. A
-  view-only share opens with New folder, Rename and Delete off. Files shares a folder from its
-  Share button and lists this computer's shares on a Shared from here tab; a shared folder
-  that is renamed or moved stays shared, and a deleted one stops.
 
 ### Changed
 
+- Files: New folder, Rename and Delete no longer hold the window while they run; one that
+  takes more than a second says so in its dialog.
+- Machines find each other by a signed heartbeat each broadcasts every two seconds: a machine that
+  joins is on every other's roster within seconds, one that goes quiet reads off within seven, and
+  the Console reads its own machine's roster. A machine can be removed from the roster; it
+  returns when heard again.
+- The machine query answers each node from a half-second cache, so a room of consoles polling
+  one machine costs it one render per node, not one per request; the clock it serves stays live.
 - The launcher, top bar, dock and lock screen are one Qt user service, `ujima-shell`: back within
   a second of a crash, restarted when hung, and a crash no longer ends the session.
 - The bars are i3 docks: a fullscreen app covers them, and solo and lock hand their space over.
@@ -59,42 +76,35 @@ version truth; branch names and build labels may disagree.
   X, i3, ujimad, the shell and the portal are shielded.
 - ujimad holds about 50 MB less memory, and 90 MB less at startup: its heap is capped instead of
   growing with the machine's RAM.
-- The machine query answers each node from a half-second cache, so a room of consoles polling
-  one machine costs it one render per node, not one per request; the clock it serves stays live.
-- Machines find each other by a signed heartbeat each broadcasts every two seconds: a machine that
-  joins is on every other's roster within seconds, one that goes quiet reads off within seven, and
-  the Console reads its own machine's roster. A machine can be removed from the roster; it
-  returns when heard again.
-- Files: New folder, Rename and Delete no longer hold the window while they run; one that
-  takes more than a second says so in its dialog.
 - TurboWarp is 1.17.1, and no longer checks for or offers updates.
-- Write, Calc and Impress show a white page.
 
 ### Fixed
 
-- A session rebuilt after ujimad crashes gets a working file-dialog portal, instead of one
-  restarting every 2 s behind the previous session's.
-- A web app (Excalidraw, the Console, the trial-boot page) no longer downloads Chromium's
-  components into its profile: a closed one keeps about 10 MB of RAM instead of about 130 MB.
-- Files: saving a name that already exists shows the error instead of closing the dialog.
-- Files: a file, folder or computer name with markup in it (`<h1>…`) is shown as written, not
-  drawn as formatted text.
-- Files: a long name with no spaces in it stays inside dialogs, messages and the name field
-  instead of running out of them; a dialog cuts a name over 64 characters in the middle.
-- Files: a click outside a dialog only closes it, instead of also pressing what is under it.
-- The Open/Save dialog cuts a long name in its trail, name field and "replace it?" question
-  instead of letting it run out of them.
 - Files: a stick mounted read-only (NTFS) opens as view only, with New folder, Rename and Delete
-  off and nothing put down in it; before, they were offered and failed.
+  off; before, they were offered and failed.
 - The Save dialog does not save onto a stick mounted read-only (NTFS): Save is off there and the
   dialog says why; before, the app was handed a path it could not write.
+- Files: saving a name that already exists shows the error instead of closing the dialog.
+- Files: a click outside a dialog only closes it, instead of also pressing what is under it.
+- Files: a file or folder name with markup in it (`<h1>…`) is shown as written, not drawn as
+  formatted text.
+- Files: a long name with no spaces in it stays inside dialogs, messages and the name field
+  instead of running out of them; a dialog cuts a name over 64 characters in the middle.
+- The Open/Save dialog cuts a long name in its trail, name field and "replace it?" question
+  instead of letting it run out of them.
+- Write, Calc and Impress show a white page with black text; under the desktop's dark theme the
+  page was dark grey.
+- A web app (Excalidraw, the Console, the trial-boot page) no longer downloads Chromium's
+  components into its profile: a closed one keeps about 10 MB of RAM instead of about 130 MB.
+- A session rebuilt after ujimad crashes gets a working file-dialog portal, instead of one
+  restarting every 2 s behind the previous session's.
 
 ### Removed
 
-- eww: its bars and lock are the shell's now; its binary and `libdbusmenu-gtk3-4` leave the image.
-- xdotool leaves release images; dev images keep it for the desktop relay.
 - The Console's Rescan and its subnet sweep are gone, and with them the machine's mDNS advert
   and `avahi-utils`: the heartbeat is the one way machines find each other.
+- eww: its bars and lock are the shell's now; its binary and `libdbusmenu-gtk3-4` leave the image.
+- xdotool leaves release images; dev images keep it for the desktop relay.
 
 ## [0.5.2] - 2026-09-17
 
@@ -424,7 +434,8 @@ read-only root, a babashka settings daemon (ujimad), an i3 + eww + WebKitGTK she
 - **Dev rig** — live `dev push` / `dev script` deploy to a dev Pi, e2e runner,
   screenshot/drive tooling.
 
-[Unreleased]: https://github.com/vitalipe/ujima-os/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/vitalipe/ujima-os/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/vitalipe/ujima-os/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/vitalipe/ujima-os/compare/v0.5.0...v0.5.2
 [0.5.0]: https://github.com/vitalipe/ujima-os/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/vitalipe/ujima-os/compare/v0.3.0...v0.4.0
